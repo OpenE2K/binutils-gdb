@@ -35,6 +35,10 @@ dis-buf.c
 dis-init.c
 disassemble.c
 dlx-dis.c
+e2k-dis.c
+e2k-opc.c
+e2k-opc.h
+elcore-dis.c
 epiphany-asm.c
 epiphany-desc.c
 epiphany-desc.h

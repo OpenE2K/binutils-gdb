@@ -806,6 +806,10 @@ do_align (unsigned int n, char *fill, unsigned int len, unsigned int max)
     record_alignment (now_seg, n - OCTETS_PER_BYTE_POWER);
 }
 
+#if 0
+extern void my_sleep (void);
+#endif /* 0  */
+
 /* We read the file, putting things into a web that represents what we
    have been reading.  */
 void
@@ -1082,6 +1086,23 @@ read_a_source_file (const char *name)
 			pop = (pseudo_typeS *) hash_find (po_hash, s + 1);
 		      if (pop && !pop->poc_handler)
 			pop = NULL;
+
+#if 0
+		      if (pop
+			  && pop->poc_name[0] == 'c'
+			  && pop->poc_name[1] == 'f'
+			  && pop->poc_name[2] == 'i')
+			{
+			  if (strcmp (pop->poc_name, "cfi_startproc")
+			      && strcmp (pop->poc_name, "cfi_endproc")
+			      && strcmp (pop->poc_name, "cfi_lsda")
+			      && strcmp (pop->poc_name, "cfi_personality")
+			      && strcmp (pop->poc_name, "cfi_window_save")
+			      && strcmp (pop->poc_name, "cfi_register")
+			      && strcmp (pop->poc_name, "cfi_def_cfa_register"))
+			  my_sleep ();
+			}
+#endif /* 0  */
 
 		      /* In MRI mode, we may need to insert an
 			 automatic alignment directive.  What a hack
@@ -5271,7 +5292,7 @@ output_big_leb128 (char *p, LITTLENUM_TYPE *bignum, unsigned int size, int sign)
 /* Generate the appropriate fragments for a given expression to emit a
    leb128 value.  SIGN is 1 for sleb, 0 for uleb.  */
 
-static void
+void
 emit_leb128_expr (expressionS *exp, int sign)
 {
   operatorT op = exp->X_op;

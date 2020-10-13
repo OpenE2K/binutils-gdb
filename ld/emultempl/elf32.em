@@ -1696,7 +1696,14 @@ gld${EMULATION_NAME}_before_allocation (void)
   if (is_elf_hash_table (link_info.hash))
     {
       _bfd_elf_tls_setup (link_info.output_bfd, &link_info);
-
+EOF
+if [ -n "$SUPPORT_EIR" ]; then
+fragment <<EOF
+      if (link_mixed_eir == 0)
+        {
+EOF
+fi
+fragment << EOF
       /* Make __ehdr_start hidden if it has been referenced, to
 	 prevent the symbol from being dynamic.  */
       if (!bfd_link_relocatable (&link_info))
@@ -1734,6 +1741,13 @@ gld${EMULATION_NAME}_before_allocation (void)
 	 referred to by dynamic objects.  */
       lang_for_each_statement (gld${EMULATION_NAME}_find_statement_assignment);
     }
+EOF
+if [ -n "$SUPPORT_EIR" ]; then
+fragment <<EOF
+        }
+EOF
+fi
+fragment <<EOF
 
   /* Let the ELF backend work out the sizes of any sections required
      by dynamic linking.  */
@@ -2819,6 +2833,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   ${LDEMUL_RECOGNIZED_FILE-gld${EMULATION_NAME}_load_symbols},
   ${LDEMUL_FIND_POTENTIAL_LIBRARIES-NULL},
   ${LDEMUL_NEW_VERS_PATTERN-NULL},
-  ${LDEMUL_EXTRA_MAP_FILE_TEXT-NULL}
+  ${LDEMUL_EXTRA_MAP_FILE_TEXT-NULL},
+  ${LDEMUL_ALLOW_DYNAMIC_ENTRIES_IN_RELOCATABLE_LINK-NULL}
 };
 EOF

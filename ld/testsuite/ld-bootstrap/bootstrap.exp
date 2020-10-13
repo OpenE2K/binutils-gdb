@@ -25,9 +25,9 @@
 # Make sure that ld can bootstrap itself.
 
 # This test can only be run if ld generates native executables.
-if ![isnative] {
-    return
-}
+# if ![isnative] {
+#     return
+# }
 
 # Determine if plugin support is present.
 remote_exec host "$nm --help" "" "/dev/null" "plugin-support"

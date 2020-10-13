@@ -1,14 +1,14 @@
 SECTIONS
 {
-  .text :
+  .dummy :
   {
     . += 4;
-    *0.o(.text)
+    *0.o(.dummy)
     FILL (0x12)
-    *1.o(.text)
+    *1.o(.dummy)
     . += 1;
     FILL (0x23)
-    *2.o(.text)
+    *2.o(.dummy)
     FILL (0x003456)
     . += 4;
     FILL (0x00004567000089ab0000cdef00000123)

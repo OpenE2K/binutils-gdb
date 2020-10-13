@@ -62,6 +62,7 @@ HFILES = \
 	aarch64-asm.h aarch64-dis.h aarch64-opc.h aarch64-tbl.h \
 	epiphany-desc.h epiphany-opc.h \
 	fr30-desc.h fr30-opc.h \
+	e2k-opc.h \
 	frv-desc.h frv-opc.h \
 	h8500-opc.h \
 	i386-init.h \
@@ -120,6 +121,8 @@ TARGET_LIBOPCODES_CFILES = \
 	d30v-dis.c \
 	d30v-opc.c \
 	dlx-dis.c \
+	e2k-dis.c \
+	e2k-opc.c \
 	epiphany-asm.c \
 	epiphany-desc.c \
 	epiphany-dis.c \

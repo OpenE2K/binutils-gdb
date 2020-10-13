@@ -1,0 +1,47 @@
+if {![istarget e2k*-*-linux*]} {
+    return
+}
+
+	run_cc_link_tests [list \
+	    [list \
+		"Build libpr19784a.so" \
+		"-shared -Wl,-Bsymbolic-functions" \
+		"-fPIC -O2 -g" \
+		{ ../ld-x86-64/pr19784b.c ../ld-x86-64/pr19784c.c } \
+		{} \
+		"libpr19784a.so" \
+	    ] \
+	    [list \
+		"Build libpr19784b.so" \
+		"-shared -Wl,-Bsymbolic-functions" \
+		"-fPIC -O2 -g" \
+		{ ../ld-x86-64/pr19784c.c ../ld-x86-64/pr19784b.c } \
+		{} \
+		"libpr19784b.so" \
+	    ] \
+	    [list \
+		"Build pr19784a.o" \
+		"" \
+		"" \
+		{ ../ld-x86-64/pr19784a.c } \
+	    ] \
+	]
+
+	run_ld_link_exec_tests [list \
+	    [list \
+		"Run pr19784a" \
+		"tmpdir/pr19784a.o tmpdir/libpr19784a.so" \
+		"" \
+		{ ../ld-x86-64/dummy.s } \
+		"pr19784a" \
+		"../ld-x86-64/pass.out" \
+	    ] \
+	    [list \
+		"Run pr19784b" \
+		"-Wl,--as-needed tmpdir/pr19784a.o tmpdir/libpr19784b.so" \
+		"" \
+		{ ../ld-x86-64/dummy.s } \
+		"pr19784b" \
+		"../ld-x86-64/pass.out" \
+	    ] \
+	]

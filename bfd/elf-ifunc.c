@@ -356,6 +356,8 @@ keep:
   return TRUE;
 }
 
+/* Leave the underlying function in place since E2K needs it.  */
+
 /* Similar to _bfd_elf_get_synthetic_symtab, optimized for unsorted PLT
    entries.  PLT is the PLT section.  PLT_SYM_VAL is a function pointer
    which returns an array of PLT entry symbol values.  */
@@ -365,7 +367,9 @@ _bfd_elf_ifunc_get_synthetic_symtab
   (bfd *abfd, long symcount ATTRIBUTE_UNUSED,
    asymbol **syms ATTRIBUTE_UNUSED, long dynsymcount, asymbol **dynsyms,
    asymbol **ret, asection *plt,
-   bfd_vma *(*get_plt_sym_val) (bfd *, asymbol **, asection *, asection *))
+   int kind,
+   bfd_vma *(*get_plt_sym_val) (bfd *, asymbol **, asection *, asection *,
+                                int))
 {
   const struct elf_backend_data *bed = get_elf_backend_data (abfd);
   asection *relplt;
@@ -378,6 +382,26 @@ _bfd_elf_ifunc_get_synthetic_symtab
   Elf_Internal_Shdr *hdr;
   char *names;
   bfd_vma *plt_sym_val;
+  const char *plt_sfx;
+  size_t plt_sfx_sz;
+
+  switch (kind)
+    {
+    case 0:
+      plt_sfx = "@plt";
+      plt_sfx_sz = sizeof ("@plt");
+      break;
+    case 1:
+      plt_sfx = "@secondary_plt";
+      plt_sfx_sz = sizeof ("@secondary_plt");
+      break;
+    case 2:
+      plt_sfx = "@plt.got";
+      plt_sfx_sz = sizeof ("@plt.got");
+      break;
+    default:
+      return -1;
+    }
 
   *ret = NULL;
 
@@ -390,10 +414,30 @@ _bfd_elf_ifunc_get_synthetic_symtab
   if (dynsymcount <= 0)
     return 0;
 
-  relplt_name = bed->relplt_name;
-  if (relplt_name == NULL)
-    relplt_name = bed->rela_plts_and_copies_p ? ".rela.plt" : ".rel.plt";
-  relplt = bfd_get_section_by_name (abfd, relplt_name);
+  /* When looking for primary and secondary PLT entries one should iterate
+     over `.rela.plt', whereas for `.plt.got' entries (recall that they are
+     created for functions a pointer to which should be resolved in a non-lazy
+     way (in a shared library?)) - over `.rela.dyn'.  */
+  if (kind == 0 || kind == 1)
+    {
+      relplt_name = bed->relplt_name;
+      if (relplt_name == NULL)
+        relplt_name = bed->rela_plts_and_copies_p ? ".rela.plt" : ".rel.plt";
+      relplt = bfd_get_section_by_name (abfd, relplt_name);
+    }
+  else
+    {
+      /* FIXME: currently this function is called with `kind == 2' for E2K
+         only. How should I properly choose between `.rel{,a}.dyn' on other
+         platforms?  */
+      relplt_name = ".rela.dyn";
+
+      /* FIXME: is it worthwhile to iterate over a potentially huge `.rela.dyn'
+         for just a few relocations related to `.plt.got' entries? There are a
+         couple of such entries in libc.so . . .  */
+      relplt = bfd_get_section_by_name (abfd, relplt_name);
+    }
+
   if (relplt == NULL)
     return 0;
 
@@ -411,7 +455,7 @@ _bfd_elf_ifunc_get_synthetic_symtab
   p = relplt->relocation;
   for (i = 0; i < count; i++, p += bed->s->int_rels_per_ext_rel)
     {
-      size += strlen ((*p->sym_ptr_ptr)->name) + sizeof ("@plt");
+      size += strlen ((*p->sym_ptr_ptr)->name) + plt_sfx_sz;
       if (p->addend != 0)
 	{
 #ifdef BFD64
@@ -422,7 +466,7 @@ _bfd_elf_ifunc_get_synthetic_symtab
 	}
     }
 
-  plt_sym_val = get_plt_sym_val (abfd, dynsyms, plt, relplt);
+  plt_sym_val = get_plt_sym_val (abfd, dynsyms, plt, relplt, kind);
   if (plt_sym_val == NULL)
     return -1;
 
@@ -471,8 +515,8 @@ _bfd_elf_ifunc_get_synthetic_symtab
 	  memcpy (names, a, len);
 	  names += len;
 	}
-      memcpy (names, "@plt", sizeof ("@plt"));
-      names += sizeof ("@plt");
+      memcpy (names, plt_sfx, plt_sfx_sz);
+      names += plt_sfx_sz;
       ++s, ++n;
     }
 

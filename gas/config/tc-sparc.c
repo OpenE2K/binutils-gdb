@@ -286,6 +286,8 @@ static struct sparc_arch {
   /* This exists to allow configure.tgt to pass one
      value to specify both the default machine and default word size.  */
   { "v9-64",   "v9",  v9, 64, 0, 0, 0 },
+  { "r1000", "r1000", v9, 0, 1, 0, 0 },
+  { "r2000", "r1000", v9, 0, 1, HWCAP_SAPPHIRE, 0 },
   { NULL, NULL, v8, 0, 0, 0, 0 }
 };
 
@@ -535,6 +537,22 @@ md_parse_option (int c, const char *arg)
 	opcode_arch = sparc_opcode_lookup_arch (sa->opcode_arch);
 	if (opcode_arch == SPARC_OPCODE_ARCH_BAD)
 	  as_fatal (_("Bad opcode table, broken assembler."));
+
+        /* This awful hack is required to let a user override an explicitly
+           specified `-Ar1000' with, say, `-Av9d' when assembling VIS3-dependent
+           glibc files.  */
+        if (architecture_requested
+            && max_architecture == SPARC_OPCODE_ARCH_V9_MCST)
+          {
+            architecture_requested = 0;
+            hwcap_allowed = 0;
+          }
+
+        /* This hack won't let `-Ar1000' override `-Av9d' if they turn out to
+           be swapped by LCC.  */
+        if (architecture_requested
+            && opcode_arch == SPARC_OPCODE_ARCH_V9_MCST)
+          break;
 
 	if (!architecture_requested
 	    || opcode_arch > max_architecture)
@@ -1143,6 +1161,55 @@ md_begin (void)
   }
 }
 
+/* FIXME: this is a Copy/Paste of `e2k_add_magic_info ()'. What can I do to
+   avoid it?  */
+static void
+sparc_add_magic_info (void)
+{
+  asection *magic_sec;
+  char *magic, *p;
+  size_t name_size, name_size_aligned;
+  size_t magic_size, magic_size_aligned;
+  static const char name[] = "MCST";
+
+  if (! (magic = getenv ("MAGIC")))
+    return;
+
+  name_size = sizeof (name);
+  name_size_aligned = (name_size + 3) & 0xfffffffc;
+  magic_size = strlen (magic) + 1;
+  magic_size_aligned = (magic_size + 3) & 0xfffffffc;
+
+  magic_sec = subseg_new (".magic", 0);
+  bfd_set_section_flags (stdoutput, magic_sec, SEC_HAS_CONTENTS | SEC_READONLY);
+
+  /* Follow the standard note section layout:
+     First write the length of the name string.  */
+  p = frag_more (4);
+  md_number_to_chars (p, (valueT) name_size, 4);
+
+  /* Next comes the length of the "MAGIC" itself, i.e., the actual data.  */
+  p = frag_more (4);
+  md_number_to_chars (p, (valueT) magic_size, 4);
+
+  /* Write the note NT_MAGIC type.  */
+  p = frag_more (4);
+  md_number_to_chars (p, (valueT) NT_MAGIC, 4);
+
+  /* Write the name field.  */
+  p = frag_more (name_size_aligned);
+  /* FIXME: I don't remember for sure if `frag_more ()' zeroes out allocated
+     memory.  */
+  memset (p, 0, name_size_aligned);
+  memcpy (p, name, name_size);
+
+  /* Finally, write the descriptor.  */
+  p = frag_more (magic_size_aligned);
+  memset (p, 0, magic_size_aligned);
+  memcpy (p, magic, magic_size);
+}
+
+
 /* Called after all assembly has been done.  */
 
 void
@@ -1151,6 +1218,23 @@ sparc_md_end (void)
   unsigned long mach = bfd_mach_sparc;
 #if defined(OBJ_ELF) && !defined(TE_SOLARIS)
   int hwcaps, hwcaps2;
+
+  if (current_architecture == SPARC_OPCODE_ARCH_V9_MCST)
+    {
+      /* We may introduce ourselves as ultrasparc3 without any harm. This will
+         let us be executed on a natural ultrasparc3 host. FIXME: now that the
+         definition for HWS_VB has been moved to `opcodes/sparc-opc.c' I have
+         to instantiate it as a unification of HWCAP's.  */
+      if ((hwcap_seen & ~((HWCAP_MUL32 | HWCAP_DIV32 | HWCAP_FSMULD
+                           | HWCAP_POPC | HWCAP_VIS | HWCAP_VIS2)
+                          | HWCAP_FMAF)) == 0)
+        current_architecture = SPARC_OPCODE_ARCH_V9B;
+
+      /* There's no point in writing out this hwcap into an output r1000 file
+         because it's assumed by default. It's required within GAS to prevent
+         us from mistakenly falling back to ultrasparc3 one line above.  */
+      hwcap_seen &= ~HWCAP_R1000;
+    }
 #endif
 
   if (sparc_arch_size == 64)
@@ -1164,6 +1248,7 @@ sparc_md_end (void)
       case SPARC_OPCODE_ARCH_V9V: mach = bfd_mach_sparc_v9v; break;
       case SPARC_OPCODE_ARCH_V9M: mach = bfd_mach_sparc_v9m; break;
       case SPARC_OPCODE_ARCH_M8:  mach = bfd_mach_sparc_v9m8; break;
+      case SPARC_OPCODE_ARCH_V9_MCST: mach = bfd_mach_sparc_v9_mcst; break;
       default: mach = bfd_mach_sparc_v9; break;
       }
   else
@@ -1179,6 +1264,7 @@ sparc_md_end (void)
       case SPARC_OPCODE_ARCH_V9V: mach = bfd_mach_sparc_v8plusv; break;
       case SPARC_OPCODE_ARCH_V9M: mach = bfd_mach_sparc_v8plusm; break;
       case SPARC_OPCODE_ARCH_M8:  mach = bfd_mach_sparc_v8plusm8; break;
+      case SPARC_OPCODE_ARCH_V9_MCST: mach = bfd_mach_sparc_v8plus_mcst; break;
       /* The sparclite is treated like a normal sparc.  Perhaps it shouldn't
 	 be but for now it is (since that's the way it's always been
 	 treated).  */
@@ -1195,6 +1281,8 @@ sparc_md_end (void)
   if (hwcaps2)
     bfd_elf_add_obj_attr_int (stdoutput, OBJ_ATTR_GNU, Tag_GNU_Sparc_HWCAPS2, hwcaps2);
 #endif
+
+  sparc_add_magic_info ();
 }
 
 /* Return non-zero if VAL is in the range -(MAX+1) to MAX.  */
@@ -1613,6 +1701,13 @@ md_assemble (char *str)
         as_warn (_("FP branch in delay slot"));
     }
 
+  /* See Bug #29793, Comments #8 and #9 for an explanation why the underlying
+     code is disabled for E2k. Shortly speaking, a NOP is not required in this
+     situation at V8 hosts produced by MCST. Moreover, the code produced by
+     our GAS has never been executed at original Sun V8 hosts. It would be
+     better either to implement an additional configure option or a special
+     arch value for MCST specific V8 in order to bypass this check  . . .  */
+#if 0
   /* SPARC before v9 requires a nop instruction between a floating
      point instruction and a floating point branch.  We insert one
      automatically, with a warning.  */
@@ -1628,6 +1723,7 @@ md_assemble (char *str)
       output_insn (insn, &nop_insn);
       as_warn (_("FP branch preceded by FP instruction; NOP inserted"));
     }
+#endif /* 0  */
 
   switch (special_case)
     {
@@ -1731,6 +1827,10 @@ get_hwcap_name (bfd_uint64_t mask)
     return "cbcond";
   if (mask & HWCAP_CRC32C)
     return "crc32c";
+  if (mask & HWCAP_R1000)
+    return "r1000";
+  if (mask & HWCAP_SAPPHIRE)
+    return "sapphire";
 
   mask = mask >> 32;
   if (mask & HWCAP2_FJATHPLUS)
@@ -3238,10 +3338,6 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
           bfd_uint64_t hwcaps
 	    = (((bfd_uint64_t) insn->hwcaps2) << 32) | insn->hwcaps;
 
-#if defined(OBJ_ELF) && !defined(TE_SOLARIS)
-	  if (hwcaps)
-		  hwcap_seen |= hwcaps;
-#endif
 	  if (v9_arg_p)
 	    {
 	      needed_arch_mask &=
@@ -3291,6 +3387,15 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      char *p;
 	      char required_archs[SPARC_OPCODE_ARCH_MAX * 16];
 
+              if (&insn[1] - sparc_opcodes < sparc_num_opcodes
+                  && (insn->name == insn[1].name
+                      || !strcmp (insn->name, insn[1].name)))
+                {
+                  ++insn;
+                  s = argsStart;
+                  continue;
+                }
+
 	      /* Create a list of the architectures that support the insn.  */
 	      needed_arch_mask &= ~SPARC_OPCODE_SUPPORTED (max_architecture);
 	      p = required_archs;
@@ -3315,9 +3420,16 @@ sparc_ip (char *str, const struct sparc_opcode **pinsn)
 	      return special_case;
 	    }
 
+#if defined(OBJ_ELF) && !defined(TE_SOLARIS)
+	  if (hwcaps)
+            hwcap_seen |= hwcaps;
+#endif
+
+
 	  /* Make sure the hwcaps used by the instruction are
 	     currently enabled.  */
-	  if (hwcaps & ~hwcap_allowed)
+	  if (!warn_on_bump && architecture_requested
+              && (hwcaps & ~hwcap_allowed))
 	    {
 	      const char *hwcap_name = get_hwcap_name(hwcaps & ~hwcap_allowed);
 
@@ -4877,6 +4989,10 @@ sparc_elf_final_processing (void)
     elf_elfheader (stdoutput)->e_flags |= EF_SPARC_SUN_US1;
   else if (current_architecture == SPARC_OPCODE_ARCH_V9B)
     elf_elfheader (stdoutput)->e_flags |= EF_SPARC_SUN_US1|EF_SPARC_SUN_US3;
+  else if (current_architecture == SPARC_OPCODE_ARCH_V9_MCST)
+    elf_elfheader (stdoutput)->e_flags |= (EF_SPARC_SUN_US1
+                                           | EF_SPARC_SUN_US3
+                                           | EF_SPARC_MCST);
 }
 
 const char *

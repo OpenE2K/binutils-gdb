@@ -1,0 +1,6 @@
+set mode 128
+set as_flags "-mptr32 -M"
+set cc_flags "-mptr128"
+set emul "elf32_e2k_pm"
+
+load_file $srcdir/config/e2k-cross.exp

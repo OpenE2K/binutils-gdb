@@ -846,12 +846,17 @@ This program has absolutely no warranty.\n"));
 	  listing_lhs_cont_lines = atoi (optarg);
 	  break;
 
+          /* FIXME. Probably there is no other way to prevent gas
+             from handling this option in a "standard" way. My
+             md_parse_option is likely to "accept" it. */
+#if 0
 	case 'M':
 	  flag_mri = 1;
 #ifdef TC_M68K
 	  flag_m68k_mri = 1;
 #endif
 	  break;
+#endif /* 0 */
 
 	case 'R':
 	  flag_readonly_data_in_text = 1;

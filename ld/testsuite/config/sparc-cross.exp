@@ -1,0 +1,40 @@
+# Copyright (C) 2013 by Ilya Malakhov
+
+load_file $srcdir/config/default.exp
+
+proc sparc${mode}-cross_init { dummy } {
+
+ global mode
+
+ global CC HOSTING_EMU AS LD as ld
+ global orig_CC orig_HOSTING_EMU orig_AS orig_LD orig_as orig_ld
+
+ set orig_CC "$CC"
+ set orig_HOSTING_EMU "$HOSTING_EMU"
+ set orig_AS "$AS"
+ set orig_LD "$LD"
+ set orig_as "$as"
+ set orig_ld "$ld"
+
+ set CC "$CC -m${mode}"
+ set HOSTING_EMU "-m elf${mode}_sparc"
+ set AS "$AS -${mode}"
+ set LD "$LD -melf${mode}_sparc"
+ set as "$as -${mode}"
+ set ld "$ld -melf${mode}_sparc"
+}
+
+proc sparc${mode}-cross_exit { } {
+
+ global mode
+
+ global CC HOSTING_EMU AS LD as ld
+ global orig_CC orig_HOSTING_EMU orig_AS orig_LD orig_as orig_ld
+
+ set CC "$orig_CC"
+ set HOSTING_EMU "$orig_HOSTING_EMU"
+ set AS "$orig_AS"
+ set LD "$orig_LD"
+ set as "$orig_as"
+ set ld "$orig_ld"
+}

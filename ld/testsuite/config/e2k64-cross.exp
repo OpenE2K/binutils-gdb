@@ -1,0 +1,6 @@
+set mode 64
+set as_flags "-mptr64"
+set cc_flags "-mptr64"
+set emul "elf64_e2k"
+
+load_file $srcdir/config/e2k-cross.exp

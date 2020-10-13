@@ -96,6 +96,8 @@ extern struct bfd_elf_version_expr *ldemul_new_vers_pattern
   (struct bfd_elf_version_expr *);
 extern void ldemul_extra_map_file_text
   (bfd *, struct bfd_link_info *, FILE *);
+extern bfd_boolean ldemul_allow_dynamic_entries_in_relocatable_link
+  (void);
 
 typedef struct ld_emulation_xfer_struct {
   /* Run before parsing the command line and script file.
@@ -200,6 +202,9 @@ typedef struct ld_emulation_xfer_struct {
      emulation-specific sections for it.  */
   void (*extra_map_file_text)
     (bfd *, struct bfd_link_info *, FILE *);
+
+  bfd_boolean (*allow_dynamic_entries_in_relocatable_link)
+    (void);
 
 } ld_emulation_xfer_type;
 

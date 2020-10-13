@@ -345,7 +345,7 @@ case "${ENABLE_GOLD}" in
       # Check for target supported by gold.
       case "${target}" in
         i?86-*-* | x86_64-*-* | sparc*-*-* | powerpc*-*-* | arm*-*-* \
-        | aarch64*-*-* | tilegx*-*-* | mips*-*-* | s390*-*-*)
+        | aarch64*-*-* | tilegx*-*-* | mips*-*-* | s390*-*-* | e2k-*)
 	  configdirs="$configdirs gold"
 	  if test x${ENABLE_GOLD} = xdefault; then
 	    default_ld=gold

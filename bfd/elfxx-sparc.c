@@ -2548,6 +2548,16 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void * inf)
 		return FALSE;
 	    }
 	}
+
+      /* Input relocations in `.rela.xxx' sections against ifunctions defined
+         in regular object files are not copied to the output file (see how
+         they are treated in relocate_section () below). Therefore, avoid
+         allocating redundant space for them below. The failure to recognize
+         this issue turned out to be the reason for Bugs #81941 and #88486.  */
+      if (eh->dyn_relocs != NULL
+          && h->type == STT_GNU_IFUNC
+	  && h->def_regular)
+        eh->dyn_relocs = NULL;
     }
   else
     {
@@ -2703,6 +2713,20 @@ _bfd_sparc_elf_size_dynamic_sections (bfd *output_bfd,
       for (s = ibfd->sections; s != NULL; s = s->next)
 	{
 	  struct _bfd_sparc_elf_dyn_relocs *p;
+
+          /* Don't allocate space for dynamic relocations not only if the
+             section to which they are applied is discarded (condition in the
+             loop a few lines below takes care of that), but also if the section
+             "against" which they are resolved is. This lets me resolve an issue
+             when LD manages without creation of dynamic relocations against
+             discarded `.gnu.linkonce'-sections within kept `.eh_frame's (as you
+             remember the contents of the latter is modified somehow to
+             eliminate the need for dynamic relocations then): allocation of
+             redundant space would lead to an assertion failure described in
+             Bug #79553. For a more detailed example see the commit.  */
+          if (!bfd_is_abs_section (s)
+              && bfd_is_abs_section (s->output_section))
+            continue;
 
 	  for (p = elf_section_data (s)->local_dynrel; p != NULL; p = p->next)
 	    {
@@ -3442,7 +3466,8 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd,
 		      relative_reloc = TRUE;
 		    }
 
-		  SPARC_ELF_PUT_WORD (htab, output_bfd, relocation,
+		  SPARC_ELF_PUT_WORD (htab, output_bfd,
+				      !relative_reloc ? relocation : 0,
 				      htab->elf.sgot->contents + off);
 		  local_got_offsets[r_symndx] |= 1;
 		}
@@ -5026,20 +5051,29 @@ _bfd_sparc_elf_finish_dynamic_sections (bfd *output_bfd, struct bfd_link_info *i
              ? 0 : htab->plt_entry_size);
     }
 
-  /* Set the first entry in the global offset table to the address of
-     the dynamic section.  */
-  if (htab->elf.sgot && htab->elf.sgot->size > 0)
-    {
-      bfd_vma val = (sdyn ?
-		     sdyn->output_section->vma + sdyn->output_offset :
-		     0);
-
-      SPARC_ELF_PUT_WORD (htab, output_bfd, val, htab->elf.sgot->contents);
-    }
-
   if (htab->elf.sgot)
-    elf_section_data (htab->elf.sgot->output_section)->this_hdr.sh_entsize =
-      SPARC_ELF_WORD_BYTES (htab);
+    {
+      if (bfd_is_abs_section (htab->elf.sgot->output_section))
+	{
+	  _bfd_error_handler
+	    (_("discarded output section: `%A'"), htab->elf.sgot);
+	  return FALSE;
+	}
+
+      /* Set the first entry in the global offset table to the address of
+         the dynamic section.  */
+      if (htab->elf.sgot->size > 0)
+        {
+          bfd_vma val = (sdyn ?
+                         sdyn->output_section->vma + sdyn->output_offset :
+                         0);
+
+          SPARC_ELF_PUT_WORD (htab, output_bfd, val, htab->elf.sgot->contents);
+        }
+
+      elf_section_data (htab->elf.sgot->output_section)->this_hdr.sh_entsize =
+        SPARC_ELF_WORD_BYTES (htab);
+    }
 
   /* Fill PLT and GOT entries for local STT_GNU_IFUNC symbols.  */
   htab_traverse (htab->loc_hash_table, finish_local_dynamic_symbol, info);
@@ -5098,7 +5132,9 @@ _bfd_sparc_elf_object_p (bfd *abfd)
     {
       unsigned long mach = bfd_mach_sparc_v9;
 
-      if (hwcaps2->i & m8_hwcaps2_mask)
+      if (elf_elfheader (abfd)->e_flags & EF_SPARC_MCST)
+	mach = bfd_mach_sparc_v9_mcst;
+      else if (hwcaps2->i & m8_hwcaps2_mask)
         mach = bfd_mach_sparc_v9m8;
       else if (hwcaps2->i & v9m_hwcaps2_mask)
         mach = bfd_mach_sparc_v9m;
@@ -5120,7 +5156,10 @@ _bfd_sparc_elf_object_p (bfd *abfd)
     {
       if (elf_elfheader (abfd)->e_machine == EM_SPARC32PLUS)
 	{
-          if (hwcaps2->i & m8_hwcaps2_mask)
+          if (elf_elfheader (abfd)->e_flags & EF_SPARC_MCST)
+            return bfd_default_set_arch_mach (abfd, bfd_arch_sparc,
+                                              bfd_mach_sparc_v8plus_mcst);
+          else if (hwcaps2->i & m8_hwcaps2_mask)
             return bfd_default_set_arch_mach (abfd, bfd_arch_sparc,
                                               bfd_mach_sparc_v8plusm8);
           else if (hwcaps2->i & v9m_hwcaps2_mask)
@@ -5222,3 +5261,380 @@ _bfd_sparc_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 
   return TRUE;
 }
+
+
+/* EIR specific methods.  */
+
+static int link_mixed_eir_phase;
+static bfd_boolean met_eir_section;
+static bfd_boolean eir_in_this_bfd;
+
+void
+_bfd_sparc_elf_after_parse (int phase)
+{
+  link_mixed_eir_phase = phase;
+}
+
+static void
+search_eir (bfd *abfd ATTRIBUTE_UNUSED, asection *sect, void *obj ATTRIBUTE_UNUSED)
+{
+  if (strcmp (sect->name, ".pack_pure_eir") == 0
+      || strcmp (sect->name, ".pack_mixed_eir") == 0)
+    {
+      met_eir_section = TRUE;
+      eir_in_this_bfd = TRUE;
+    }
+}
+
+
+static void
+discard_unsuitable_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sect, void *obj ATTRIBUTE_UNUSED)
+{
+  
+  if ((link_mixed_eir_phase == 1 && met_eir_section)
+      || (link_mixed_eir_phase == 3
+          && (!(met_eir_section && !eir_in_this_bfd)
+              || abfd->my_archive)))
+    {
+      /* SEC_DEBUGGING is required to fool lang_gc_sections in ldlang.c */
+      sect->flags |= (SEC_EXCLUDE | SEC_DEBUGGING);
+    }
+}
+
+
+static void
+search_pure_eir (bfd *abfd, asection *sec, void *no_pure_eir)
+{
+  if (strcmp (sec->name, ".pack_pure_eir") == 0)
+    {
+      *((bfd_boolean *) no_pure_eir) = FALSE;
+      _bfd_error_handler ("%B with '.pack_pure_eir' is illegal during "
+			  "non-relocatable linkage", abfd);
+    }
+}
+
+
+bfd_boolean
+_bfd_sparc_elf_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
+{
+  bfd_boolean ret;
+
+  /* Check for the absence of `.pack_pure_eir' sections during
+     non-relocatable linkage (see Bug #41413). */
+  if (bfd_get_format (abfd) == bfd_object && info
+      && !bfd_link_relocatable (info))
+    {
+      bfd_boolean no_pure_eir = TRUE;
+      bfd_map_over_sections (abfd, search_pure_eir, &no_pure_eir);
+
+      if (! no_pure_eir)
+        return FALSE;
+
+    }
+
+  ret = bfd_elf_link_add_symbols (abfd, info);
+
+  /* COMMON sections are created while COMMON symbols are being
+     read rather than while parsing input file's section headers.
+     Therefore, a call to `bfd_elf_link_add_symbols ()' should
+     precede the following, provided that we need to be able to
+     discard COMMON sections. And we actually need this (see
+     Bug #57962).  */
+  if ((link_mixed_eir_phase == 1
+       || link_mixed_eir_phase == 3)
+      && bfd_get_format (abfd) == bfd_object)
+    {
+      eir_in_this_bfd = FALSE;
+      bfd_map_over_sections (abfd, search_eir, NULL);
+      bfd_map_over_sections (abfd, discard_unsuitable_section, NULL);
+    }
+
+  return ret;
+}
+
+bfd_boolean
+_bfd_sparc_elf_final_link (bfd *abfd, struct bfd_link_info *info)
+{
+  /* There is nothing to be done here if we are going to output
+     a binary file when linking EIR (see Bug #59012, Comment # ).  */
+  if (link_mixed_eir_phase == 2)
+    return TRUE;
+
+  return bfd_elf_final_link (abfd, info);
+}
+
+bfd_boolean
+_bfd_sparc_elf_ignore_discarded_relocs (asection *sec)
+{
+  bfd *abfd;
+  size_t locsymcount;
+  Elf_Internal_Shdr *symtab_hdr;
+  Elf_Internal_Rela *internal_relocs;
+  Elf_Internal_Rela *rel, *relend;
+  struct elf_link_hash_entry **sym_hashes;
+  const struct elf_backend_data *bed;
+  int r_sym_shift;
+
+  if (link_mixed_eir_phase != 1
+      && link_mixed_eir_phase !=3)
+    return FALSE;
+
+  abfd = sec->owner;
+  symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
+  locsymcount = symtab_hdr->sh_info;
+
+  bed = get_elf_backend_data (abfd);
+
+  internal_relocs = _bfd_elf_link_read_relocs (abfd, sec, NULL, NULL, FALSE);
+  rel = internal_relocs;
+  relend = rel + sec->reloc_count * bed->s->int_rels_per_ext_rel;
+
+  r_sym_shift = (bed->s->arch_size == 32) ? 8 : 32;
+
+
+  sym_hashes = elf_sym_hashes (abfd);
+  for ( ; rel < relend; rel++)
+    {
+      unsigned long r_symndx = rel->r_info >> r_sym_shift;
+      struct elf_link_hash_entry *h = NULL;
+
+      if (r_symndx == STN_UNDEF)
+        continue;
+
+      if (r_symndx >= locsymcount)
+        {
+          h = sym_hashes[r_symndx - locsymcount];
+
+          while (h->root.type == bfd_link_hash_indirect
+                 || h->root.type == bfd_link_hash_warning)
+            h = (struct elf_link_hash_entry *) h->root.u.i.link;
+
+          if (((h->root.type == bfd_link_hash_defined 
+                || h->root.type == bfd_link_hash_defweak)
+               && discarded_section (h->root.u.def.section))
+              /* Don't forget about common symbols. Their sections may
+                 very well be discarded as well.  */
+              || (h->root.type == bfd_link_hash_common
+                  && discarded_section (h->root.u.c.p->section)))
+#if 0
+              /* I don't have legal access to this (link) info . . . */
+              && (h->root.u.def.next || . . .)
+#endif /* 0 */
+            {
+              /* Stupidly make it undefined. Is it going to work? */
+              h->root.type = bfd_link_hash_undefined;
+            }
+        }
+    }
+
+  /* free (internal_relocs); */
+  return TRUE;
+}
+
+void
+_bfd_sparc_elf_hide_symbol (struct bfd_link_info *info,
+                            struct elf_link_hash_entry *h,
+                            bfd_boolean force_local)
+{
+  /* I don't want to hide (make local) symbols from unsuitable
+     (SEC_EXCLUDE | SEC_DEBUGGING) sections
+     (see discard_unsuitable_section () before) in EIR linkage
+     mode. Prevent the code in `elf_link_add_object_symbols ()'
+     from achieving this. Interestingly enough, there is no attempt
+     to hide these symbols in binutils-2.21.  */
+
+  if (link_mixed_eir_phase != 1 && link_mixed_eir_phase != 3)
+    _bfd_elf_link_hash_hide_symbol (info, h, force_local);
+}
+
+struct write_eir_info
+{
+  bfd_size_type max_size;
+  bfd_byte *contents;
+  /* This is set to FALSE if `_bfd_e2k_write_eir_contens ()' fails
+     for any section.  */
+  bfd_boolean res;
+};
+
+static void
+write_eir_contents (bfd *abfd ATTRIBUTE_UNUSED,
+                    asection *s,
+                    void *param)
+{
+  static bfd_vma s_offset;
+  bfd_vma next_s_offset;
+  bfd_vma mask;
+  struct bfd_link_order *p;
+  struct write_eir_info *wei;
+
+  /* There is nothing to do for non-EIR sections.  */
+  if (strcmp (s->name, ".pack_pure_eir") != 0
+      && strcmp (s->name, ".pack_mixed_eir") != 0)
+    return;
+
+  wei = (struct write_eir_info *) param;
+  /* If we've already failed, there is no point in continuing.  */
+  if (wei->res == FALSE)
+    return;
+
+  mask = (1 << s->alignment_power) - 1;
+  s_offset = (s_offset + mask) & ~mask;
+  next_s_offset = s_offset;
+
+  for (p = s->map_head.link_order; p != NULL; p = p->next)
+    {
+      asection *i;
+
+      if (p->type != bfd_indirect_link_order)
+        continue;
+
+      i = p->u.indirect.section;
+
+      if (i->size > 0)
+        {
+          if (i->size > wei->max_size)
+            {
+              wei->max_size = i->size;
+              wei->contents = (bfd_byte *) bfd_realloc (wei->contents,
+                                                        wei->max_size);
+            }
+
+          if (s_offset + i->output_offset + i->size > next_s_offset)
+            next_s_offset = s_offset + i->output_offset + i->size;
+
+          if (! bfd_get_section_contents (i->owner, i, wei->contents,
+                                          0, i->size)
+              || bfd_seek (abfd, s_offset + i->output_offset, SEEK_SET) != 0
+              || bfd_bwrite (wei->contents, i->size, abfd) != i->size)
+            {
+              wei->res = FALSE;
+              return;
+            }
+        }
+    }
+
+  /* Setting initial `s_offset' value for the next invocation.  */
+  s_offset = next_s_offset;
+}
+
+
+/* This function gets called when BFD is being closed. Avoid calling
+   an ELF-specific method (which outputs strtab, . . .) when a raw
+   binary for EIR is required.  */
+bfd_boolean
+_bfd_sparc_elf_write_object_contents (bfd *abfd)
+{
+  struct write_eir_info wei;
+
+  if (link_mixed_eir_phase != 2)
+    return _bfd_elf_write_object_contents (abfd);
+
+  wei.max_size = 0;
+  wei.contents = NULL;
+  wei.res = TRUE;
+
+  /* Calculating positions of EIR sections and setting their contents.  */
+  bfd_map_over_sections (abfd, write_eir_contents, &wei);
+
+  if (wei.contents)
+    free (wei.contents);
+
+  return wei.res;
+}
+
+
+/* This is a helper of `_bfd_sparc_elf_check_magic () below.  */
+static bfd_boolean
+check_magic (bfd *abfd, asection *magic_sec)
+{
+  char *magic = getenv ("MAGIC");
+  size_t magic_size;
+  char *data;
+  bfd_boolean res = FALSE;
+
+  BFD_ASSERT (magic);
+  magic_size = strlen (magic) + 1;
+
+  data = xmalloc (magic_sec->size);
+  if (! bfd_get_section_contents (abfd, magic_sec, data, 0, magic_sec->size))
+    {
+      _bfd_error_handler (_("%B: cannot read contents of section %A\n"),
+			  abfd, magic_sec);
+    }
+
+  if (magic_sec->size == (12 + ((sizeof ("MCST") + 3) & 0xfffffffc)
+                          + ((magic_size + 3) & 0xfffffffc))
+      && bfd_get_32 (abfd, data) == sizeof ("MCST")
+      && bfd_get_32 (abfd, data + 4) == magic_size
+      && bfd_get_32 (abfd, data + 8) == NT_MAGIC
+      && data[12 + sizeof ("MCST") - 1] == '\0'
+      && data[12 + ((sizeof ("MCST") + 3) & 0xfffffffc)
+              + magic_size - 1] == '\0'
+      && strncmp (data + 12, "MCST", sizeof ("MCST") - 1) == 0
+      && strncmp (data + 12 + ((sizeof ("MCST") + 3) & 0xfffffffc), magic,
+                  magic_size - 1) == 0)
+    res = TRUE;
+
+  free (data);  
+  return res;
+}
+
+
+/* This function is required to implement MCST-specific MAGIC checks
+   (see Bug #67430). It gets called from `elf{32,64}_sparc_merge_private_bfd
+   _data ()' so that they don't have a chance to `return TRUE'  without
+   performing this test (see their code just after the call to this function
+   for how it may happen).
+
+   FIXME: this function replicates the analogous part of
+   `_bfd_e2k_elf_merge_private_bfd_data_1 ()' in `elfxx-e2k.c'. Get rid of this
+   awful Copy/Paste by placing them in some common (for E2K and Sparc) source
+   file. Its`check_magic ()' helper and EIR-specific functions should probably
+   go there as well.  */
+
+bfd_boolean
+_bfd_sparc_elf_check_magic (bfd *ibfd)
+{
+  if (! getenv ("MAGIC"))
+    return TRUE;
+
+  asection *magic_sec;
+  static bfd_boolean first_ibfd_saved = TRUE;
+  bfd_boolean res, first_ibfd = first_ibfd_saved;
+
+  /* Next time `first_ibfd' will be set to FALSE.  */
+  first_ibfd_saved = FALSE;
+
+  magic_sec = bfd_get_section_by_name (ibfd, ".magic");
+  if (magic_sec == NULL)
+    {
+      _bfd_error_handler (_("Input object %B doesn't have a .magic "
+			    "section"), ibfd);
+      return FALSE;
+    }
+
+  res = check_magic (ibfd, magic_sec);
+  /* Exclude this section from output no matter what `check_magic ()'
+     returned, though it's not absolutely necessary if it failed: we are
+     not going to have any output in this case.  */
+  if (! first_ibfd)
+    {
+      magic_sec->flags |= SEC_EXCLUDE;
+      magic_sec->size = 0;
+    }
+
+  if (! res)
+    {
+      _bfd_error_handler (_("Input object %B contains wrong MAGIC "),
+			  ibfd);
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
+const struct bfd_elf_special_section  _bfd_sparc_elf_special_sections[] =
+{
+  { STRING_COMMA_LEN (".magic"),             0,  SHT_NOTE,     0 },
+  { NULL,	                0,          0, 0,            0 }
+};

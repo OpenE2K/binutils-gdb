@@ -43,6 +43,7 @@
 #define MASK_V9V	SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V9V)
 #define MASK_V9M	SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V9M)
 #define MASK_M8	SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_M8)
+#define MASK_V9_MCST	SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V9_MCST)
 
 /* Bit masks of architectures supporting the insn.  */
 
@@ -50,16 +51,16 @@
 			 | MASK_SPARCLET | MASK_SPARCLITE \
 			 | MASK_V9 | MASK_V9A | MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8)
+                         | MASK_M8 | MASK_V9_MCST)
 /* v6 insns not supported on the sparclet.  */
 #define v6notlet	(MASK_V6 | MASK_V7 | MASK_V8 | MASK_LEON \
 			 | MASK_SPARCLITE | MASK_V9 | MASK_V9A | MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8)
+                         | MASK_M8 | MASK_V9_MCST)
 #define v7		(MASK_V7 | MASK_V8 | MASK_LEON | MASK_SPARCLET \
 			 | MASK_SPARCLITE | MASK_V9 | MASK_V9A | MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8)
+                         | MASK_M8 | MASK_V9_MCST)
 /* Although not all insns are implemented in hardware, sparclite is defined
    to be a superset of v8.  Unimplemented insns trap and are then theoretically
    implemented in software.
@@ -69,24 +70,24 @@
 #define v8		(MASK_V8 | MASK_LEON | MASK_SPARCLET | MASK_SPARCLITE \
 			 | MASK_V9 | MASK_V9A | MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8)
+                         | MASK_M8 | MASK_V9_MCST)
 #define sparclet	(MASK_SPARCLET)
 /* sparclet insns supported by leon.  */
 #define letandleon	(MASK_SPARCLET | MASK_LEON)
 #define sparclite	(MASK_SPARCLITE)
 #define v9		(MASK_V9 | MASK_V9A | MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8)
+                         | MASK_M8 | MASK_V9_MCST)
 /* v9 insns supported by leon.  */
 #define v9andleon	(MASK_V9 | MASK_V9A | MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8 | MASK_LEON)
+                         | MASK_M8 | MASK_V9_MCST | MASK_LEON)
 #define v9a		(MASK_V9A | MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8)
+                         | MASK_M8 | MASK_V9_MCST)
 #define v9b		(MASK_V9B \
                          | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
-                         | MASK_M8)
+                         | MASK_M8 | MASK_V9_MCST)
 #define v9c		(MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M \
                          | MASK_M8)
 #define v9d		(MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M | MASK_M8)
@@ -94,6 +95,7 @@
 #define v9v		(MASK_V9V | MASK_V9M | MASK_M8)
 #define v9m		(MASK_V9M | MASK_M8)
 #define m8		(MASK_M8)
+#define v9_mcst		(MASK_V9_MCST)
 
 /* v6 insns not supported by v9.  */
 #define v6notv9		(MASK_V6 | MASK_V7 | MASK_V8 | MASK_LEON \
@@ -108,6 +110,8 @@
 #define HWS_V9 HWS_V8 | HWCAP_POPC
 #define HWS_VA HWS_V9 | HWCAP_VIS
 #define HWS_VB HWS_VA | HWCAP_VIS2
+#define HWS_R1000 HWS_VB | HWCAP_FMAF | HWCAP_R1000
+#define HWS_R2000 HWS_R1000 | HWCAP_SAPPHIRE
 #define HWS_VC HWS_VB | HWCAP_ASI_BLK_INIT
 #define HWS_VD HWS_VC | HWCAP_FMAF | HWCAP_VIS3 | HWCAP_HPC
 #define HWS_VE HWS_VD                                                   \
@@ -163,6 +167,9 @@ const struct sparc_opcode_arch sparc_opcode_archs[] =
   { "m8", (MASK_V6 | MASK_V7 | MASK_V8 | MASK_V9 | MASK_V9A | MASK_V9B
            | MASK_V9C | MASK_V9D | MASK_V9E | MASK_V9V | MASK_V9M | MASK_M8),
     HWS_VM8, HWS2_VM8 },
+  /* v9b with MCST additions  */
+  { "r1000", (MASK_V6 | MASK_V7 | MASK_V8 | MASK_V9 | MASK_V9A | MASK_V9B
+              | MASK_V9_MCST), HWS_R1000, 0 },
   { NULL, 0, 0, 0 }
 };
 
@@ -253,6 +260,15 @@ sparc_opcode_lookup_arch (const char *name)
 { opcode,	F3(2, op3, 0), F3(~2, ~op3, ~0)|ASI(~0),	"1,2,d", 0, 0, 0, arch_mask }, \
 { opcode,	F3(2, op3, 1), F3(~2, ~op3, ~1),		"1,i,d", 0, 0, 0, arch_mask }, \
 { opcode,	F3(2, op3, 1), F3(~2, ~op3, ~1),		"i,1,d", 0, 0, 0, arch_mask }
+
+
+/* This macro lets one toggle addition of "r1000"-specific duplicate
+   entries to the table below.  */
+#define __duplicate__ 1
+
+/* This macro controls the addition of "r2000"-specific duplicate entries
+   to the table below.  */
+#define __duplicate_r2000__ 1
 
 const struct sparc_opcode sparc_opcodes[] = {
 
@@ -707,6 +723,11 @@ ldtxa (0xEB), /* #ASI_TWINX_SL  */
 { "stda",	F3(3, 0x17, 1), F3(~3, ~0x17, ~1)|RS1_G0,	"d,[i]o", F_ALIAS, 0, 0, v9 },
 { "stda",	F3(3, 0x17, 1), F3(~3, ~0x17, ~1)|SIMM13(~0),	"d,[1]o", F_ALIAS, 0, 0, v9 }, /* std d,[rs1+0] */
 { "stda",	F3(3, 0x37, 0), F3(~3, ~0x37, ~0),		"H,[1+2]A", 0, 0, 0, v9 },
+
+/* This is an MCST specific version of store. Hopefully, it hasn't been
+   implemented anywhere else in this file since binutils-2.18 . . .  */
+{ "stda",       F3(3, 0x37, 0), F3(~3, ~0x37, ~0)|ASI(0x30),    "H,2,[1]A", 0, 0, 0, v9 }, /* stda d,rs2, [rs1] */
+
 { "stda",	F3(3, 0x37, 0), F3(~3, ~0x37, ~0)|RS2(~0),	"H,[1]A", 0, 0, 0, v9 }, /* stda d,[rs1+%g0] */
 { "stda",	F3(3, 0x37, 1), F3(~3, ~0x37, ~1),		"H,[1+i]o", 0, 0, 0, v9 },
 { "stda",	F3(3, 0x37, 1), F3(~3, ~0x37, ~1),		"H,[i+1]o", 0, 0, 0, v9 },
@@ -1821,6 +1842,14 @@ CONDFC  ("fbule", "cb013", 0xe, F_CONDBR),
 { "fsubx",	F3F(2, 0x34, 0x047), F3F(~2, ~0x34, ~0x047), "V,R,J", F_FLOAT|F_ALIAS, 0, 0, v8 },
 { "fsubs",	F3F(2, 0x34, 0x045), F3F(~2, ~0x34, ~0x045), "e,f,g", F_FLOAT, 0, 0, v6 },
 
+/* Packed operations for MCST-4R.  */
+{ "pfadds",F3F(2, 0x34, 0x040), F3F(~2, ~0x34, ~0x040), "v,B,H", F_FLOAT, HWCAP_R1000, 0, v9_mcst },
+{ "pfsubs",F3F(2, 0x34, 0x044), F3F(~2, ~0x34, ~0x044), "v,B,H", F_FLOAT, HWCAP_R1000, 0, v9_mcst },
+{ "pfnegs",F3F(2, 0x34, 0x004), F3F(~2, ~0x34, ~0x004), "B,H", F_FLOAT, HWCAP_R1000, 0, v9_mcst },
+{ "pfabss",F3F(2, 0x34, 0x008), F3F(~2, ~0x34, ~0x008), "B,H", F_FLOAT, HWCAP_R1000, 0, v9_mcst },
+{ "pfmuls",F3F(2, 0x34, 0x048), F3F(~2, ~0x34, ~0x048), "v,B,H", F_FLOAT, HWCAP_R1000, 0, v9_mcst },
+
+
 #define CMPFCC(x)	(((x)&0x3)<<25)
 
 { "fcmpd",	          F3F(2, 0x35, 0x052),            F3F(~2, ~0x35, ~0x052)|RD_G0,  "v,B",   F_FLOAT, 0, 0, v6 },
@@ -2102,16 +2131,25 @@ SLCBCC("cbnefr", 15),
 
 /* Cheetah instructions */
 { "edge8n",    F3F(2, 0x36, 0x001), F3F(~2, ~0x36, ~0x001), "1,2,d", 0, HWCAP_VIS2, 0, v9b },
+
 { "edge8ln",   F3F(2, 0x36, 0x003), F3F(~2, ~0x36, ~0x003), "1,2,d", 0, HWCAP_VIS2, 0, v9b },
+
 { "edge16n",   F3F(2, 0x36, 0x005), F3F(~2, ~0x36, ~0x005), "1,2,d", 0, HWCAP_VIS2, 0, v9b },
+
 { "edge16ln",  F3F(2, 0x36, 0x007), F3F(~2, ~0x36, ~0x007), "1,2,d", 0, HWCAP_VIS2, 0, v9b },
+
 { "edge32n",   F3F(2, 0x36, 0x009), F3F(~2, ~0x36, ~0x009), "1,2,d", 0, HWCAP_VIS2, 0, v9b },
+
 { "edge32ln",  F3F(2, 0x36, 0x00b), F3F(~2, ~0x36, ~0x00b), "1,2,d", 0, HWCAP_VIS2, 0, v9b },
 
+
 { "bmask",     F3F(2, 0x36, 0x019), F3F(~2, ~0x36, ~0x019), "1,2,d", 0, HWCAP_VIS2, 0, v9b },
+
 { "bshuffle",  F3F(2, 0x36, 0x04c), F3F(~2, ~0x36, ~0x04c), "v,B,H", 0, HWCAP_VIS2, 0, v9b },
 
+
 { "siam",      F3F(2, 0x36, 0x081), F3F(~2, ~0x36, ~0x081)|RD_G0|RS1_G0|RS2(~7), "3", 0, HWCAP_VIS2, 0, v9b },
+
 
 { "fnadds",	F3F(2, 0x34, 0x051), F3F(~2, ~0x34, ~0x051), "e,f,g", F_FLOAT, HWCAP_HPC, 0, v9d },
 { "fnaddd",	F3F(2, 0x34, 0x052), F3F(~2, ~0x34, ~0x052), "v,B,H", F_FLOAT, HWCAP_HPC, 0, v9d },
@@ -2125,15 +2163,49 @@ SLCBCC("cbnefr", 15),
 { "fnhaddd",	F3F(2, 0x34, 0x072), F3F(~2, ~0x34, ~0x072), "v,B,H", F_FLOAT, HWCAP_HPC, 0, v9d },
 { "fnsmuld",	F3F(2, 0x34, 0x079), F3F(~2, ~0x34, ~0x079), "e,f,H", F_FLOAT, HWCAP_HPC, 0, v9d },
 { "fpmaddx",	F3(2, 0x37, 0)|OPF_LOW4(0), F3(~2, ~0x37, 0)|OPF_LOW4(~0), "v,B,5,H", F_FLOAT, HWCAP_IMA, 0, v9v },
+
 { "fmadds",	F3(2, 0x37, 0)|OPF_LOW4(1), F3(~2, ~0x37, 0)|OPF_LOW4(~1), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fmadds",	F3(2, 0x37, 0)|OPF_LOW4(1), F3(~2, ~0x37, 0)|OPF_LOW4(~1), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fmaddd",	F3(2, 0x37, 0)|OPF_LOW4(2), F3(~2, ~0x37, 0)|OPF_LOW4(~2), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fmaddd",	F3(2, 0x37, 0)|OPF_LOW4(2), F3(~2, ~0x37, 0)|OPF_LOW4(~2), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fpmaddxhi",	F3(2, 0x37, 0)|OPF_LOW4(4), F3(~2, ~0x37, 0)|OPF_LOW4(~4), "v,B,5,H", F_FLOAT, HWCAP_IMA, 0, v9v },
+
 { "fmsubs",	F3(2, 0x37, 0)|OPF_LOW4(5), F3(~2, ~0x37, 0)|OPF_LOW4(~5), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fmsubs",	F3(2, 0x37, 0)|OPF_LOW4(5), F3(~2, ~0x37, 0)|OPF_LOW4(~5), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fmsubd",	F3(2, 0x37, 0)|OPF_LOW4(6), F3(~2, ~0x37, 0)|OPF_LOW4(~6), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fmsubd",	F3(2, 0x37, 0)|OPF_LOW4(6), F3(~2, ~0x37, 0)|OPF_LOW4(~6), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fnmsubs",	F3(2, 0x37, 0)|OPF_LOW4(9), F3(~2, ~0x37, 0)|OPF_LOW4(~9), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fnmsubs",	F3(2, 0x37, 0)|OPF_LOW4(9), F3(~2, ~0x37, 0)|OPF_LOW4(~9), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fnmsubd",	F3(2, 0x37, 0)|OPF_LOW4(10), F3(~2, ~0x37, 0)|OPF_LOW4(~10), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fnmsubd",	F3(2, 0x37, 0)|OPF_LOW4(10), F3(~2, ~0x37, 0)|OPF_LOW4(~10), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fnmadds",	F3(2, 0x37, 0)|OPF_LOW4(13), F3(~2, ~0x37, 0)|OPF_LOW4(~13), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fnmadds",	F3(2, 0x37, 0)|OPF_LOW4(13), F3(~2, ~0x37, 0)|OPF_LOW4(~13), "e,f,4,g", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fnmaddd",	F3(2, 0x37, 0)|OPF_LOW4(14), F3(~2, ~0x37, 0)|OPF_LOW4(~14), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9d },
+#if __duplicate__
+{ "fnmaddd",	F3(2, 0x37, 0)|OPF_LOW4(14), F3(~2, ~0x37, 0)|OPF_LOW4(~14), "v,B,5,H", F_FLOAT, HWCAP_FMAF, 0, v9_mcst },
+#endif /* __duplicate__  */
+
 { "fumadds",	F3(2, 0x3f, 0)|OPF_LOW4(1), F3(~2, ~0x3f, 0)|OPF_LOW4(~1), "e,f,4,g", F_FLOAT, HWCAP_FJFMAU, 0, v9v },
 { "fumaddd",	F3(2, 0x3f, 0)|OPF_LOW4(2), F3(~2, ~0x3f, 0)|OPF_LOW4(~2), "v,B,5,H", F_FLOAT, HWCAP_FJFMAU, 0, v9v },
 { "fumsubs",	F3(2, 0x3f, 0)|OPF_LOW4(5), F3(~2, ~0x3f, 0)|OPF_LOW4(~5), "e,f,4,g", F_FLOAT, HWCAP_FJFMAU, 0, v9v },
@@ -2145,48 +2217,169 @@ SLCBCC("cbnefr", 15),
 { "addxc",	F3F(2, 0x36, 0x011), F3F(~2, ~0x36, ~0x011), "1,2,d", 0, HWCAP_VIS3, 0, v9d },
 { "addxccc",	F3F(2, 0x36, 0x013), F3F(~2, ~0x36, ~0x013), "1,2,d", 0, HWCAP_VIS3, 0, v9d },
 { "umulxhi",	F3F(2, 0x36, 0x016), F3F(~2, ~0x36, ~0x016), "1,2,d", 0, HWCAP_VIS3, 0, v9d },
+
 { "lzcnt",	F3F(2, 0x36, 0x017), F3F(~2, ~0x36, ~0x017), "2,d", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "lzcnt",	F3F(2, 0x36, 0x017), F3F(~2, ~0x36, ~0x017), "2,d", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "lzd",	F3F(2, 0x36, 0x017), F3F(~2, ~0x36, ~0x017), "2,d", F_ALIAS, HWCAP_VIS3, 0, v9d },
 { "cmask8",	F3F(2, 0x36, 0x01b), F3F(~2, ~0x36, ~0x01b), "2", 0, HWCAP_VIS3, 0, v9d },
 { "cmask16",	F3F(2, 0x36, 0x01d), F3F(~2, ~0x36, ~0x01d), "2", 0, HWCAP_VIS3, 0, v9d },
 { "cmask32",	F3F(2, 0x36, 0x01f), F3F(~2, ~0x36, ~0x01f), "2", 0, HWCAP_VIS3, 0, v9d },
+
 { "fsll16",	F3F(2, 0x36, 0x021), F3F(~2, ~0x36, ~0x021), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fsll16",	F3F(2, 0x36, 0x021), F3F(~2, ~0x36, ~0x021), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fsrl16",	F3F(2, 0x36, 0x023), F3F(~2, ~0x36, ~0x023), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fsrl16",	F3F(2, 0x36, 0x023), F3F(~2, ~0x36, ~0x023), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fsll32",	F3F(2, 0x36, 0x025), F3F(~2, ~0x36, ~0x025), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fsll32",	F3F(2, 0x36, 0x025), F3F(~2, ~0x36, ~0x025), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fsrl32",	F3F(2, 0x36, 0x027), F3F(~2, ~0x36, ~0x027), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fsrl32",	F3F(2, 0x36, 0x027), F3F(~2, ~0x36, ~0x027), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fslas16",	F3F(2, 0x36, 0x029), F3F(~2, ~0x36, ~0x029), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fslas16",	F3F(2, 0x36, 0x029), F3F(~2, ~0x36, ~0x029), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fsra16",	F3F(2, 0x36, 0x02b), F3F(~2, ~0x36, ~0x02b), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fsra16",	F3F(2, 0x36, 0x02b), F3F(~2, ~0x36, ~0x02b), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fslas32",	F3F(2, 0x36, 0x02d), F3F(~2, ~0x36, ~0x02d), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fslas32",	F3F(2, 0x36, 0x02d), F3F(~2, ~0x36, ~0x02d), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fsra32",	F3F(2, 0x36, 0x02f), F3F(~2, ~0x36, ~0x02f), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fsra32",	F3F(2, 0x36, 0x02f), F3F(~2, ~0x36, ~0x02f), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "pdistn",	F3F(2, 0x36, 0x03f), F3F(~2, ~0x36, ~0x03f), "v,B,d", 0, HWCAP_VIS3, 0, v9d },
 { "fmean16",	F3F(2, 0x36, 0x040), F3F(~2, ~0x36, ~0x040), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
 { "fpadd64",	F3F(2, 0x36, 0x042), F3F(~2, ~0x36, ~0x042), "v,B,H", 0, HWCAP_VIS3, HWCAP2_VIS3B, v9d },
 { "fchksm16",	F3F(2, 0x36, 0x044), F3F(~2, ~0x36, ~0x044), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
 { "fpsub64",	F3F(2, 0x36, 0x046), F3F(~2, ~0x36, ~0x046), "v,B,H", 0, HWCAP_VIS3, HWCAP2_VIS3B, v9d },
+
 { "fpadds16",	F3F(2, 0x36, 0x058), F3F(~2, ~0x36, ~0x058), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpadds16",	F3F(2, 0x36, 0x058), F3F(~2, ~0x36, ~0x058), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
+
 { "fpadds16s",	F3F(2, 0x36, 0x059), F3F(~2, ~0x36, ~0x059), "e,f,g", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpadds16s",	F3F(2, 0x36, 0x059), F3F(~2, ~0x36, ~0x059), "e,f,g", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fpadds32",	F3F(2, 0x36, 0x05a), F3F(~2, ~0x36, ~0x05a), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpadds32",	F3F(2, 0x36, 0x05a), F3F(~2, ~0x36, ~0x05a), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fpadds32s",	F3F(2, 0x36, 0x05b), F3F(~2, ~0x36, ~0x05b), "e,f,g", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpadds32s",	F3F(2, 0x36, 0x05b), F3F(~2, ~0x36, ~0x05b), "e,f,g", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fpsubs16",	F3F(2, 0x36, 0x05c), F3F(~2, ~0x36, ~0x05c), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpsubs16",	F3F(2, 0x36, 0x05c), F3F(~2, ~0x36, ~0x05c), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fpsubs16s",	F3F(2, 0x36, 0x05d), F3F(~2, ~0x36, ~0x05d), "e,f,g", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpsubs16s",	F3F(2, 0x36, 0x05d), F3F(~2, ~0x36, ~0x05d), "e,f,g", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fpsubs32",	F3F(2, 0x36, 0x05e), F3F(~2, ~0x36, ~0x05e), "v,B,H", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpsubs32",	F3F(2, 0x36, 0x05e), F3F(~2, ~0x36, ~0x05e), "v,B,H", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fpsubs32s",	F3F(2, 0x36, 0x05f), F3F(~2, ~0x36, ~0x05f), "e,f,g", 0, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpsubs32s",	F3F(2, 0x36, 0x05f), F3F(~2, ~0x36, ~0x05f), "e,f,g", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "movdtox",	F3F(2, 0x36, 0x110), F3F(~2, ~0x36, ~0x110), "B,d", F_FLOAT, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "movdtox",	F3F(2, 0x36, 0x110), F3F(~2, ~0x36, ~0x110), "B,d", F_FLOAT, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "movstouw",	F3F(2, 0x36, 0x111), F3F(~2, ~0x36, ~0x111), "f,d", F_FLOAT, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "movstouw",	F3F(2, 0x36, 0x111), F3F(~2, ~0x36, ~0x111), "f,d", F_FLOAT, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "movstosw",	F3F(2, 0x36, 0x113), F3F(~2, ~0x36, ~0x113), "f,d", F_FLOAT, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "movstosw",	F3F(2, 0x36, 0x113), F3F(~2, ~0x36, ~0x113), "f,d", F_FLOAT, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "movxtod",	F3F(2, 0x36, 0x118), F3F(~2, ~0x36, ~0x118), "2,H", F_FLOAT, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "movxtod",	F3F(2, 0x36, 0x118), F3F(~2, ~0x36, ~0x118), "2,H", F_FLOAT, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "movwtos",	F3F(2, 0x36, 0x119), F3F(~2, ~0x36, ~0x119), "2,g", F_FLOAT, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "movwtos",	F3F(2, 0x36, 0x119), F3F(~2, ~0x36, ~0x119), "2,g", F_FLOAT, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "xmulx",	F3F(2, 0x36, 0x115), F3F(~2, ~0x36, ~0x115), "1,2,d", 0, HWCAP_VIS3, 0, v9d },
 { "xmulxhi",	F3F(2, 0x36, 0x116), F3F(~2, ~0x36, ~0x116), "1,2,d", 0, HWCAP_VIS3, 0, v9d },
+
 { "fpcmpule8",	F3F(2, 0x36, 0x120), F3F(~2, ~0x36, ~0x120), "v,B,d", 0, HWCAP_VIS3, HWCAP2_VIS3B, v9d },
+#if __duplicate_r2000__
+{ "fpcmpule8",	F3F(2, 0x36, 0x120), F3F(~2, ~0x36, ~0x120), "v,B,d", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fucmple8",	F3F(2, 0x36, 0x120), F3F(~2, ~0x36, ~0x120), "v,B,d", F_ALIAS, HWCAP_VIS3, 0, v9d },
+
 { "fpcmpune8",	F3F(2, 0x36, 0x122), F3F(~2, ~0x36, ~0x122), "v,B,d", 0, HWCAP_VIS3, HWCAP2_VIS3B, v9d },
+#if __duplicate_r2000__
+{ "fpcmpune8",	F3F(2, 0x36, 0x122), F3F(~2, ~0x36, ~0x122), "v,B,d", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fpcmpne8",	F3F(2, 0x36, 0x122), F3F(~2, ~0x36, ~0x122), "v,B,d", F_PREF_ALIAS, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpcmpne8",	F3F(2, 0x36, 0x122), F3F(~2, ~0x36, ~0x122), "v,B,d", F_PREF_ALIAS, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fucmpne8",	F3F(2, 0x36, 0x122), F3F(~2, ~0x36, ~0x122), "v,B,d", F_ALIAS, HWCAP_VIS3, 0, v9d },
+
 { "fpcmpugt8",	F3F(2, 0x36, 0x128), F3F(~2, ~0x36, ~0x128), "v,B,d", 0, HWCAP_VIS3, HWCAP2_VIS3B, v9d },
+#if __duplicate_r2000__
+{ "fpcmpugt8",	F3F(2, 0x36, 0x128), F3F(~2, ~0x36, ~0x128), "v,B,d", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fucmpgt8",	F3F(2, 0x36, 0x128), F3F(~2, ~0x36, ~0x128), "v,B,d", F_ALIAS, HWCAP_VIS3, 0, v9d },
+
 { "fpcmpueq8",	F3F(2, 0x36, 0x12a), F3F(~2, ~0x36, ~0x12a), "v,B,d", 0, HWCAP_VIS3, HWCAP2_VIS3B, v9d },
+#if __duplicate_r2000__
+{ "fpcmpueq8",	F3F(2, 0x36, 0x12a), F3F(~2, ~0x36, ~0x12a), "v,B,d", 0, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
+
 { "fpcmpeq8",	F3F(2, 0x36, 0x12a), F3F(~2, ~0x36, ~0x12a), "v,B,d", F_PREF_ALIAS, HWCAP_VIS3, 0, v9d },
+#if __duplicate_r2000__
+{ "fpcmpeq8",	F3F(2, 0x36, 0x12a), F3F(~2, ~0x36, ~0x12a), "v,B,d", F_PREF_ALIAS, HWCAP_SAPPHIRE, 0, v9_mcst },
+#endif /* __duplicate_r2000__  */
+
 { "fucmpeq8",	F3F(2, 0x36, 0x12a), F3F(~2, ~0x36, ~0x12a), "v,B,d", F_ALIAS, HWCAP_VIS3, 0, v9d },
 {"aes_kexpand0",F3F(2, 0x36, 0x130), F3F(~2, ~0x36, ~0x130), "v,B,H", F_FLOAT, HWCAP_AES, 0, v9e },
 {"aes_kexpand2",F3F(2, 0x36, 0x131), F3F(~2, ~0x36, ~0x131), "v,B,H", F_FLOAT, HWCAP_AES, 0, v9e },
@@ -2440,6 +2633,23 @@ IMPDEP ("impdep1", 0x36),
 IMPDEP ("impdep2", 0x37),
 
 #undef IMPDEP
+
+#define VAR(x)          (((x) & 3) << 7)
+#define SIZE(x)         (((x) & 3) << 5)
+#define F5(op, op3, var, size) (OP (op) |  OP3(op3) | VAR(var) | SIZE(size))
+
+/* Packed operations for MCST-4R.  */
+{ "pfmadds",    F5(2, 0x37, 0, 0), F5(~2, ~0x37, ~0, ~0), "v,B,5,H", 0, HWCAP_R1000, 0, v9_mcst},
+{ "pfmsubs",    F5(2, 0x37, 1, 0), F5(~2, ~0x37, ~1, ~0), "v,B,5,H", 0, HWCAP_R1000, 0, v9_mcst},
+{ "pfnmadds",   F5(2, 0x37, 3, 0), F5(~2, ~0x37, ~3, ~0), "v,B,5,H", 0, HWCAP_R1000, 0, v9_mcst},
+{ "pfnmsubs",   F5(2, 0x37, 2, 0), F5(~2, ~0x37, ~2, ~0), "v,B,5,H", 0, HWCAP_R1000, 0, v9_mcst},
+
+#undef F5
+#undef SIZE
+#undef VAR
+
+/* A single original R2000 instruction developed at MCST.  */
+{ "fmerge32",	F3F(2, 0x34, 0x6a), F3F(~2, ~0x34, ~0x6a), "e,f,H", F_FLOAT, HWCAP_SAPPHIRE, 0, v9_mcst },
 
 };
 

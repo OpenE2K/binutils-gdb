@@ -1,0 +1,2 @@
+set mode 64
+load_file $srcdir/config/sparc-cross.exp

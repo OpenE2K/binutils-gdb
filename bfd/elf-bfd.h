@@ -500,6 +500,7 @@ enum elf_target_id
   TILEGX_ELF_DATA,
   TILEPRO_ELF_DATA,
   RISCV_ELF_DATA,
+  E2K_ELF_DATA,
   GENERIC_ELF_DATA
 };
 
@@ -1552,6 +1553,8 @@ struct elf_backend_data
   /* True if `_bfd_elf_link_renumber_dynsyms' must be called even for
      static binaries.  */
   unsigned always_renumber_dynsyms : 1;
+
+  bfd_vma r_none_info;
 };
 
 /* Information about reloc sections associated with a bfd_elf_section_data
@@ -2653,7 +2656,8 @@ extern bfd_boolean _bfd_elf_allocate_ifunc_dyn_relocs
    unsigned int, unsigned int, bfd_boolean);
 extern long _bfd_elf_ifunc_get_synthetic_symtab
   (bfd *, long, asymbol **, long, asymbol **, asymbol **, asection *,
-   bfd_vma *(*) (bfd *, asymbol **, asection *, asection *));
+   int,
+   bfd_vma *(*) (bfd *, asymbol **, asection *, asection *, int));
 
 extern void elf_append_rela (bfd *, asection *, Elf_Internal_Rela *);
 extern void elf_append_rel (bfd *, asection *, Elf_Internal_Rela *);

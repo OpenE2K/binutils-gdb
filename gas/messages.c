@@ -468,3 +468,13 @@ as_bad_value_out_of_range (const char *prefix,
 {
   as_internal_value_out_of_range (prefix, value, min, max, file, line, 1);
 }
+
+
+/* These are sinvv's hacks.  */
+void inc_error (void);
+
+void
+inc_error (void)
+{
+  error_count++;
+}

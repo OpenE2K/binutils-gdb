@@ -154,6 +154,8 @@ enum expr_mode
   expr_defer
 };
 
+extern int hack_for_e2k;
+
 /* "result" should be type (expressionS *).  */
 #define expression(result) expr (0, result, expr_normal)
 #define expression_and_evaluate(result) expr (0, result, expr_evaluate)

@@ -1,6 +1,7 @@
 SCRIPT_NAME=elf
 ELFSIZE=64
 TEMPLATE_NAME=elf32
+EXTRA_EM_FILE=sparcelf
 OUTPUT_FORMAT="elf64-sparc"
 NO_REL_RELOCS=yes
 MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
@@ -48,3 +49,7 @@ case "$EMULATION_NAME" in
     esac
     ;;
 esac
+
+# Support EIR linkage. This variable is used in `elf32.em' to emit the code
+# which prevents us from customizing `__ehdr_start' when linking EIR.
+SUPPORT_EIR=yes

@@ -266,6 +266,9 @@ compute_arch_mask (unsigned long mach)
     case bfd_mach_sparc_v8plusm8 :
     case bfd_mach_sparc_v9m8 :
       return SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_M8);
+    case bfd_mach_sparc_v8plus_mcst :
+    case bfd_mach_sparc_v9_mcst :
+      return SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V9_MCST);
     }
   abort ();
 }

@@ -108,6 +108,7 @@ namespace elfcpp
 
 #undef DW_FIRST_CFA
 #undef DW_CFA
+#undef DW_CFA_DUP
 #undef DW_END_CFA
 
 #undef DW_FIRST_IDX

@@ -75,6 +75,13 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
   /* FIXME: This should not be static.  */
   static unsigned long previous_ibfd_e_flags = (unsigned long) -1;
 
+  /* No matter whether the output BFD is ELF or not, check magic in the input
+     one provided that it is.  */
+  if (bfd_get_flavour (ibfd) == bfd_target_elf_flavour
+      && ! _bfd_sparc_elf_check_magic (ibfd))
+    return FALSE;
+
+
   if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
       || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
     return TRUE;
@@ -147,6 +154,15 @@ elf32_sparc_final_write_processing (bfd *abfd,
       elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
       elf_elfheader (abfd)->e_flags |= EF_SPARC_32PLUS | EF_SPARC_SUN_US1
 				       | EF_SPARC_SUN_US3;
+      break;
+      /* I cannot understand why in 32-bit mode the same functionality as in
+         (sparc_elf_final_processing (), tc-sparc.c) is DUPLICATED here. In fact
+         we set the same value of `e_flags' both there and here.  */
+    case bfd_mach_sparc_v8plus_mcst :
+      elf_elfheader (abfd)->e_machine = EM_SPARC32PLUS;
+      elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
+      elf_elfheader (abfd)->e_flags |= (EF_SPARC_32PLUS | EF_SPARC_SUN_US1
+                                        | EF_SPARC_SUN_US3 | EF_SPARC_MCST);
       break;
     case bfd_mach_sparc_sparclite_le :
       elf_elfheader (abfd)->e_flags |= EF_SPARC_LEDATA;
@@ -251,6 +267,18 @@ elf32_sparc_add_symbol_hook (bfd * abfd,
 #define elf_backend_rela_normal 1
 
 #define elf_backend_add_symbol_hook		elf32_sparc_add_symbol_hook
+
+/* EIR-specific hacks.  */
+#define bfd_elf32_bfd_link_add_symbols          _bfd_sparc_elf_link_add_symbols
+#define bfd_elf32_bfd_final_link                _bfd_sparc_elf_final_link
+#define elf_backend_ignore_discarded_relocs     _bfd_sparc_elf_ignore_discarded_relocs
+#define elf_backend_hide_symbol                 _bfd_sparc_elf_hide_symbol
+#define bfd_elf32_write_object_contents         _bfd_sparc_elf_write_object_contents
+
+/* Let `.magic' section be `SHT_NOTE'.  */
+#define elf_backend_special_sections    _bfd_sparc_elf_special_sections
+
+#define elf_backend_extern_protected_data       1
 
 #include "elf32-target.h"
 

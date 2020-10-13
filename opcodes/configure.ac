@@ -51,6 +51,31 @@ AC_ARG_ENABLE(targets,
   *)        enable_targets=$enableval ;;
 esac])dnl
 
+
+AC_ARG_ENABLE(e2k-opcodes,
+[  --enable-e2k-opcodes    enable opcodes for E2K],
+[case "${enableval}" in
+  yes | no)	enable_e2k_opcodes=$enableval ;;
+  *)	AC_MSG_ERROR([enable-e2k-opcodes option must specify either 'yes' or 'no'])
+	;;
+esac],
+[enable_e2k_opcodes=yes])dnl
+
+
+AC_ARG_ENABLE(e2k-encodings,
+[  --enable-e2k-encodings  enable raw instruction encodings in disassembly for E2K],
+[case "${enableval}" in
+  yes | no)	enable_e2k_encodings=$enableval ;;
+  *)	AC_MSG_ERROR([enable-e2k-encodings option must specify either 'yes' or 'no'])
+	;;
+esac],
+[enable_e2k_encodings=no])dnl
+
+if test $enable_e2k_encodings = yes ; then
+    AC_DEFINE(ENABLE_E2K_ENCODINGS, 1, [Define if E2K encodings should be enabled. ])
+fi
+
+
 AM_BINUTILS_WARNINGS
 ACX_PROG_CC_WARNING_OPTS([-Wno-missing-field-initializers],
 			 [NO_WMISSING_FIELD_INITIALIZERS])
@@ -264,6 +289,13 @@ if test x${all_targets} = xfalse ; then
 	bfd_d10v_arch)		ta="$ta d10v-dis.lo d10v-opc.lo" ;;
 	bfd_d30v_arch)		ta="$ta d30v-dis.lo d30v-opc.lo" ;;
 	bfd_dlx_arch)		ta="$ta dlx-dis.lo" ;;
+	bfd_e2k_arch)
+          if test $enable_e2k_opcodes = yes ; then
+	      ta="$ta e2k-dis.lo e2k-opc.lo"
+          else
+              archdefs="$archdefs -UARCH_$ad"
+          fi
+          ;;
 	bfd_fr30_arch)		ta="$ta fr30-asm.lo fr30-desc.lo fr30-dis.lo fr30-ibld.lo fr30-opc.lo" using_cgen=yes ;;
 	bfd_frv_arch)		ta="$ta frv-asm.lo frv-desc.lo frv-dis.lo frv-ibld.lo frv-opc.lo" using_cgen=yes ;;
 	bfd_ft32_arch)		ta="$ta ft32-opc.lo ft32-dis.lo" ;;

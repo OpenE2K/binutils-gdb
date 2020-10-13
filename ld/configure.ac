@@ -232,6 +232,14 @@ AC_FUNC_MMAP
 AC_SEARCH_LIBS([dlopen], [dl])
 AM_CONDITIONAL([ENABLE_PLUGINS], [test x$plugins = xyes])
 
+AC_ARG_ENABLE(debian-multiarch,
+[  --enable-debian-multiarch use debian multiarch library search paths],
+[case "${enableval}" in
+ yes|no) ;;
+ *) AC_MSG_ERROR([invalid --enable-debian-multiarch argument]) ;;
+ esac], [enable_debian_multiarch=no])
+AC_SUBST(enable_debian_multiarch)
+
 AC_ARG_ENABLE(initfini-array,
 [  --disable-initfini-array do not use .init_array/.fini_array sections],
 [case "${enableval}" in

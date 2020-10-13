@@ -1,0 +1,42 @@
+# Copyright (C) 2013 by Ilya Malakhov
+
+load_file $srcdir/config/default.exp
+
+proc e2k${mode}-cross_init { dummy } {
+
+ global as_flags cc_flags emul
+
+
+ global CC CXX HOSTING_EMU AS LD as ld
+ global orig_CC orig_CXX orig_HOSTING_EMU orig_AS orig_LD orig_as orig_ld
+
+ set orig_CC "$CC"
+ set orig_CXX "$CXX"
+ set orig_HOSTING_EMU "$HOSTING_EMU"
+ set orig_AS "$AS"
+ set orig_LD "$LD"
+ set orig_as "$as"
+ set orig_ld "$ld"
+
+ set CC "$CC ${cc_flags}"
+ set CXX "$CXX ${cc_flags}"
+ set HOSTING_EMU "-m ${emul}"
+ set AS "$AS ${as_flags}"
+ set LD "$LD -m${emul}"
+ set as "$as ${as_flags}"
+ set ld "$ld -m${emul}"
+}
+
+proc e2k${mode}-cross_exit { } {
+
+ global CC CXX HOSTING_EMU AS LD as ld
+ global orig_CC orig_CXX orig_HOSTING_EMU orig_AS orig_LD orig_as orig_ld
+
+ set CC "$orig_CC"
+ set CXX "$orig_CXX"
+ set HOSTING_EMU "$orig_HOSTING_EMU"
+ set AS "$orig_AS"
+ set LD "$orig_LD"
+ set as "$orig_as"
+ set ld "$orig_ld"
+}

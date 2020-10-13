@@ -360,7 +360,9 @@ ldfile_open_file_search (const char *arch,
     {
       char *string;
 
-      if (entry->flags.dynamic && !bfd_link_relocatable (&link_info))
+      if (entry->flags.dynamic
+          && (!bfd_link_relocatable (&link_info)
+              || ldemul_allow_dynamic_entries_in_relocatable_link ()))
 	{
 	  if (ldemul_open_dynamic_archive (arch, search, entry))
 	    return TRUE;

@@ -142,6 +142,10 @@ read_sleb128 (bfd_byte **iter, bfd_byte *end, bfd_signed_vma *value)
 static
 int get_DW_EH_PE_width (int encoding, int ptr_size)
 {
+  /* For the sake of E2K Protected Mode.  */
+  if (encoding == DW_EH_PE_aligned)
+    return 16;
+
   /* DW_EH_PE_ values of 0x60 and 0x70 weren't defined at the time .eh_frame
      was added to bfd.  */
   if ((encoding & 0x60) == 0x60)

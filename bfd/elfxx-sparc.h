@@ -147,3 +147,27 @@ extern bfd_vma _bfd_sparc_elf_plt_sym_val
   (bfd_vma, const asection *, const arelent *);
 extern bfd_boolean _bfd_sparc_elf_merge_private_bfd_data
   (bfd *, struct bfd_link_info *);
+
+
+/* EIR specific methods.  */
+
+extern bfd_boolean _bfd_sparc_elf_link_add_symbols
+  (bfd *, struct bfd_link_info *);
+
+extern bfd_boolean _bfd_sparc_elf_final_link
+  (bfd *, struct bfd_link_info *);
+
+extern bfd_boolean _bfd_sparc_elf_ignore_discarded_relocs
+  (asection *);
+
+extern void _bfd_sparc_elf_hide_symbol
+  (struct bfd_link_info *, struct elf_link_hash_entry *,
+   bfd_boolean);
+
+extern bfd_boolean _bfd_sparc_elf_write_object_contents (bfd *);
+
+extern void _bfd_sparc_elf_after_parse (int);
+
+extern bfd_boolean _bfd_sparc_elf_check_magic (bfd *ibfd);
+
+extern const struct bfd_elf_special_section  _bfd_sparc_elf_special_sections[];

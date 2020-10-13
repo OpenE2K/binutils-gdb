@@ -14359,6 +14359,10 @@ do
     d10v_elf32_vec)		 tb="$tb elf32-d10v.lo elf32.lo $elf" ;;
     d30v_elf32_vec)		 tb="$tb elf32-d30v.lo elf32.lo $elf" ;;
     dlx_elf32_be_vec)		 tb="$tb elf32-dlx.lo elf32.lo $elf" ;;
+    e2k_elf32_vec)		 tb="$tb elf32-e2k.lo elfxx-e2k.lo elf-ifunc.lo $elf"; want64=true;;
+    e2k_pm_elf32_vec)		 tb="$tb elf32-e2k-pm.lo elfxx-e2k.lo elf-ifunc.lo $elf";;
+    e2k_elf64_vec)		 tb="$tb elf64-e2k.lo elfxx-e2k.lo elf-ifunc.lo $elf"; target_size=64;;
+    e2k_kpda_elf64_vec)		 tb="$tb elf64-e2k-kpda.lo elfxx-e2k.lo elf-ifunc.lo $elf"; target_size=64;;
     elf32_be_vec)		 tb="$tb elf32-gen.lo elf32.lo $elf" ;;
     elf32_le_vec)		 tb="$tb elf32-gen.lo elf32.lo $elf" ;;
     elf64_be_vec)		 tb="$tb elf64-gen.lo elf64.lo $elf"; target_size=64 ;;

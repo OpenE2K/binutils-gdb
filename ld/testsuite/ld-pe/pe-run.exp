@@ -137,10 +137,10 @@ proc directdll_execute {exe msg} {
 test_direct_link_dll
 
 # This is as far as we can go with a cross-compiler
-if ![isnative] then {
-    verbose "Not running natively, so cannot execute binaries"
-    return
-}
+# if ![isnative] then {
+#     verbose "Not running natively, so cannot execute binaries"
+#     return
+# }
 
 directdll_execute "$tmpdir/direct_client_dll.exe" "running direct linked dll (.dll)"
 directdll_execute "$tmpdir/direct_client_sl.exe" "running direct linked dll (.sl)"

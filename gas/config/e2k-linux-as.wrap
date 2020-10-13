@@ -1,0 +1,135 @@
+#!/bin/bash
+
+# set -x
+
+gas="${0}.real"
+ld="$(dirname ${0})/e2k-linux-ld"
+objcopy="$(dirname ${0})/e2k-linux-objcopy -O binary"
+diffcode="$(dirname ${0})/e2k-linux-diffcode"
+
+# At MCST mktemp doesn't recognize `--suffix' option.
+
+tmp_s=$(mktemp) # --suffix=.s
+tmp_gas_o=$(mktemp) # --suffix=.o
+tmp_las_o=$(mktemp) # --suffix=.o
+
+tmp_gas_ld=$(mktemp)
+tmp_las_ld=$(mktemp)
+
+tmp_gas_fin=$(mktemp)
+tmp_las_fin=$(mktemp)
+
+# Note that GAS exits with a non-zero code in preprocessing mode
+# to avoid the need for creating an output object file. Therefore, don't
+# check for success here.
+$gas --preprocess "$@" > $tmp_s 2> /dev/null
+
+
+options=()
+
+for i in $@; do
+    case $i in
+        -mptr32)
+            las="las_i"
+            mptr=$i
+            emul="-melf32_e2k"
+            ;;
+        -mptr128)
+            las="las_i -M"
+            mptr=$i
+            emul="-melf32_e2k_pm"
+            ;;
+        -mptr64)
+            las=las64_i
+            mptr=$i
+            emul="-melf64_e2k"
+            ;;
+        -mcpu=* | -*no_strict_delay | -*fmessage-length | -*permissive)
+        options+=($i)
+        ;;
+    esac;
+done
+
+
+res=0
+
+$gas $mptr ${options[@]} $tmp_s -o $tmp_gas_o
+[ $? -eq 0 ] || res=1
+
+lasdir=/auto/malakhov/tmp/migrate/lases
+las=$lasdir/$las
+
+$las ${options[@]} $tmp_s -o $tmp_las_o
+[ $? -eq 0 ] || res=1
+
+
+if [ $res -eq 0 ]; then
+    $ld --simulate $emul $tmp_gas_o -o $tmp_gas_ld 2> /dev/null
+    [ $? -eq 0 ] || res=1
+
+    $ld --simulate $emul $tmp_las_o -o $tmp_las_ld 2> /dev/null
+    [ $? -eq 0 ] || res=1
+fi
+
+if [ $res -eq 0 ]; then
+    # OBJCOPY may fail, for example, due to the absence of `.text' within the
+    # input file. This script shouldn't fail in such a case.
+    objcopy_res=0
+
+    $objcopy -j .text $tmp_gas_ld $tmp_gas_fin 2> /dev/null
+    [ $? -eq 0 ] || objcopy_res=1
+
+    $objcopy -j .text $tmp_las_ld $tmp_las_fin 2> /dev/null
+    [ $? -eq 0 ] || objcopy_res=1
+
+    if [ $objcopy_res -eq 0 ]; then
+        if ! diff $tmp_gas_fin $tmp_las_fin; then
+            msg=$($diffcode $tmp_gas_fin $tmp_las_fin) || res=1
+        fi
+
+        # Let the user see all positive results.
+        true # [ $res -eq 0 ] && echo -e "$$: synchronous code in\n\n $(ls -l $tmp_gas_fin $tmp_las_fin)\n\nis identical"
+    fi
+fi
+
+# Go on comparing fapb instructions only if the preceding comparison of
+# .text sections has succeeded.
+if [ $res -eq 0 ]; then
+    objcopy_res=0
+
+    $objcopy -j .fapb $tmp_gas_ld $tmp_gas_fin 2> /dev/null
+    [ $? -eq 0 ] || objcopy_res=1
+    [ -s $tmp_gas_fin ] || objcopy_res=1
+
+    $objcopy -j .fapb $tmp_las_ld $tmp_las_fin 2> /dev/null
+    [ $? -eq 0 ] || objcopy_res=1
+    [ -s $tmp_las_fin ] || objcopy_res=1
+
+    if [ $objcopy_res -eq 0 ]; then
+        if ! diff $tmp_gas_fin $tmp_las_fin; then
+            msg="sections with asynchronous code differ"
+            res=1
+        fi
+
+        # Let the user see all positive results.
+        true # [ $res -eq 0 ] && echo -e "$$: asynchronous code in\n\n $(ls -l $tmp_gas_fin $tmp_las_fin)\n\nis identical"
+    fi
+fi
+
+if [ $res -eq 0 ]; then
+    rm -f $tmp_s $tmp_gas_o $tmp_las_o $tmp_gas_ld $tmp_las_ld $tmp_gas_fin \
+       $tmp_las_fin
+
+    # echo "$$: $gas $@"
+    $gas "$@"
+    res=$?;
+else
+    echo "$$: $msg"
+    echo "$$: assembler file:           $tmp_s"
+    echo "$$: relocatable object files: $tmp_gas_o $tmp_las_o"
+    echo "$$: linked object files:      $tmp_gas_ld $tmp_las_ld"
+    echo "$$: final binaries:           $tmp_gas_fin $tmp_las_fin"
+fi
+    
+
+exit $res

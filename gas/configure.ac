@@ -102,6 +102,16 @@ esac])dnl
 
 using_cgen=no
 
+AC_ARG_ENABLE(e2k-opcodes,
+[  --enable-e2k-opcodes    enable opcodes for E2K],
+[case "${enableval}" in
+  yes | no)	enable_e2k_opcodes=$enableval ;;
+  *)	AC_MSG_ERROR([enable-e2k-opcodes option must specify either 'yes' or 'no'])
+	;;
+esac],
+[enable_e2k_opcodes=yes])dnl
+
+
 AM_BINUTILS_WARNINGS
 
 # Generate a header file

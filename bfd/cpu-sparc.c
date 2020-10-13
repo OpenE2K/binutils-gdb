@@ -337,6 +337,36 @@ static const bfd_arch_info_type arch_info_struct[] =
     bfd_default_compatible,
     bfd_default_scan,
     bfd_arch_default_fill,
+    &arch_info_struct[21],
+  },
+  {
+    32,/* bits in a word */
+    32,/* bits in an address */
+    8,/* bits in a byte */
+    bfd_arch_sparc,
+    bfd_mach_sparc_v8plus_mcst,
+    "sparc",
+    "sparc:v8plus_mcst",
+    3,
+    FALSE,
+    bfd_default_compatible,
+    bfd_default_scan,
+    bfd_arch_default_fill,
+    &arch_info_struct[22],
+  },
+  {
+    64,/* bits in a word */
+    64,/* bits in an address */
+    8,/* bits in a byte */
+    bfd_arch_sparc,
+    bfd_mach_sparc_v9_mcst,
+    "sparc",
+    "sparc:r1000",
+    3,
+    FALSE,
+    bfd_default_compatible,
+    bfd_default_scan,
+    bfd_arch_default_fill,
     0,
   }
 };

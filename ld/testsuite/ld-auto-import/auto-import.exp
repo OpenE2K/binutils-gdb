@@ -52,7 +52,7 @@
 #
 
 # This test can only be run if ld generates native executables.
-if ![isnative] then {return}
+# if ![isnative] then {return}
 
 # This test can only be run on a couple of platforms.
 # Square bracket expressions seem to confuse istarget.

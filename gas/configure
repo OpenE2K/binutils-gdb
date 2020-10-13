@@ -771,6 +771,7 @@ enable_checking
 enable_compressed_debug_sections
 enable_x86_relax_relocations
 enable_elf_stt_common
+enable_e2k_opcodes
 enable_werror
 enable_build_warnings
 with_cpu
@@ -1426,6 +1427,7 @@ Optional Features:
                           generate x86 relax relocations by default
   --enable-elf-stt-common generate ELF common symbols with STT_COMMON type by
                           default
+  --enable-e2k-opcodes    enable opcodes for E2K
   --enable-werror         treat compile warnings as errors
   --enable-build-warnings enable build-time compiler warnings
   --disable-nls           do not use Native Language Support
@@ -10987,7 +10989,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 10990 "configure"
+#line 10992 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11093,7 +11095,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11096 "configure"
+#line 11098 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11748,6 +11750,18 @@ esac
 fi
 
 using_cgen=no
+
+# Check whether --enable-e2k-opcodes was given.
+if test "${enable_e2k_opcodes+set}" = set; then :
+  enableval=$enable_e2k_opcodes; case "${enableval}" in
+  yes | no)	enable_e2k_opcodes=$enableval ;;
+  *)	as_fn_error "enable-e2k-opcodes option must specify either 'yes' or 'no'" "$LINENO" 5
+	;;
+esac
+else
+  enable_e2k_opcodes=yes
+fi
+
 
 
 # Set the 'development' global.

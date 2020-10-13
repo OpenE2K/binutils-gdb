@@ -220,6 +220,8 @@ ALL_EMULATION_SOURCES = \
 	ed30velf.c \
 	edelta68.c \
 	eelf32_dlx.c \
+	eelf32_e2k.c \
+	eelf32_e2k_pm_latest.c \
 	eelf32_i860.c \
 	eelf32_i960.c \
 	eelf32_sparc.c \
@@ -477,6 +479,8 @@ ALL_64_EMULATION_SOURCES = \
 	eelf32ltsmipn32_fbsd.c \
 	eelf32mipswindiss.c \
 	eelf64_aix.c \
+	eelf64_e2k.c \
+	eelf64_e2k_kpda.c \
 	eelf64_ia64.c \
 	eelf64_ia64_fbsd.c \
 	eelf64_ia64_vms.c \
@@ -669,7 +673,7 @@ stringify.sed: ${srcdir}/emultempl/$(STRINGIFY)
 
 # These all start with e so 'make clean' can find them.
 
-GENSCRIPTS = LIB_PATH='${LIB_PATH}' $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@
+GENSCRIPTS = LIB_PATH='${LIB_PATH}' $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@ @enable_debian_multiarch@
 GEN_DEPENDS = $(srcdir)/genscripts.sh stringify.sed
 ELF_DEPS = $(srcdir)/emultempl/elf32.em $(srcdir)/emultempl/elf-generic.em $(srcdir)/scripttempl/DWARF.sc
 ELF_GEN_DEPS = $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/elf-generic.em $(srcdir)/emultempl/genelf.em $(srcdir)/scripttempl/DWARF.sc
@@ -958,6 +962,17 @@ edelta68.c: $(srcdir)/emulparams/delta68.sh \
 
 eelf32_dlx.c: $(srcdir)/emulparams/elf32_dlx.sh \
   $(ELF_GEN_DEPS) $(srcdir)/scripttempl/dlx.sc ${GEN_DEPENDS}
+
+eelf32_e2k.c: $(srcdir)/emulparams/elf_e2k.sh \
+  $(srcdir)/emulparams/elf32_e2k.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/e2kelf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+
+eelf32_e2k_pm_latest.c: $(srcdir)/emulparams/elf_e2k.sh \
+  $(srcdir)/emulparams/elf32_e2k_pm_latest.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/e2kelf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+
 
 eelf32_i860.c: $(srcdir)/emulparams/elf32_i860.sh \
   $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
@@ -1921,6 +1936,18 @@ eelf32_x86_64_nacl.c: $(srcdir)/emulparams/elf32_x86_64_nacl.sh \
 eelf64_aix.c: $(srcdir)/emulparams/elf64_aix.sh \
   $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 
+
+eelf64_e2k.c: $(srcdir)/emulparams/elf_e2k.sh \
+  $(srcdir)/emulparams/elf64_e2k.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/e2kelf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+
+eelf64_e2k_kpda.c: $(srcdir)/emulparams/elf_e2k.sh \
+  $(srcdir)/emulparams/elf64_e2k.sh \
+  $(srcdir)/emulparams/elf64_e2k_kpda.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/e2kelf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+
 eelf64_ia64.c: $(srcdir)/emulparams/elf64_ia64.sh \
   $(ELF_DEPS) $(srcdir)/emultempl/ia64elf.em \
   $(srcdir)/emultempl/needrelax.em \
@@ -2138,13 +2165,13 @@ if ENABLE_PLUGINS
 noinst_LTLIBRARIES = libldtestplug.la libldtestplug2.la \
 		     libldtestplug3.la libldtestplug4.la
 libldtestplug_la_SOURCES = testplug.c
-libldtestplug_la_CFLAGS= -g -O2
+libldtestplug_la_CFLAGS= -g -O0
 libldtestplug_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug2_la_SOURCES = testplug2.c
-libldtestplug2_la_CFLAGS= -g -O2
+libldtestplug2_la_CFLAGS= -g -O0
 libldtestplug2_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug3_la_SOURCES = testplug3.c
-libldtestplug3_la_CFLAGS= -g -O2
+libldtestplug3_la_CFLAGS= -g -O0
 libldtestplug3_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug4_la_SOURCES = testplug4.c
 libldtestplug4_la_CFLAGS= -g -O2

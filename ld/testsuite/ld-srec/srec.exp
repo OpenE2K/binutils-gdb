@@ -359,6 +359,11 @@ set CC "$CC $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS"
 set old_CXX "$CXX"
 set CXX "$CXX $PLT_CFLAGS $NOPIE_CFLAGS $NOPIE_LDFLAGS"
 
+if [istarget e2k*-*-linux*] {
+    set CC "$CC -fno-plt-inline"
+    set CXX "$CXX -fno-plt-inline"
+}
+
 if { ![ld_compile $CC $srcdir/$subdir/sr1.c tmpdir/sr1.o] \
      || ![ld_compile $CC $srcdir/$subdir/sr2.c tmpdir/sr2.o] } {
     unresolved $test1

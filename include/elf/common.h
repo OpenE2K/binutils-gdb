@@ -75,6 +75,7 @@
 #define ELFOSABI_FENIXOS     16 /* FenixOS */
 #define ELFOSABI_CLOUDABI    17 /* Nuxi CloudABI */
 #define ELFOSABI_OPENVOS     18 /* Stratus Technologies OpenVOS */
+#define ELFOSABI_KPDA        30 /* KPDA ABI */
 
 #define ELFOSABI_C6000_ELFABI 64 /* Bare-metal TMS320C6000 */
 #define ELFOSABI_C6000_LINUX 65 /* Linux TMS320C6000 */
@@ -155,6 +156,7 @@
 #define EM_H8_300H	 47	/* Renesas (formerly Hitachi) H8/300H */
 #define EM_H8S		 48	/* Renesas (formerly Hitachi) H8S */
 #define EM_H8_500	 49	/* Renesas (formerly Hitachi) H8/500 */
+#define EM_E2K_OLD       49     /* Old E2K arch code (rather confusing) */
 #define EM_IA_64	 50	/* Intel IA-64 Processor */
 #define EM_MIPS_X	 51	/* Stanford MIPS-X */
 #define EM_COLDFIRE	 52	/* Motorola Coldfire */
@@ -338,6 +340,8 @@
 #define EM_RISCV 	243 	/* RISC-V */
 #define EM_LANAI	244	/* Lanai 32-bit processor.  */
 #define EM_BPF		247	/* Linux BPF – in-kernel virtual machine.  */
+
+#define EM_ELCORE       0x2718  /* Elvees multicore DSP architecture  */
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -664,6 +668,10 @@
    must start with "SPU/".  */
 
 #define NT_SPU		1
+
+/* Values of note segment descriptor types for object files on
+   MCST systems. Note name is "MCST".  */
+#define NT_MAGIC        1
 
 /* Values of note segment descriptor types for object files.  */
 

@@ -437,6 +437,8 @@ TARGET_CPU_CFILES = \
 	config/tc-d10v.c \
 	config/tc-d30v.c \
 	config/tc-dlx.c \
+	config/tc-e2k.c \
+	config/tc-stub.c \
 	config/tc-epiphany.c \
 	config/tc-fr30.c \
 	config/tc-frv.c \
@@ -514,6 +516,8 @@ TARGET_CPU_HFILES = \
 	config/tc-d10v.h \
 	config/tc-d30v.h \
 	config/tc-dlx.h \
+	config/tc-e2k.h \
+	config/tc-stub.h \
 	config/tc-epiphany.h \
 	config/tc-fr30.h \
 	config/tc-frv.h \
@@ -874,6 +878,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-d10v.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-d30v.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-dlx.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-e2k.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-epiphany.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-fr30.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-frv.Po@am__quote@
@@ -920,6 +925,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-sh64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-sparc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-spu.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-stub.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-tic30.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-tic4x.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tc-tic54x.Po@am__quote@
@@ -1128,6 +1134,34 @@ tc-dlx.obj: config/tc-dlx.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-dlx.c' object='tc-dlx.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-dlx.obj `if test -f 'config/tc-dlx.c'; then $(CYGPATH_W) 'config/tc-dlx.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-dlx.c'; fi`
+
+tc-e2k.o: config/tc-e2k.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-e2k.o -MD -MP -MF $(DEPDIR)/tc-e2k.Tpo -c -o tc-e2k.o `test -f 'config/tc-e2k.c' || echo '$(srcdir)/'`config/tc-e2k.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-e2k.Tpo $(DEPDIR)/tc-e2k.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-e2k.c' object='tc-e2k.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-e2k.o `test -f 'config/tc-e2k.c' || echo '$(srcdir)/'`config/tc-e2k.c
+
+tc-e2k.obj: config/tc-e2k.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-e2k.obj -MD -MP -MF $(DEPDIR)/tc-e2k.Tpo -c -o tc-e2k.obj `if test -f 'config/tc-e2k.c'; then $(CYGPATH_W) 'config/tc-e2k.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-e2k.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-e2k.Tpo $(DEPDIR)/tc-e2k.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-e2k.c' object='tc-e2k.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-e2k.obj `if test -f 'config/tc-e2k.c'; then $(CYGPATH_W) 'config/tc-e2k.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-e2k.c'; fi`
+
+tc-stub.o: config/tc-stub.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-stub.o -MD -MP -MF $(DEPDIR)/tc-stub.Tpo -c -o tc-stub.o `test -f 'config/tc-stub.c' || echo '$(srcdir)/'`config/tc-stub.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-stub.Tpo $(DEPDIR)/tc-stub.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-stub.c' object='tc-stub.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-stub.o `test -f 'config/tc-stub.c' || echo '$(srcdir)/'`config/tc-stub.c
+
+tc-stub.obj: config/tc-stub.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-stub.obj -MD -MP -MF $(DEPDIR)/tc-stub.Tpo -c -o tc-stub.obj `if test -f 'config/tc-stub.c'; then $(CYGPATH_W) 'config/tc-stub.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-stub.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-stub.Tpo $(DEPDIR)/tc-stub.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-stub.c' object='tc-stub.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-stub.obj `if test -f 'config/tc-stub.c'; then $(CYGPATH_W) 'config/tc-stub.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-stub.c'; fi`
 
 tc-epiphany.o: config/tc-epiphany.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-epiphany.o -MD -MP -MF $(DEPDIR)/tc-epiphany.Tpo -c -o tc-epiphany.o `test -f 'config/tc-epiphany.c' || echo '$(srcdir)/'`config/tc-epiphany.c

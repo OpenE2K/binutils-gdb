@@ -59,7 +59,8 @@ enum sparc_opcode_arch_val
                             multiply and Fujitsu fp multiply-add.  */
   SPARC_OPCODE_ARCH_V9M, /* V9 with OSA2015 and M7 additions.  */
   SPARC_OPCODE_ARCH_M8,  /* V9 with OSA2017 and M8 additions.  */
-  SPARC_OPCODE_ARCH_MAX = SPARC_OPCODE_ARCH_M8,
+  SPARC_OPCODE_ARCH_V9_MCST, /* V9B with MCST additions.  */
+  SPARC_OPCODE_ARCH_MAX = SPARC_OPCODE_ARCH_V9_MCST,
   SPARC_OPCODE_ARCH_BAD  /* Error return from sparc_opcode_lookup_arch.  */
 };
 
@@ -171,6 +172,11 @@ typedef struct
 #define HWCAP_PAUSE	0x08000000 /* Pause insn */
 #define HWCAP_CBCOND	0x10000000 /* Compare and Branch insns */
 #define HWCAP_CRC32C	0x20000000 /* CRC32C insn */
+
+#define HWCAP_R1000     0x40000000
+ /* This hardware capability is intended to be used in R2000. I wonder if it's
+    really free . . .  */
+#define HWCAP_SAPPHIRE  0x80000000
 
 #define HWCAP2_FJATHPLUS 0x00000001 /* Fujitsu Athena+ */
 #define HWCAP2_VIS3B     0x00000002 /* Subset of VIS3 present on sparc64 X+.  */

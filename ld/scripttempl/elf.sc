@@ -291,20 +291,46 @@ CTOR=".ctors        ${CONSTRUCTING-0} :
        end of ctors marker and it must be last */
 
     KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o $OTHER_EXCLUDE_FILES) .ctors))
-    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(SORT(.ctors.*)))"
+if [ "$LD_FLAG" != "r" ]; then
+CTOR="$CTOR
     KEEP (*(.ctors))
+    KEEP (*(.end_ctors))"
+fi
+CTOR="$CTOR
     ${CONSTRUCTING+${CTOR_END}}
   }"
+if [ "$LD_FLAG" = "r" ]; then
+NON_RELOCATING_CTOR="
+.end_ctors    ${CONSTRUCTING-0} : 
+  {
+    KEEP (*crtend?.o (.ctors))
+    KEEP (*crtend.o (.ctors))
+  }"
+fi
 DTOR=".dtors        ${CONSTRUCTING-0} :
   {
     ${CONSTRUCTING+${DTOR_START}}
     KEEP (*crtbegin.o(.dtors))
     KEEP (*crtbegin?.o(.dtors))
     KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o $OTHER_EXCLUDE_FILES) .dtors))
-    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(SORT(.dtors.*)))"
+if [ "$LD_FLAG" != "r" ]; then
+DTOR="$DTOR
     KEEP (*(.dtors))
+    KEEP (*(.end_dtors))"
+fi
+DTOR="$DTOR
     ${CONSTRUCTING+${DTOR_END}}
   }"
+if [ "$LD_FLAG" = "r" ]; then
+NON_RELOCATING_DTOR="
+.end_dtors    ${CONSTRUCTING-0} : 
+  {
+    KEEP (*crtend?.o (.dtors))
+    KEEP (*crtend.o (.dtors))
+  }"
+fi
 STACK=".stack        ${RELOCATING-0}${RELOCATING+${STACK_ADDR}} :
   {
     ${RELOCATING+${USER_LABEL_PREFIX}_stack = .;}
@@ -370,6 +396,13 @@ test -n "${RELOCATING+0}" || unset NON_ALLOC_DYN
 test -z "${NON_ALLOC_DYN}" || TEXT_DYNAMIC=
 cat > ldscripts/dyntmp.$$ <<EOF
   ${TEXT_DYNAMIC+${DYNAMIC}}
+  /DISCARD/      :
+    {
+      *(.pack_pure_eir)
+      *(.pack_mixed_eir)
+      *(.pack_eir)
+      *(.pack_ias)
+    }
   .hash         ${RELOCATING-0} : { *(.hash) }
   .gnu.hash     ${RELOCATING-0} : { *(.gnu.hash) }
   .dynsym       ${RELOCATING-0} : { *(.dynsym) }
@@ -398,7 +431,7 @@ eval $COMBRELOCCAT <<EOF
   .rel.data.rel.ro ${RELOCATING-0} : { *(.rel.data.rel.ro${RELOCATING+ .rel.data.rel.ro.* .rel.gnu.linkonce.d.rel.ro.*}) }
   .rela.data.rel.ro ${RELOCATING-0} : { *(.rela.data.rel.ro${RELOCATING+ .rela.data.rel.ro.* .rela.gnu.linkonce.d.rel.ro.*}) }
   .rel.data     ${RELOCATING-0} : { *(.rel.data${RELOCATING+ .rel.data.* .rel.gnu.linkonce.d.*}) }
-  .rela.data    ${RELOCATING-0} : { *(.rela.data${RELOCATING+ .rela.data.* .rela.gnu.linkonce.d.*}) }
+  .rela.data    ${RELOCATING-0} : { *(.rela.data${RELOCATING+ .rela.data.*}) *(SORT(.rela.ecomp.array_padding.d.*)) ${RELOCATING+ *(.rela.gnu.linkonce.d.*)} }
   ${OTHER_READWRITE_RELOC_SECTIONS}
   .rel.tdata	${RELOCATING-0} : { *(.rel.tdata${RELOCATING+ .rel.tdata.* .rel.gnu.linkonce.td.*}) }
   .rela.tdata	${RELOCATING-0} : { *(.rela.tdata${RELOCATING+ .rela.tdata.* .rela.gnu.linkonce.td.*}) }
@@ -416,7 +449,7 @@ eval $COMBRELOCCAT <<EOF
   ${REL_SDATA2}
   ${REL_SBSS2}
   .rel.${BSS_NAME}      ${RELOCATING-0} : { *(.rel.${BSS_NAME}${RELOCATING+ .rel.${BSS_NAME}.* .rel.gnu.linkonce.b.*}) }
-  .rela.${BSS_NAME}     ${RELOCATING-0} : { *(.rela.${BSS_NAME}${RELOCATING+ .rela.${BSS_NAME}.* .rela.gnu.linkonce.b.*}) }
+  .rela.${BSS_NAME}     ${RELOCATING-0} : { *(.rela.${BSS_NAME} ${RELOCATING+ .rela.${BSS_NAME}.*}) *(SORT(.rela.ecomp.array_padding.b.*)) ${RELOCATING+ *(.rela.gnu.linkonce.b.*)} }
   ${REL_LARGE}
   ${IREL_IN_PLT+$REL_IFUNC}
   ${IREL_IN_PLT+$RELA_IFUNC}
@@ -521,8 +554,8 @@ SEGMENT_START(\"rodata-segment\", ${RODATA_ADDR}) + SIZEOF_HEADERS"
     SHLIB_RODATA_ADDR="\
 SEGMENT_START(\"rodata-segment\", ${SHLIB_RODATA_ADDR}) + SIZEOF_HEADERS"
   else
-    SHLIB_RODATA_ADDR="SEGMENT_START(\"rodata-segment\", ${SHLIB_RODATA_ADDR})"
     SHLIB_RODATA_ADDR="ALIGN(${SEGMENT_SIZE}) + (. & (${MAXPAGESIZE} - 1))"
+    SHLIB_RODATA_ADDR="SEGMENT_START(\"rodata-segment\", ${SHLIB_RODATA_ADDR})"
   fi
   cat <<EOF
   /* Adjust the address for the rodata segment.  We want to adjust up to
@@ -576,7 +609,9 @@ cat <<EOF
   ${RELOCATING+${INIT_ARRAY}}
   ${RELOCATING+${FINI_ARRAY}}
   ${SMALL_DATA_CTOR-${RELOCATING+${CTOR}}}
+  ${SMALL_DATA_CTOR-${RELOCATING-${NON_RELOCATING_CTOR}}}
   ${SMALL_DATA_DTOR-${RELOCATING+${DTOR}}}
+  ${SMALL_DATA_DTOR-${RELOCATING-${NON_RELOCATING_DTOR}}}
   .jcr          ${RELOCATING-0} : { KEEP (*(.jcr)) }
 
   ${RELOCATING+${DATARELRO}}
@@ -601,7 +636,7 @@ cat <<EOF
   .data         ${RELOCATING-0} :
   {
     ${RELOCATING+${DATA_START_SYMBOLS}}
-    *(.data${RELOCATING+ .data.* .gnu.linkonce.d.*})
+    *(.data ${RELOCATING+ .data.*}) *(SORT(.ecomp.array_padding.d.*)) ${RELOCATING+ *(.gnu.linkonce.d.*)}
     ${CONSTRUCTING+SORT(CONSTRUCTORS)}
   }
   .data1        ${RELOCATING-0} : { *(.data1) }
@@ -624,7 +659,7 @@ cat <<EOF
   .${BSS_NAME}          ${RELOCATING-0} :
   {
    ${RELOCATING+*(.dynbss)}
-   *(.${BSS_NAME}${RELOCATING+ .${BSS_NAME}.* .gnu.linkonce.b.*})
+   *(.${BSS_NAME} ${RELOCATING+ .${BSS_NAME}.*}) *(SORT(.ecomp.array_padding.b.*)) ${RELOCATING+ *(.gnu.linkonce.b.*)}
    *(COMMON)
    /* Align here to ensure that the .bss section occupies space up to
       _end.  Align after .bss to ensure correct alignment even if the

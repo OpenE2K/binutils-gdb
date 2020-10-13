@@ -355,3 +355,11 @@ ldemul_extra_map_file_text (bfd *abfd, struct bfd_link_info *info, FILE *mapf)
   if (ld_emulation->extra_map_file_text)
     ld_emulation->extra_map_file_text (abfd, info, mapf);
 }
+
+bfd_boolean ldemul_allow_dynamic_entries_in_relocatable_link ()
+{
+  if (ld_emulation->allow_dynamic_entries_in_relocatable_link)
+    return ld_emulation->allow_dynamic_entries_in_relocatable_link ();
+
+  return FALSE;
+}

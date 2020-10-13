@@ -56,6 +56,8 @@ struct expr_symbol_line {
   unsigned int line;
 };
 
+int hack_for_e2k = 0;
+
 static struct expr_symbol_line *expr_symbol_lines;
 
 /* Build a dummy symbol to hold a complex expression.  This is how we
@@ -69,7 +71,15 @@ make_expr_symbol (expressionS *expressionP)
   symbolS *symbolP;
   struct expr_symbol_line *n;
 
-  if (expressionP->X_op == O_symbol
+  /* FIXME: I don't quite understand what this "optimization" is intended to
+     do. In case `O_add' is constructed for a register and a symbol (e.g.,
+     `%b[3] + dummy') it replaces the latter (i.e. `O_symbol' expression) with
+     the underlying `O_constant' used to represent its `X_add_symbol' member.
+     Taking into account that currently I'm unable to properly recognize symbols
+     when parsing arguments of instructions unless they are `O_symbol's, undo
+     it.  */
+  if (hack_for_e2k == 0
+      && expressionP->X_op == O_symbol
       && expressionP->X_add_number == 0)
     return expressionP->X_add_symbol;
 
@@ -243,6 +253,11 @@ generic_bignum_to_int64 (void)
   return number;
 }
 #endif
+
+#ifdef TC_E2K
+extern const char *maybe_symbol_ptr;
+extern const char *symbol_ptr;
+#endif /* TC_E2K  */
 
 static void
 integer_constant (int radix, expressionS *expressionP)
@@ -508,6 +523,28 @@ integer_constant (int radix, expressionS *expressionP)
       && input_line_pointer - 1 == suffix)
     c = *input_line_pointer++;
 
+
+  /* FIXME: for now stupidly support `UL', `llu', `ull' and `u' C constant
+     suffixes encountered while assembling the Kernel and binary compiler for
+     E2K. A more generic approach is required . . .  */
+  if (c == 'U' && input_line_pointer[0] == 'L')
+    {
+      c = input_line_pointer[1];
+      input_line_pointer += 2;
+    }
+  else if ((c == 'l' && input_line_pointer[0] == 'l'
+            && input_line_pointer[1] == 'u')
+           || (c == 'u' && input_line_pointer[0] == 'l'
+               && input_line_pointer[1] == 'l'))
+    
+    {
+      c = input_line_pointer[2];
+      input_line_pointer += 3;
+    }
+  else if ((c == 'u' && input_line_pointer[0] != 'l')
+           || c == 'U')
+    c = *input_line_pointer++;
+
 #ifndef tc_allow_U_suffix
 #define tc_allow_U_suffix 1
 #endif
@@ -533,6 +570,13 @@ integer_constant (int radix, expressionS *expressionP)
 
       if (LOCAL_LABELS_FB && c == 'b')
 	{
+#ifdef TC_E2K
+	  /* Now that we are certain that this is a reference to 'b' local
+	     label remember its position for the sake of E2K preprocessing
+	     mode.  */
+	  symbol_ptr = maybe_symbol_ptr;
+#endif /* TC_E2K  */
+
 	  /* Backward ref to local label.
 	     Because it is backward, expect it to be defined.  */
 	  /* Construct a local label.  */
@@ -563,6 +607,13 @@ integer_constant (int radix, expressionS *expressionP)
 	}			/* case 'b' */
       else if (LOCAL_LABELS_FB && c == 'f')
 	{
+#ifdef TC_E2K
+	  /* Now that we are certain that this is a reference to 'f' local
+	     label remember its position for the sake of E2K preprocessing
+	     mode.  */
+	  symbol_ptr = maybe_symbol_ptr;
+#endif /* TC_E2K  */
+
 	  /* Forward reference.  Expect symbol to be undefined or
 	     unknown.  undefined: seen it before.  unknown: never seen
 	     it before.
@@ -773,6 +824,12 @@ operand (expressionS *expressionP, enum expr_mode mode)
     case '9':
       input_line_pointer--;
 
+#ifdef TC_E2K
+      /* This may turn out to be just a constant, not a reference to a local
+	 'fb' label. Therefore, postpone setting SYMBOL_PTR until you are
+	 absolutely certain.  */
+      maybe_symbol_ptr = input_line_pointer;
+#endif /* TC_E2K  */
       integer_constant ((NUMBERS_WITH_SUFFIX || flag_m68k_mri)
 			? 0 : 10,
 			expressionP);
@@ -835,9 +892,21 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	    }
 	  else
 	    {
-	      /* The string was only zero.  */
-	      expressionP->X_op = O_constant;
-	      expressionP->X_add_number = 0;
+              /* FIXME: all this is for the sake of these awful `u', `ul{,}',
+                 `lu', `UL' . . . suffixes which may follow this "only zero".
+                 Ensure that they are slurped by `integer_constant ()' and don't
+                 confuse subsequent parsing.  */
+              if (hack_for_e2k != 0)
+                {
+                  input_line_pointer--;
+                  integer_constant (10, expressionP);
+                }
+              else
+                {
+                  /* The string was only zero.  */
+                  expressionP->X_op = O_constant;
+                  expressionP->X_add_number = 0;
+                }
 	    }
 
 	  break;
@@ -857,6 +926,14 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	    {
 	      /* Parse this as a back reference to label 0.  */
 	      input_line_pointer--;
+#ifdef TC_E2K
+	      /* As far as I understand, this is a special case of `0b'
+		 symbolic reference. The peculiarity is that such labels are
+		 believed to be decimal, while decimal constants don't normally
+		 start with '0'.  */
+	      maybe_symbol_ptr = input_line_pointer;
+#endif /* TC_E2K  */
+
 	      integer_constant (10, expressionP);
 	      break;
 	    }
@@ -914,6 +991,13 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      if (is_label)
 		{
 		  input_line_pointer--;
+#ifdef TC_E2K
+		  /* As far as I understand, this is a special case of `0f'
+		     symbolic reference. The peculiarity is that such labels
+		     are believed to be decimal, while decimal constants don't
+		     normally start with '0'.  */
+		  maybe_symbol_ptr = input_line_pointer;
+#endif /* TC_E2K  */
 		  integer_constant (10, expressionP);
 		  break;
 		}
@@ -1343,6 +1427,13 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      break;
 	    }
 #endif
+
+#ifdef TC_E2K
+	  /* As far as I understand, here is the place to remember the start of
+	     a symbol reference without an explicitly specified relocation for
+	     the sake of E2K preprocessing mode.  */
+	  symbol_ptr = name;
+#endif /* TC_E2K  */
 
 	  symbolP = symbol_find_or_make (name);
 
@@ -2010,7 +2101,15 @@ expr (int rankarg,		/* Larger # is higher rank.  */
 	      break;
 	    }
 	}
-      else if (resultP->X_op == O_symbol
+
+      /* FIXME: this hack lets me prevent `O_add' of two `O_symbol's from being
+         converted to `O_add' of two underlying `O_constant's when parsing
+         arguments of LD/ST instructions. In the latter case I'd be unable to
+         properly recognize the (forbidden) sum of two symbols. I suspect that
+         it may very well break something when parsing `O_subtract' outside of
+         instructions . . .  */
+      else if (hack_for_e2k == 0
+               && resultP->X_op == O_symbol
 	       && right.X_op == O_symbol
 	       && (op_left == O_add
 		   || op_left == O_subtract

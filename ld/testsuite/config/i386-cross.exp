@@ -1,0 +1,36 @@
+# Copyright (C) 2013 by Ilya Malakhov
+
+load_file $srcdir/config/default.exp
+
+proc i386-cross_init { dummy } {
+
+ global CC HOSTING_EMU AS LD as ld
+ global orig_CC orig_HOSTING_EMU orig_AS orig_LD orig_as orig_ld
+
+ set orig_CC "$CC"
+ set orig_HOSTING_EMU "$HOSTING_EMU"
+ set orig_AS "$AS"
+ set orig_LD "$LD"
+ set orig_as "$as"
+ set orig_ld "$ld"
+
+ set CC "$CC"
+ set HOSTING_EMU "-m elf_i386"
+ set AS "$AS"
+ set LD "$LD"
+ set as "$as"
+ set ld "$ld"
+}
+
+proc i386-cross_exit { } {
+
+ global CC HOSTING_EMU AS LD as ld
+ global orig_CC orig_HOSTING_EMU orig_AS orig_LD orig_as orig_ld
+
+ set CC "$orig_CC"
+ set HOSTING_EMU "$orig_HOSTING_EMU"
+ set AS "$orig_AS"
+ set LD "$orig_LD"
+ set as "$orig_as"
+ set ld "$orig_ld"
+}
