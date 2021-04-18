@@ -6,6 +6,8 @@
 static int mcpu;
 static int forward_incompat;
 
+#define GENERATE_CSV
+
 void
 print_common_part_minimal (const char *type, const char *name,
                            const char *parse_args)
@@ -13,12 +15,15 @@ print_common_part_minimal (const char *type, const char *name,
   /* Note that elbrus-v1 "forward-compatible" instructions are generic ones and
      shouldn't be placed under a special condition, while "forward-incompatible"
      really should.  */
+#ifdef GENERATE_CSV
+  printf("%s%d,%s", forward_incompat ? "=" : ">=", mcpu, name);
+#else  
   if (mcpu >= 2 || forward_incompat)
     printf ("if (mcpu %s %d)\n", forward_incompat ? "==" : ">=", mcpu);
 
   printf ("{\n\tstatic %s dummy =", type);
   printf ("\n\t\t{\"%s\", %s", name, parse_args);
-
+#endif
   /* FIXME: zero it out so as to avoid FALSE "forward incompatible" instructions
      in case `fetch_cop_channels ()' isn't invoked prior to this function. See
      also my comment when setting `forward_incompat' to 1.  */
@@ -29,7 +34,7 @@ void
 print_common_part (const char *type, const char *name, const char *parse_args)
 {
   print_common_part_minimal (type, name, parse_args);
-  printf (", NULL");
+  printf (",NULL");
 }
 
 void
@@ -37,7 +42,7 @@ print_common_part_with_merge (const char *type, const char *name,
                               const char *parse_args, const char *merge)
 {
   print_common_part_minimal (type, name, parse_args);
-  printf (", %s", merge);
+  printf (",%s", merge);
 }
 
 
@@ -49,12 +54,22 @@ print_alf_part (const char *alopf, const char *mas, int cop, const int *chns,
                 const char *format)
 {
   int i;
+#ifdef GENERATE_CSV
+  int is_mas = strcmp(mas, "NO_MAS");
+  printf (",%s%s,0x%x,", alopf, is_mas? "_MAS" : "", cop);
+  
+  for (i = 0; i < 6; i++)
+	  printf ("%d%s", chns[i], i < 5 ? "," : "");
+  
+  printf (",%s", format);
+#else
   printf (", %s, %s, 0x%x, {", alopf, mas, cop);
 
   for (i = 0; i < 6; i++)
     printf ("%d%s", chns[i], i < 5 ? ", " : "");
 
   printf ("}, %s", format);
+#endif
 }
 
 void
@@ -62,6 +77,9 @@ print_alopf11_tail (const char *opce, const int *chns, const char *opc2,
                     int explicit_ales25_v4)
 {
   int i;
+#ifdef GENERATE_CSV
+  printf (",%s,,,%s,%d", opce,opc2,explicit_ales25_v4);
+#else
   printf (", %s, ", opce);
   printf ("{");
   for (i = 0; i < 6; i++)
@@ -69,14 +87,19 @@ print_alopf11_tail (const char *opce, const int *chns, const char *opc2,
   printf ("}");
 
   printf (", %d", explicit_ales25_v4);
+#endif
 }
 
 void
 print_final_part ()
 {
+#ifdef GENERATE_CSV
+  printf("\n");
+#else
   printf ("};\n");
   printf ("\tadd_to_insn_table ((e2k_opcode_templ *) &dummy);\n");
   printf ("}\n");
+#endif
 }
 
 
@@ -639,7 +662,7 @@ gen_alopf2 ()
                         custom[i].format);
 
             /* These ones have ALF2.opce == NONE == 0xc0, don't they?  */
-        printf (", 0xc0");
+		printf (",0xc0");
         print_final_part ();
       }
   }
@@ -703,7 +726,7 @@ gen_alopf2 ()
                             crnt->format);
 
             /* It's time to initialize ALF2.opce now.  */
-            printf (", 0x%x", custom_movts[j][i].opce);
+			printf (",0x%x", custom_movts[j][i].opce);
             print_final_part ();
           }
       }
@@ -852,7 +875,7 @@ gen_alopf2 ()
                               custom[i][j].format);
 
               /* It's time to initialize ALF2.opce now.  */
-              printf (", 0x%x", opce[i]);
+			  printf (",0x%x", opce[i]);
               print_final_part ();
             }
         }
@@ -868,7 +891,7 @@ gen_alopf2 ()
           print_alf_part ("ALOPF2", "NO_MAS", cop_chn.cop, cop_chn.channels,
                           "ARGS_SD");
           /* ALF2.opce == CUD == 0xf0 (see Table B.5.1)  */
-          printf (", 0xf0");
+		  printf (",0xf0");
           print_final_part ();
         }
     }
@@ -889,7 +912,7 @@ gen_alopf2 ()
           print_alf_part ("ALOPF2", "NO_MAS", cop_chn.cop, cop_chn.channels,
                           "ARGS_SQ");
           /* ALF2.opce == USD == 0xec (see Table B.5.1)  */
-          printf (", 0xec");
+		  printf (",0xec");
           print_final_part ();
         }
     }
@@ -910,7 +933,7 @@ gen_alopf2 ()
               print_alf_part ("ALOPF2", "NO_MAS", cop_chn.cop,
                               cop_chn.channels, "ARGS_SQ");
               /* ALF2.opce == GD == 0xf2 (see Table B.5.1)  */
-              printf (", 0x%x", alf2_opce[i]);
+              printf (",0x%x", alf2_opce[i]);
               print_final_part ();
             }
         }
@@ -930,7 +953,7 @@ gen_alopf2 ()
                                             "merge_alopf_simple");
               print_alf_part ("ALOPF2", "NO_MAS", cop_chn.cop, cop_chn.channels,
                               "ARGS_DD");
-              printf (", 0x%x", opce[i]);
+              printf (",0x%x", opce[i]);
               print_final_part ();
             }
         }
@@ -1053,13 +1076,14 @@ gen_alopf7 ()
 
           /* It's time to initialize ALF7.dst2.cmpopce here which is equal to J
              according to `Table B.2.1' in iset.single.  */
-          printf (", 0x%x", j);
+          printf (",,0x%x", j);
 
-
+#ifndef GENERATE_CSV
 	  /* Output an implicit number of NOPs implied by the comparison under
 	     consideration. As far as I know, floating-point ones require 4,
 	     while integer just 2.  */
 	  printf (", %d", ins_name[i][j][0] == 'f' ? 4 : 2);
+#endif
 
           print_final_part ();
         }
@@ -1108,12 +1132,14 @@ gen_alopf17 ()
 
           /* It's time to initialize ALES.opce here which is equal to `0xc0 + J'
              according to `Table B.2.5' in iset-v6.single.  */
-          printf (", 0x%x", 0xc0 + j);
+          printf (",,,0x%x", 0xc0 + j);
 
+#ifndef GENERATE_CSV
 	  /* Output an implicit number of NOPs implied by the comparison.
 	     According to the behaviour of LAS, these ones are likely to be
 	     treated as integer ones.  */
 	  printf (", 2");
+#endif
 
           print_final_part ();
         }
@@ -1140,7 +1166,7 @@ gen_alopf8 ()
           print_alf_part ("ALOPF8", "NO_MAS", cop_chn.cop, cop_chn.channels,
                           "ARGS_S");
           /* Encode ALF8.dst2.cmpopce which determines the tested relation.  */
-          printf (", 0x%x", i);
+          printf (",,0x%x", i);
 
           print_final_part ();
         }
@@ -1398,7 +1424,7 @@ is_alopf11_lit8 (const char *name, struct extra_alopf11_lit8 *extra)
 static void
 print_alopf11_lit8 (const struct extra_alopf11_lit8 *extra)
 {
-  printf (", %d, ", extra->max);
+  printf (",%d,", extra->max);
   if (extra->warn)
     printf ("\"%s\"", extra->warn);
   else
@@ -2090,7 +2116,7 @@ gen_alopf12_fsqrts ()
 
       /* It's time to initialize `ALS.opce = 0xc0 (NONE)',
          `ALES.opce = 0xc0 (NONE)' and `ALES.opc2 = 0x1 (EXT)'.  */
-      printf (", 0xc0, 0xc0, 0x1");
+      printf (",0xc0,,0xc0,0x1");
       print_final_part ();
     }
 }
@@ -2115,7 +2141,7 @@ gen_pshufh ()
   /* I believe that `ALS.opce = 0xc0 (NONE)' because nothing else is said about
      it, `ALES.opce should be determined from a literal8 argument' and
      `ALES.opc2 = 0x1 (EXT)'.  */
-  printf (", 0xc0, 0x0, 0x1");
+  printf (",0xc0,,0x0,0x1");
   print_final_part ();
 }
 
@@ -2152,7 +2178,7 @@ gen_alopf12 ()
 
       /* It's time to initialize `ALS.opce = 0xec', `ALES.opce = 0xc0 (NONE)'
          and `ALES.opc2 = 0x1 (EXT)'.  */
-      printf (", 0xec, 0xc0, 0x1");
+      printf (",0xec,,0xc0,0x1");
       print_final_part ();
     }
 
@@ -2182,7 +2208,7 @@ gen_alopf12 ()
 	/* Here I print ALS.opce (I guess that it's NONE, because I've been
 	   unable to find another value in iset-v5.single), ALES.opce and
 	   ALES.opc2.  */
-	printf (", NONE, NONE, EXT1");
+	printf (",NONE,,NONE,EXT1");
 	print_final_part ();
       }
   }
@@ -2222,7 +2248,7 @@ gen_alopf12 ()
 	/* ALS.opce == NONE for IBRANCHD, but will be replaced with WBS for
 	   ICALLD. ALES.opce is likely to be NONE for both of them, while
 	   ALES.opc2 is explicitly said to be EXT for both instructions.  */
-	printf (", NONE, NONE, EXT");
+	printf (",NONE,,NONE,EXT");
 	print_final_part ();
       }
   }
@@ -2257,7 +2283,7 @@ gen_alopf12 ()
 	    /* Here I print ALS.opce (I guess that it's NONE, because I've been
 	       unable to find another value in iset-v5.single), ALES.opce and
 	       ALES.opc2.  */
-	    printf (", NONE, 0x%x, EXT1", qpcext_info[i].ales_opce);
+	    printf (",NONE,,0x%x,EXT1", qpcext_info[i].ales_opce);
 	    print_final_part ();
 	  }
       }
@@ -2301,7 +2327,7 @@ gen_alopf12 ()
                             qptoqp_transforms[i].arg_fmt);
 
             /* ALS.opce, ALES.opce and ALES.opc2  */
-            printf (", 0x%x, NONE, EXT1", qptoqp_transforms[i].opce);
+            printf (",0x%x,,NONE,EXT1", qptoqp_transforms[i].opce);
             print_final_part ();
           }
       }
@@ -2404,7 +2430,7 @@ gen_alopf13 ()
                             stores[i].format);
 
             /* `ALEF2.opce = 0xc0 (NONE)' and `ALES.opc2 = 0x1 (EXT)'.  */
-            printf (", NONE, %s", ext);
+            printf (",,,NONE,%s", ext);
             print_final_part ();
           }
       }
@@ -2489,7 +2515,7 @@ output_alopf21_insn (const char *name, int cop, const int *channels,
   print_alf_part ("ALOPF21", "NO_MAS", cop, channels, arg_fmts);
 
   /* Now print ALEF1.opc2.  */
-  printf (", %s", opc2);
+  printf (",,,,%s", opc2);
 
   print_final_part ();
 }
@@ -3067,47 +3093,42 @@ print_combined_table (const char *opc2, const combined_table *table,
   int i;
   char cond[64];
   if (first == 1 && last == 6)
-    cond[0] = '\0';
+	  sprintf(cond,">=1");
   else if (first == last)
-    sprintf (cond, "if (mcpu == %d)\n", first);
+	  sprintf(cond,"=%d", first);
   else if (last == 6)
-    sprintf (cond, "if (mcpu >= %d)\n", first);
+	  sprintf(cond,">=%d",first);
   else
-    sprintf (cond, "if (mcpu >= %d && mcpu <= %d)\n", first, last);
-
+	  sprintf(cond,">=%d <=%d", first, last);
+  
   for (i = 0; i < 128; i++)
-    {
-      const char *mrg;
-      const char *name = table->entry[i].name;
-      int merge = 0;
-
-      
-      if (name[0] == '\0')
-        continue;
-
-      /* Be very careful so as not to mark `{q,}pmerge' and other similar
-         "combined" instructions not really making use of MRGC as
-         ALOPF21_MERGE.  */
-      mrg = strstr (name, "merge");
-      if (mrg
-          && ((mrg > name && mrg[-1] == '_'
-               && (mrg[5] == 's' || mrg[5] == 'd'))
-              || (mrg == name && mrg[5] == '_')))
-        merge = 1;
-
-      printf ("%s", cond);
-      printf ("{\n\tstatic e2k_alopf21_opcode_templ dummy =");
-      printf ("\n\t\t{\"%s\", parse_alf_args, merge_alopf_simple",
-              table->entry[i].name);
-
-      print_alf_part (merge ? "ALOPF21_MERGE" : "ALOPF21", "NO_MAS", i,
-                      table->entry[i].channels, table->entry[i].arg_fmts);
-
-      /* Now print ALEF1.opc2.  */
-      printf (", %s", opc2);
-
-      print_final_part ();
-    }
+  {
+	  const char *mrg;
+	  const char *name = table->entry[i].name;
+	  int merge = 0;
+	  
+	  if (name[0] == '\0')
+		  continue;
+	  
+	  /* Be very careful so as not to mark `{q,}pmerge' and other similar
+	   *         "combined" instructions not really making use of MRGC as
+	   *         ALOPF21_MERGE.  */
+	  mrg = strstr (name, "merge");
+	  if (mrg
+		  && ((mrg > name && mrg[-1] == '_'
+		  && (mrg[5] == 's' || mrg[5] == 'd'))
+		  || (mrg == name && mrg[5] == '_')))
+		  merge = 1;
+	  
+	  printf("%s,%s,merge_alopf_simple",cond,table->entry[i].name);	  
+	  print_alf_part (merge ? "ALOPF21_MERGE" : "ALOPF21", "NO_MAS", i,
+					  table->entry[i].channels, table->entry[i].arg_fmts);
+	  
+	  /* Now print ALEF1.opc2.  */
+	  printf (",,,,%s", opc2);
+	  
+	  print_final_part ();
+  }
 }
 
 static void
@@ -3379,7 +3400,7 @@ gen_alopf22 ()
                         "ARGS_QQ");
 
         /* It's time to initialize ALF2.opce now.  */
-        printf (", 0x%x", custom_movtq[i].opce);
+        printf (",0x%x", custom_movtq[i].opce);
         print_final_part ();
       }
 }
@@ -3429,6 +3450,8 @@ main ()
 {
   int i;
   
+  printf("ver,name,merge,format,opc1,ch0,ch1,ch2,ch3,ch4,ch5,args,opce,opc_cmp,ales_opce,ales_opc2,explicit_ales25_v4,alopf11_lit8_count,alopf11_lit8_warn\n");
+  
   for (i = 0; i < 6; i++)
     {
       short_opers = &oper_tables[i][0];
@@ -3460,8 +3483,10 @@ main ()
 
   gen_alopf21_combined ();
 
+#if 0
   print_usage (1);
   print_usage (0);
+#endif
 
   return 0;
 }
