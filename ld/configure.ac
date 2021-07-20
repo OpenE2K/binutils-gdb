@@ -110,6 +110,16 @@ if test -n "$with_cross_host" && test x"$with_cross_host" != x"no"; then
 	      [Define to inhibit searching native /etc/ld.so.conf])
 fi
 
+AC_ARG_ENABLE([poison-system-directories],
+         AS_HELP_STRING([--enable-poison-system-directories],
+                [warn for use of native system library directories]),,
+         [enable_poison_system_directories=no])
+if test "x${enable_poison_system_directories}" = "xyes"; then
+  AC_DEFINE([ENABLE_POISON_SYSTEM_DIRECTORIES],
+       [1],
+       [Define to warn for use of native system library directories])
+fi
+
 dnl Use --enable-gold to decide if this linker should be the default.
 dnl "install_as_default" is set to false if gold is the default linker.
 dnl "installed_linker" is the installed BFD linker name.
