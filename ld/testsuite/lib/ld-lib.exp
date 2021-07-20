@@ -171,7 +171,7 @@ proc default_ld_relocate { ld target objects } {
     global HOSTING_EMU
 
     remote_file host delete $target
-    return [run_host_cmd_yesno "$ld" "$HOSTING_EMU -o $target -r $objects"]
+    return [run_host_cmd_yesno "$ld" "$HOSTING_EMU --hash-style=sysv -o $target -r $objects"]
 }
 
 # Check to see if ld is being invoked with a non-endian output format
@@ -202,8 +202,20 @@ proc default_ld_link { ld target objects } {
 	set flags [big_or_little_endian]
     }
 
+    # Hilariously, this procedure is called sometimes with $CC and sometimes
+    # with $ld as parameter. If we want to change the default behaviour, we
+    # need to take the different option formats into account.
+    # We check the $ld parameter for
+    # - ld-new         -> we're working with the new linker
+    # - otherwise      -> we're likely working with the system compiler
+    if {[regexp {ld-new$} $ld]} {
+      set gentoosysv "--hash-style=sysv"
+    } else {
+      set gentoosysv "-Wl,--hash-style=sysv"
+    }
+
     remote_file host delete $target
-    set exec_output [run_host_cmd "$ld" "$flags -o $target $objects"]
+    set exec_output [run_host_cmd "$ld" "$gentoosysv $flags -o $target $objects"]
     set exec_output [prune_warnings $exec_output]
 
     # We don't care if we get a warning about a non-existent start

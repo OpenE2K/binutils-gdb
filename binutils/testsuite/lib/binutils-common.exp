@@ -1354,7 +1354,7 @@ proc run_dump_test { name {extra_options {}} } {
 
 	    # Add -L$srcdir/$subdir so that the linker command can use
 	    # linker scripts in the source directory.
-	    set cmd "$LD $ld_extra_opt $LDFLAGS -L$srcdir/$subdir \
+	    set cmd "$LD --hash-style=sysv $ld_extra_opt $LDFLAGS -L$srcdir/$subdir \
 		   $opts(ld) -o $objfile $objfiles $opts(ld_after_inputfiles)"
 
 	    # If needed then check for, or add a -Map option.
