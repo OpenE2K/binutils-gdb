@@ -180,6 +180,13 @@ AC_ARG_WITH(separate-debug-dir,
 [DEBUGDIR="${withval}"])
 AC_SUBST(DEBUGDIR)
 
+EXTRA_SOVERSION_SUFFIX=
+AC_ARG_WITH(extra-soversion-suffix,
+  AS_HELP_STRING([--with-extra-soversion-suffix=SUFFIX],
+                 [Append '.SUFFIX' to SONAME [[default=]]]),
+[EXTRA_SOVERSION_SUFFIX="${withval}"])
+AC_SUBST(EXTRA_SOVERSION_SUFFIX)
+
 ACX_PKGVERSION([GNU Binutils])
 ACX_BUGURL([https://sourceware.org/bugzilla/])
 

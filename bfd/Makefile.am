@@ -64,6 +64,8 @@ bfdinclude_HEADERS += $(INCDIR)/plugin-api.h
 LIBDL = @lt_cv_dlopen_libs@
 endif
 
+EXTRA_SOVERSION_SUFFIX = @EXTRA_SOVERSION_SUFFIX@
+
 # bfd.h goes here, for now
 BFD_H = bfd.h
 
@@ -991,6 +993,9 @@ bfdver.h: $(srcdir)/version.h $(srcdir)/development.sh $(srcdir)/Makefile.in
 	  bfd_version_date=`$(SED) -n -e 's/.*DATE //p' < $(srcdir)/version.h` ;\
 	  bfd_version_string="\"$(VERSION).$${bfd_version_date}\"" ;\
 	  bfd_soversion="$(VERSION).$${bfd_version_date}" ;\
+	fi ;\
+	if test x"$(EXTRA_SOVERSION_SUFFIX)" != x ; then \
+	  bfd_soversion="$${bfd_soversion}.$(EXTRA_SOVERSION_SUFFIX)" ;\
 	fi ;\
 	$(SED) -e "s,@bfd_version@,$$bfd_version," \
 	    -e "s,@bfd_version_string@,$$bfd_version_string," \
