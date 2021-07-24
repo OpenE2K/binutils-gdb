@@ -26,6 +26,9 @@ info_TEXINFOS =
 DISTCLEANFILES =
 MAINTAINERCLEANFILES =
 
+EXTRA_SOVERSION_SUFFIX = @EXTRA_SOVERSION_SUFFIX@
+BFD_VERSION = @BFD_VERSION@
+
 # This is where we get zlib from.  zlibdir is -L../zlib and zlibinc is
 # -I../zlib, unless we were configured with --with-system-zlib, in which
 # case both are empty.
@@ -46,8 +49,17 @@ include_HEADERS =
 noinst_LTLIBRARIES = libctf.la libctf-nobfd.la
 endif
 
+# libctf by default uses libtool versioning. Unfortunately that keeps us from adding
+# a supplement to the soversion. So we need to switch tracks and be creative.
+
+if HAVE_EXTRA_SOVERSION_SUFFIX
+gentoo_ctf_soversion = "$(BFD_VERSION).$(EXTRA_SOVERSION_SUFFIX)"
+else
+gentoo_ctf_soversion = 0.0.0
+endif
+
 libctf_nobfd_la_LIBADD = @CTF_LIBADD@ $(ZLIB)
-libctf_ldflags_nover = -version-info 0:0:0 @SHARED_LDFLAGS@
+libctf_ldflags_nover = -release $(gentoo_ctf_soversion) @SHARED_LDFLAGS@
 libctf_nobfd_la_LDFLAGS = $(libctf_ldflags_nover) @VERSION_FLAGS_NOBFD@
 libctf_nobfd_la_CPPFLAGS = $(AM_CPPFLAGS) -DNOBFD=1
 libctf_nobfd_la_SOURCES = ctf-archive.c ctf-dump.c ctf-create.c ctf-decl.c ctf-error.c \

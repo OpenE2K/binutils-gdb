@@ -380,6 +380,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BFD_VERSION = @BFD_VERSION@
 CATALOGS = @CATALOGS@
 CATOBJEXT = @CATOBJEXT@
 CC = @CC@
@@ -402,6 +403,7 @@ EXEEXT = @EXEEXT@
 
 # Setup the testing framework, if you have one
 EXPECT = expect
+EXTRA_SOVERSION_SUFFIX = @EXTRA_SOVERSION_SUFFIX@
 FGREP = @FGREP@
 GENCAT = @GENCAT@
 GMSGFMT = @GMSGFMT@
@@ -540,8 +542,13 @@ AM_CFLAGS = -std=gnu99 @ac_libctf_warn_cflags@ @warn@ @c_warn@ @WARN_PEDANTIC@ @
 @INSTALL_LIBBFD_FALSE@include_HEADERS = 
 @INSTALL_LIBBFD_TRUE@include_HEADERS = $(INCDIR)/ctf.h $(INCDIR)/ctf-api.h
 @INSTALL_LIBBFD_FALSE@noinst_LTLIBRARIES = libctf.la libctf-nobfd.la
+@HAVE_EXTRA_SOVERSION_SUFFIX_FALSE@gentoo_ctf_soversion = 0.0.0
+
+# libctf by default uses libtool versioning. Unfortunately that keeps us from adding
+# a supplement to the soversion. So we need to switch tracks and be creative.
+@HAVE_EXTRA_SOVERSION_SUFFIX_TRUE@gentoo_ctf_soversion = "$(BFD_VERSION).$(EXTRA_SOVERSION_SUFFIX)"
 libctf_nobfd_la_LIBADD = @CTF_LIBADD@ $(ZLIB)
-libctf_ldflags_nover = -version-info 0:0:0 @SHARED_LDFLAGS@
+libctf_ldflags_nover = -release $(gentoo_ctf_soversion) @SHARED_LDFLAGS@
 libctf_nobfd_la_LDFLAGS = $(libctf_ldflags_nover) @VERSION_FLAGS_NOBFD@
 libctf_nobfd_la_CPPFLAGS = $(AM_CPPFLAGS) -DNOBFD=1
 libctf_nobfd_la_SOURCES = ctf-archive.c ctf-dump.c ctf-create.c \

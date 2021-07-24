@@ -76,6 +76,16 @@ if test "${enable_libctf_hash_debugging}" = yes; then
 fi
 AM_CONDITIONAL(ENABLE_LIBCTF_HASH_DEBUGGING, test "${enable_libctf_hash_debugging}" = yes)
 
+EXTRA_SOVERSION_SUFFIX=
+AC_ARG_WITH(extra-soversion-suffix,
+  AS_HELP_STRING([--with-extra-soversion-suffix=SUFFIX],
+                 [Append '.SUFFIX' to SONAME [[default=]]]),
+[EXTRA_SOVERSION_SUFFIX="${withval}"])
+AC_SUBST(EXTRA_SOVERSION_SUFFIX)
+AM_CONDITIONAL([HAVE_EXTRA_SOVERSION_SUFFIX], [test -n "${with_extra_soversion_suffix}"])
+
+AC_SUBST(BFD_VERSION, $(${srcdir}/../bfd/configure --version | sed -n -e '1s,.* ,,p'), [Version of the accompanying bfd linker])
+
 # Similar to GDB_AC_CHECK_BFD.
 OLD_CFLAGS=$CFLAGS
 OLD_LDFLAGS=$LDFLAGS
