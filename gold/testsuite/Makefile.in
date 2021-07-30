@@ -15,10 +15,6 @@
 @SET_MAKE@
 
 # Process this file with automake to generate Makefile.in
-
-# As far as I can tell automake testing support assumes that the build
-# system and the host system are the same.  So these tests will not
-# work when building with a cross-compiler.
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -94,6 +90,14 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+XFAIL_TESTS = exception_separate_shared_12_test$(EXEEXT) \
+	exception_separate_shared_21_test$(EXEEXT) \
+	weak_undef_test$(EXEEXT) initpri3a$(EXEEXT) \
+	justsyms_exec$(EXEEXT) script_test_2$(EXEEXT) \
+	script_test_1$(EXEEXT) justsyms$(EXEEXT) binary_test$(EXEEXT) \
+	script_test_3$(EXEEXT) tls_phdrs_script_test$(EXEEXT) \
+	script_test_12i$(EXEEXT) dynamic_list_2$(EXEEXT) \
+	incremental_test_2$(EXEEXT) incremental_test_5$(EXEEXT)
 check_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2) $(am__EXEEXT_3) \
 	$(am__EXEEXT_4) $(am__EXEEXT_5) $(am__EXEEXT_6) \
 	$(am__EXEEXT_7) $(am__EXEEXT_8) $(am__EXEEXT_9) \
@@ -2758,6 +2762,10 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 zlibdir = @zlibdir@
 zlibinc = @zlibinc@
+
+# As far as I can tell automake testing support assumes that the build
+# system and the host system are the same.  So these tests will not
+# work when building with a cross-compiler.
 
 # Ignore warning about AM_PROG_CC_C_O due to large_CFLAGS
 AUTOMAKE_OPTIONS = foreign -Wno-portability

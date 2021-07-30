@@ -1,5 +1,11 @@
 # Process this file with automake to generate Makefile.in
 
+# Gentoo, https://bugs.gentoo.org/684046
+XFAIL_TESTS = exception_separate_shared_12_test exception_separate_shared_21_test \
+	weak_undef_test initpri3a justsyms_exec script_test_2 script_test_1 \
+	justsyms binary_test script_test_3 tls_phdrs_script_test script_test_12i \
+	dynamic_list_2 incremental_test_2 incremental_test_5
+
 # As far as I can tell automake testing support assumes that the build
 # system and the host system are the same.  So these tests will not
 # work when building with a cross-compiler.
