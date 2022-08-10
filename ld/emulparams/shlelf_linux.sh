@@ -9,12 +9,9 @@ MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 ARCH=sh
 MACHINE=
-TEMPLATE_NAME=elf32
+TEMPLATE_NAME=elf
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
-# PR 17739.  Delay checking relocs until after all files have
-# been opened and linker garbage collection has taken place.
-CHECK_RELOCS_AFTER_OPEN_INPUT=yes
 
 DATA_START_SYMBOLS='PROVIDE (__data_start = .);';
 

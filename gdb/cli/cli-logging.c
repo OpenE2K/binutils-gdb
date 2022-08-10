@@ -1,6 +1,6 @@
 /* Command-line output logging for GDB, the GNU debugger.
 
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,6 +21,7 @@
 #include "gdbcmd.h"
 #include "ui-out.h"
 #include "interps.h"
+#include "cli/cli-style.h"
 
 static char *saved_filename;
 
@@ -29,11 +30,11 @@ static void
 show_logging_filename (struct ui_file *file, int from_tty,
 		       struct cmd_list_element *c, const char *value)
 {
-  fprintf_filtered (file, _("The current logfile is \"%s\".\n"),
-		    value);
+  fprintf_filtered (file, _("The current logfile is \"%ps\".\n"),
+		    styled_string (file_name_style.style (), value));
 }
 
-static int logging_overwrite;
+static bool logging_overwrite;
 
 static void
 maybe_warn_already_logging ()
@@ -44,7 +45,8 @@ maybe_warn_already_logging ()
 }
 
 static void
-set_logging_overwrite (char *args, int from_tty, struct cmd_list_element *c)
+set_logging_overwrite (const char *args,
+		       int from_tty, struct cmd_list_element *c)
 {
   maybe_warn_already_logging ();
 }
@@ -60,10 +62,12 @@ show_logging_overwrite (struct ui_file *file, int from_tty,
 }
 
 /* Value as configured by the user.  */
-static int logging_redirect;
+static bool logging_redirect;
+static bool debug_redirect;
 
 static void
-set_logging_redirect (char *args, int from_tty, struct cmd_list_element *c)
+set_logging_redirect (const char *args,
+		      int from_tty, struct cmd_list_element *c)
 {
   maybe_warn_already_logging ();
 }
@@ -79,29 +83,11 @@ show_logging_redirect (struct ui_file *file, int from_tty,
 static void
 pop_output_files (void)
 {
-  current_interp_set_logging (NULL, false);
+  current_interp_set_logging (NULL, false, false);
 
   /* Stay consistent with handle_redirections.  */
   if (!current_uiout->is_mi_like_p ())
     current_uiout->redirect (NULL);
-}
-
-/* See cli-interp.h.  */
-
-ui_file *
-make_logging_output (ui_file *curr_output, ui_file_up logfile,
-		     bool logging_redirect)
-{
-  if (logging_redirect)
-    return logfile.release ();
-  else
-    {
-      /* Note that the "tee" takes ownership of the log file.  */
-      ui_file *out = new tee_file (curr_output, false,
-				   logfile.get (), true);
-      logfile.release ();
-      return out;
-    }
 }
 
 /* This is a helper for the `set logging' command.  */
@@ -115,7 +101,7 @@ handle_redirections (int from_tty)
       return;
     }
 
-  stdio_file_up log (new stdio_file ());
+  stdio_file_up log (new no_terminal_escape_file ());
   if (!log->open (logging_filename, logging_overwrite ? "w" : "a"))
     perror_with_name (_("set logging"));
 
@@ -128,12 +114,20 @@ handle_redirections (int from_tty)
       else
 	fprintf_unfiltered (gdb_stdout, "Redirecting output to %s.\n",
 			    logging_filename);
+
+      if (!debug_redirect)
+	fprintf_unfiltered (gdb_stdout, "Copying debug output to %s.\n",
+			    logging_filename);
+      else
+	fprintf_unfiltered (gdb_stdout, "Redirecting debug output to %s.\n",
+			    logging_filename);
     }
 
   saved_filename = xstrdup (logging_filename);
 
   /* Let the interpreter do anything it needs.  */
-  current_interp_set_logging (std::move (log), logging_redirect);
+  current_interp_set_logging (std::move (log), logging_redirect,
+			      debug_redirect);
 
   /* Redirect the current ui-out object's output to the log.  Use
      gdb_stdout, not log, since the interpreter may have created a tee
@@ -146,9 +140,9 @@ handle_redirections (int from_tty)
 }
 
 static void
-set_logging_on (char *args, int from_tty)
+set_logging_on (const char *args, int from_tty)
 {
-  char *rest = args;
+  const char *rest = args;
 
   if (rest && *rest)
     {
@@ -159,7 +153,7 @@ set_logging_on (char *args, int from_tty)
 }
 
 static void 
-set_logging_off (char *args, int from_tty)
+set_logging_off (const char *args, int from_tty)
 {
   if (saved_filename == NULL)
     return;
@@ -171,52 +165,18 @@ set_logging_off (char *args, int from_tty)
   saved_filename = NULL;
 }
 
-static void
-set_logging_command (char *args, int from_tty)
-{
-  printf_unfiltered (_("\"set logging\" lets you log output to a file.\n"
-		       "Usage: set logging on [FILENAME]\n"
-		       "       set logging off\n"
-		       "       set logging file FILENAME\n"
-		       "       set logging overwrite [on|off]\n"
-		       "       set logging redirect [on|off]\n"));
-}
-
-static void
-show_logging_command (char *args, int from_tty)
-{
-  if (saved_filename)
-    printf_unfiltered (_("Currently logging to \"%s\".\n"), saved_filename);
-  if (saved_filename == NULL
-      || strcmp (logging_filename, saved_filename) != 0)
-    printf_unfiltered (_("Future logs will be written to %s.\n"),
-		       logging_filename);
-
-  if (logging_overwrite)
-    printf_unfiltered (_("Logs will overwrite the log file.\n"));
-  else
-    printf_unfiltered (_("Logs will be appended to the log file.\n"));
-
-  if (logging_redirect)
-    printf_unfiltered (_("Output will be sent only to the log file.\n"));
-  else
-    printf_unfiltered (_("Output will be logged and displayed.\n"));
-}
-
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_cli_logging;
-
+void _initialize_cli_logging ();
 void
-_initialize_cli_logging (void)
+_initialize_cli_logging ()
 {
   static struct cmd_list_element *set_logging_cmdlist, *show_logging_cmdlist;
 
-  add_prefix_cmd ("logging", class_support, set_logging_command,
-		  _("Set logging options"), &set_logging_cmdlist,
-		  "set logging ", 0, &setlist);
-  add_prefix_cmd ("logging", class_support, show_logging_command,
-		  _("Show logging options"), &show_logging_cmdlist,
-		  "show logging ", 0, &showlist);
+  add_basic_prefix_cmd ("logging", class_support,
+			_("Set logging options."), &set_logging_cmdlist,
+			"set logging ", 0, &setlist);
+  add_show_prefix_cmd ("logging", class_support,
+		       _("Show logging options."), &show_logging_cmdlist,
+		       "show logging ", 0, &showlist);
   add_setshow_boolean_cmd ("overwrite", class_support, &logging_overwrite, _("\
 Set whether logging overwrites or appends to the log file."), _("\
 Show whether logging overwrites or appends to the log file."), _("\
@@ -229,6 +189,15 @@ Set the logging output mode."), _("\
 Show the logging output mode."), _("\
 If redirect is off, output will go to both the screen and the log file.\n\
 If redirect is on, output will go only to the log file."),
+			   set_logging_redirect,
+			   show_logging_redirect,
+			   &set_logging_cmdlist, &show_logging_cmdlist);
+  add_setshow_boolean_cmd ("debugredirect", class_support,
+			   &debug_redirect, _("\
+Set the logging debug output mode."), _("\
+Show the logging debug output mode."), _("\
+If debug redirect is off, debug will go to both the screen and the log file.\n\
+If debug redirect is on, debug will go only to the log file."),
 			   set_logging_redirect,
 			   show_logging_redirect,
 			   &set_logging_cmdlist, &show_logging_cmdlist);

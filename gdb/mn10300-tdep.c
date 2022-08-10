@@ -1,6 +1,6 @@
 /* Target-dependent code for the Matsushita MN10300 for GDB, the GNU debugger.
 
-   Copyright (C) 1996-2017 Free Software Foundation, Inc.
+   Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -28,7 +28,7 @@
 #include "frame-unwind.h"
 #include "frame-base.h"
 #include "symtab.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "osabi.h"
 #include "infcall.h"
 #include "prologue-value.h"
@@ -88,7 +88,7 @@ mn10300_type_align (struct type *type)
 {
   int i, align = 1;
 
-  switch (TYPE_CODE (type))
+  switch (type->code ())
     {
     case TYPE_CODE_INT:
     case TYPE_CODE_ENUM:
@@ -107,9 +107,9 @@ mn10300_type_align (struct type *type)
 
     case TYPE_CODE_STRUCT:
     case TYPE_CODE_UNION:
-      for (i = 0; i < TYPE_NFIELDS (type); i++)
+      for (i = 0; i < type->num_fields (); i++)
 	{
-	  int falign = mn10300_type_align (TYPE_FIELD_TYPE (type, i));
+	  int falign = mn10300_type_align (type->field (i).type ());
 	  while (align < falign)
 	    align <<= 1;
 	}
@@ -117,7 +117,7 @@ mn10300_type_align (struct type *type)
 
     case TYPE_CODE_ARRAY:
       /* HACK!  Structures containing arrays, even small ones, are not
-	 elligible for returning in registers.  */
+	 eligible for returning in registers.  */
       return 256;
 
     case TYPE_CODE_TYPEDEF:
@@ -137,14 +137,14 @@ mn10300_use_struct_convention (struct type *type)
   if (TYPE_LENGTH (type) > 8)
     return 1;
 
-  switch (TYPE_CODE (type))
+  switch (type->code ())
     {
     case TYPE_CODE_STRUCT:
     case TYPE_CODE_UNION:
       /* Structures with a single field are handled as the field
 	 itself.  */
-      if (TYPE_NFIELDS (type) == 1)
-	return mn10300_use_struct_convention (TYPE_FIELD_TYPE (type, 0));
+      if (type->num_fields () == 1)
+	return mn10300_use_struct_convention (type->field (0).type ());
 
       /* Structures with word or double-word size are passed in memory, as
 	 long as they require at least word alignment.  */
@@ -174,7 +174,7 @@ mn10300_store_return_value (struct gdbarch *gdbarch, struct type *type,
   int len = TYPE_LENGTH (type);
   int reg, regsz;
   
-  if (TYPE_CODE (type) == TYPE_CODE_PTR)
+  if (type->code () == TYPE_CODE_PTR)
     reg = 4;
   else
     reg = 0;
@@ -182,13 +182,12 @@ mn10300_store_return_value (struct gdbarch *gdbarch, struct type *type,
   regsz = register_size (gdbarch, reg);
 
   if (len <= regsz)
-    regcache_raw_write_part (regcache, reg, 0, len, valbuf);
+    regcache->raw_write_part (reg, 0, len, valbuf);
   else if (len <= 2 * regsz)
     {
-      regcache_raw_write (regcache, reg, valbuf);
+      regcache->raw_write (reg, valbuf);
       gdb_assert (regsz == register_size (gdbarch, reg + 1));
-      regcache_raw_write_part (regcache, reg+1, 0,
-			       len - regsz, valbuf + regsz);
+      regcache->raw_write_part (reg + 1, 0, len - regsz, valbuf + regsz);
     }
   else
     internal_error (__FILE__, __LINE__,
@@ -203,7 +202,7 @@ mn10300_extract_return_value (struct gdbarch *gdbarch, struct type *type,
   int len = TYPE_LENGTH (type);
   int reg, regsz;
 
-  if (TYPE_CODE (type) == TYPE_CODE_PTR)
+  if (type->code () == TYPE_CODE_PTR)
     reg = 4;
   else
     reg = 0;
@@ -212,15 +211,15 @@ mn10300_extract_return_value (struct gdbarch *gdbarch, struct type *type,
   gdb_assert (regsz <= MN10300_MAX_REGISTER_SIZE);
   if (len <= regsz)
     {
-      regcache_raw_read (regcache, reg, buf);
+      regcache->raw_read (reg, buf);
       memcpy (valbuf, buf, len);
     }
   else if (len <= 2 * regsz)
     {
-      regcache_raw_read (regcache, reg, buf);
+      regcache->raw_read (reg, buf);
       memcpy (valbuf, buf, regsz);
       gdb_assert (regsz == register_size (gdbarch, reg + 1));
-      regcache_raw_read (regcache, reg + 1, buf);
+      regcache->raw_read (reg + 1, buf);
       memcpy ((char *) valbuf + regsz, buf, len - regsz);
     }
   else
@@ -307,20 +306,6 @@ mn10300_register_type (struct gdbarch *gdbarch, int reg)
   return builtin_type (gdbarch)->builtin_int;
 }
 
-static CORE_ADDR
-mn10300_read_pc (struct regcache *regcache)
-{
-  ULONGEST val;
-  regcache_cooked_read_unsigned (regcache, E_PC_REGNUM, &val);
-  return val;
-}
-
-static void
-mn10300_write_pc (struct regcache *regcache, CORE_ADDR val)
-{
-  regcache_cooked_write_unsigned (regcache, E_PC_REGNUM, val);
-}
-
 /* The breakpoint instruction must be the same size as the smallest
    instruction in the instruction set.
 
@@ -337,7 +322,7 @@ static void
 push_reg (pv_t *regs, struct pv_area *stack, int regnum)
 {
   regs[E_SP_REGNUM] = pv_add_constant (regs[E_SP_REGNUM], -4);
-  pv_area_store (stack, regs[E_SP_REGNUM], 4, regs[regnum]);
+  stack->store (regs[E_SP_REGNUM], 4, regs[regnum]);
 }
 
 /* Translate an "r" register number extracted from an instruction encoding
@@ -356,7 +341,7 @@ translate_rreg (int rreg)
     return E_E0_REGNUM + rreg;
 }
 
-/* Find saved registers in a 'struct pv_area'; we pass this to pv_area_scan.
+/* Find saved registers in a 'struct pv_area'; we pass this to pv_area::scan.
 
    If VALUE is a saved register, ADDR says it was saved at a constant
    offset from the frame base, and SIZE indicates that the whole
@@ -386,8 +371,6 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
   CORE_ADDR pc;
   int rn;
   pv_t regs[MN10300_MAX_NUM_REGS];
-  struct pv_area *stack;
-  struct cleanup *back_to;
   CORE_ADDR after_last_frame_setup_insn = start_pc;
   int am33_mode = AM33_MODE (gdbarch);
 
@@ -399,16 +382,15 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
       regs[rn] = pv_register (rn, 0);
       result->reg_offset[rn] = 1;
     }
-  stack = make_pv_area (E_SP_REGNUM, gdbarch_addr_bit (gdbarch));
-  back_to = make_cleanup_free_pv_area (stack);
+  pv_area stack (E_SP_REGNUM, gdbarch_addr_bit (gdbarch));
 
- /* The typical call instruction will have saved the return address on the
-    stack.  Space for the return address has already been preallocated in
-    the caller's frame.  It's possible, such as when using -mrelax with gcc
-    that other registers were saved as well.  If this happens, we really
-    have no chance of deciphering the frame.  DWARF info can save the day
-    when this happens.  */
-  pv_area_store (stack, regs[E_SP_REGNUM], 4, regs[E_PC_REGNUM]);
+  /* The typical call instruction will have saved the return address on the
+     stack.  Space for the return address has already been preallocated in
+     the caller's frame.  It's possible, such as when using -mrelax with gcc
+     that other registers were saved as well.  If this happens, we really
+     have no chance of deciphering the frame.  DWARF info can save the day
+     when this happens.  */
+  stack.store (regs[E_SP_REGNUM], 4, regs[E_PC_REGNUM]);
 
   pc = start_pc;
   while (pc < limit_pc)
@@ -432,42 +414,42 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 
 	  if ((save_mask & movm_exreg0_bit) && am33_mode)
 	    {
-	      push_reg (regs, stack, E_E2_REGNUM);
-	      push_reg (regs, stack, E_E3_REGNUM);
+	      push_reg (regs, &stack, E_E2_REGNUM);
+	      push_reg (regs, &stack, E_E3_REGNUM);
 	    }
 	  if ((save_mask & movm_exreg1_bit) && am33_mode)
 	    {
-	      push_reg (regs, stack, E_E4_REGNUM);
-	      push_reg (regs, stack, E_E5_REGNUM);
-	      push_reg (regs, stack, E_E6_REGNUM);
-	      push_reg (regs, stack, E_E7_REGNUM);
+	      push_reg (regs, &stack, E_E4_REGNUM);
+	      push_reg (regs, &stack, E_E5_REGNUM);
+	      push_reg (regs, &stack, E_E6_REGNUM);
+	      push_reg (regs, &stack, E_E7_REGNUM);
 	    }
 	  if ((save_mask & movm_exother_bit) && am33_mode)
 	    {
-	      push_reg (regs, stack, E_E0_REGNUM);
-	      push_reg (regs, stack, E_E1_REGNUM);
-	      push_reg (regs, stack, E_MDRQ_REGNUM);
-	      push_reg (regs, stack, E_MCRH_REGNUM);
-	      push_reg (regs, stack, E_MCRL_REGNUM);
-	      push_reg (regs, stack, E_MCVF_REGNUM);
+	      push_reg (regs, &stack, E_E0_REGNUM);
+	      push_reg (regs, &stack, E_E1_REGNUM);
+	      push_reg (regs, &stack, E_MDRQ_REGNUM);
+	      push_reg (regs, &stack, E_MCRH_REGNUM);
+	      push_reg (regs, &stack, E_MCRL_REGNUM);
+	      push_reg (regs, &stack, E_MCVF_REGNUM);
 	    }
 	  if (save_mask & movm_d2_bit)
-	    push_reg (regs, stack, E_D2_REGNUM);
+	    push_reg (regs, &stack, E_D2_REGNUM);
 	  if (save_mask & movm_d3_bit)
-	    push_reg (regs, stack, E_D3_REGNUM);
+	    push_reg (regs, &stack, E_D3_REGNUM);
 	  if (save_mask & movm_a2_bit)
-	    push_reg (regs, stack, E_A2_REGNUM);
+	    push_reg (regs, &stack, E_A2_REGNUM);
 	  if (save_mask & movm_a3_bit)
-	    push_reg (regs, stack, E_A3_REGNUM);
+	    push_reg (regs, &stack, E_A3_REGNUM);
 	  if (save_mask & movm_other_bit)
 	    {
-	      push_reg (regs, stack, E_D0_REGNUM);
-	      push_reg (regs, stack, E_D1_REGNUM);
-	      push_reg (regs, stack, E_A0_REGNUM);
-	      push_reg (regs, stack, E_A1_REGNUM);
-	      push_reg (regs, stack, E_MDR_REGNUM);
-	      push_reg (regs, stack, E_LIR_REGNUM);
-	      push_reg (regs, stack, E_LAR_REGNUM);
+	      push_reg (regs, &stack, E_D0_REGNUM);
+	      push_reg (regs, &stack, E_D1_REGNUM);
+	      push_reg (regs, &stack, E_A0_REGNUM);
+	      push_reg (regs, &stack, E_A1_REGNUM);
+	      push_reg (regs, &stack, E_MDR_REGNUM);
+	      push_reg (regs, &stack, E_LIR_REGNUM);
+	      push_reg (regs, &stack, E_LAR_REGNUM);
 	      /* The `other' bit leaves a blank area of four bytes at
 		 the beginning of its block of saved registers, making
 		 it 32 bytes long in total.  */
@@ -653,8 +635,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  rN = buf[0] & 0x0f;
 	  fsM = (Y << 4) | sM;
 
-	  pv_area_store (stack, regs[translate_rreg (rN)], 4,
-	                 regs[E_FS0_REGNUM + fsM]);
+	  stack.store (regs[translate_rreg (rN)], 4,
+		       regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 3;
 	}
@@ -673,8 +655,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  sM = (buf[0] & 0xf0) >> 4;
 	  fsM = (Y << 4) | sM;
 
-	  pv_area_store (stack, regs[E_SP_REGNUM], 4,
-	                 regs[E_FS0_REGNUM + fsM]);
+	  stack.store (regs[E_SP_REGNUM], 4,
+		       regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 3;
 	}
@@ -695,10 +677,9 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  Z = (buf[1] & 0x02) >> 1;
 	  fsM = (Z << 4) | sM;
 
-	  pv_area_store (stack,
-	                 pv_add (regs[translate_rreg (rN)],
-			         regs[translate_rreg (rI)]),
-			 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (pv_add (regs[translate_rreg (rN)],
+			       regs[translate_rreg (rI)]),
+		       4, regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 4;
 	}
@@ -720,9 +701,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  fsM = (Y << 4) | sM;
 	  d8 = extract_signed_integer (&buf[1], 1, byte_order);
 
-	  pv_area_store (stack,
-	                 pv_add_constant (regs[translate_rreg (rN)], d8),
-	                 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (pv_add_constant (regs[translate_rreg (rN)], d8),
+		       4, regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 4;
 	}
@@ -744,9 +724,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  fsM = (Y << 4) | sM;
 	  d24 = extract_signed_integer (&buf[1], 3, byte_order);
 
-	  pv_area_store (stack,
-	                 pv_add_constant (regs[translate_rreg (rN)], d24),
-	                 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (pv_add_constant (regs[translate_rreg (rN)], d24),
+		       4, regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 6;
 	}
@@ -768,9 +747,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  fsM = (Y << 4) | sM;
 	  d32 = extract_signed_integer (&buf[1], 4, byte_order);
 
-	  pv_area_store (stack,
-	                 pv_add_constant (regs[translate_rreg (rN)], d32),
-	                 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (pv_add_constant (regs[translate_rreg (rN)], d32),
+		       4, regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 7;
 	}
@@ -791,9 +769,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  fsM = (Y << 4) | sM;
 	  d8 = extract_signed_integer (&buf[1], 1, byte_order);
 
-	  pv_area_store (stack,
-	                 pv_add_constant (regs[E_SP_REGNUM], d8),
-	                 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (pv_add_constant (regs[E_SP_REGNUM], d8),
+		       4, regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 4;
 	}
@@ -814,9 +791,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  fsM = (Y << 4) | sM;
 	  d24 = extract_signed_integer (&buf[1], 3, byte_order);
 
-	  pv_area_store (stack,
-	                 pv_add_constant (regs[E_SP_REGNUM], d24),
-	                 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (pv_add_constant (regs[E_SP_REGNUM], d24),
+		       4, regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 6;
 	}
@@ -837,9 +813,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 	  fsM = (Y << 4) | sM;
 	  d32 = extract_signed_integer (&buf[1], 4, byte_order);
 
-	  pv_area_store (stack,
-	                 pv_add_constant (regs[E_SP_REGNUM], d32),
-	                 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (pv_add_constant (regs[E_SP_REGNUM], d32),
+		       4, regs[E_FS0_REGNUM + fsM]);
 
 	  pc += 7;
 	}
@@ -861,8 +836,8 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 
 	  rN_regnum = translate_rreg (rN);
 
-	  pv_area_store (stack, regs[rN_regnum], 4,
-	                 regs[E_FS0_REGNUM + fsM]);
+	  stack.store (regs[rN_regnum], 4,
+		       regs[E_FS0_REGNUM + fsM]);
 	  regs[rN_regnum] = pv_add_constant (regs[rN_regnum], 4);
 
 	  pc += 3;
@@ -887,7 +862,7 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 
 	  rN_regnum = translate_rreg (rN);
 
-	  pv_area_store (stack, regs[rN_regnum], 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (regs[rN_regnum], 4, regs[E_FS0_REGNUM + fsM]);
 	  regs[rN_regnum] = pv_add_constant (regs[rN_regnum], imm8);
 
 	  pc += 4;
@@ -912,7 +887,7 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 
 	  rN_regnum = translate_rreg (rN);
 
-	  pv_area_store (stack, regs[rN_regnum], 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (regs[rN_regnum], 4, regs[E_FS0_REGNUM + fsM]);
 	  regs[rN_regnum] = pv_add_constant (regs[rN_regnum], imm24);
 
 	  pc += 6;
@@ -937,7 +912,7 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
 
 	  rN_regnum = translate_rreg (rN);
 
-	  pv_area_store (stack, regs[rN_regnum], 4, regs[E_FS0_REGNUM + fsM]);
+	  stack.store (regs[rN_regnum], 4, regs[E_FS0_REGNUM + fsM]);
 	  regs[rN_regnum] = pv_add_constant (regs[rN_regnum], imm32);
 
 	  pc += 7;
@@ -1044,11 +1019,9 @@ mn10300_analyze_prologue (struct gdbarch *gdbarch,
     }
 
   /* Record where all the registers were saved.  */
-  pv_area_scan (stack, check_for_saved, (void *) result);
+  stack.scan (check_for_saved, (void *) result);
 
   result->prologue_end = after_last_frame_setup_insn;
-
-  do_cleanups (back_to);
 }
 
 /* Function: skip_prologue
@@ -1125,15 +1098,6 @@ mn10300_frame_base (struct frame_info *this_frame, void **this_prologue_cache)
     }
 }
 
-/* Here is a dummy implementation.  */
-static struct frame_id
-mn10300_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  CORE_ADDR sp = get_frame_register_unsigned (this_frame, E_SP_REGNUM);
-  CORE_ADDR pc = get_frame_register_unsigned (this_frame, E_PC_REGNUM);
-  return frame_id_build (sp, pc);
-}
-
 static void
 mn10300_frame_this_id (struct frame_info *this_frame,
 		       void **this_prologue_cache,
@@ -1176,32 +1140,11 @@ static const struct frame_unwind mn10300_frame_unwind = {
   default_frame_sniffer
 };
 
-static CORE_ADDR
-mn10300_unwind_pc (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  ULONGEST pc;
-
-  pc = frame_unwind_register_unsigned (this_frame, E_PC_REGNUM);
-  return pc;
-}
-
-static CORE_ADDR
-mn10300_unwind_sp (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  ULONGEST sp;
-
-  sp = frame_unwind_register_unsigned (this_frame, E_SP_REGNUM);
-  return sp;
-}
-
 static void
 mn10300_frame_unwind_init (struct gdbarch *gdbarch)
 {
   dwarf2_append_unwinders (gdbarch);
   frame_unwind_append_unwinder (gdbarch, &mn10300_frame_unwind);
-  set_gdbarch_dummy_id (gdbarch, mn10300_dummy_id);
-  set_gdbarch_unwind_pc (gdbarch, mn10300_unwind_pc);
-  set_gdbarch_unwind_sp (gdbarch, mn10300_unwind_sp);
 }
 
 /* Function: push_dummy_call
@@ -1218,7 +1161,7 @@ mn10300_push_dummy_call (struct gdbarch *gdbarch,
 			 CORE_ADDR bp_addr, 
 			 int nargs, struct value **args,
 			 CORE_ADDR sp, 
-			 int struct_return,
+			 function_call_return_method return_method,
 			 CORE_ADDR struct_addr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
@@ -1238,7 +1181,7 @@ mn10300_push_dummy_call (struct gdbarch *gdbarch,
 
      XXX This doesn't appear to handle pass-by-invisible reference
      arguments.  */
-  regs_used = struct_return ? 1 : 0;
+  regs_used = (return_method == return_method_struct) ? 1 : 0;
   for (len = 0, argnum = 0; argnum < nargs; argnum++)
     {
       arg_len = (TYPE_LENGTH (value_type (args[argnum])) + 3) & ~3;
@@ -1253,7 +1196,7 @@ mn10300_push_dummy_call (struct gdbarch *gdbarch,
   /* Allocate stack space.  */
   sp -= len;
 
-  if (struct_return)
+  if (return_method == return_method_struct)
     {
       regs_used = 1;
       regcache_cooked_write_unsigned (regcache, E_D0_REGNUM, struct_addr);
@@ -1265,7 +1208,7 @@ mn10300_push_dummy_call (struct gdbarch *gdbarch,
   for (argnum = 0; argnum < nargs; argnum++)
     {
       /* FIXME what about structs?  Unions?  */
-      if (TYPE_CODE (value_type (*args)) == TYPE_CODE_STRUCT
+      if (value_type (*args)->code () == TYPE_CODE_STRUCT
 	  && TYPE_LENGTH (value_type (*args)) > 8)
 	{
 	  /* Change to pointer-to-type.  */
@@ -1335,7 +1278,7 @@ mn10300_push_dummy_call (struct gdbarch *gdbarch,
   {
     CORE_ADDR func_addr = find_function_addr (target_func, NULL);
     CORE_ADDR unwound_sp 
-      = mn10300_unwind_sp (gdbarch, create_new_frame (sp, func_addr));
+      = gdbarch_unwind_sp (gdbarch, create_new_frame (sp, func_addr));
     if (sp != unwound_sp)
       regcache_cooked_write_unsigned (regcache, E_SP_REGNUM,
                                       sp - (unwound_sp - sp));
@@ -1435,8 +1378,6 @@ mn10300_gdbarch_init (struct gdbarch_info info,
   set_gdbarch_num_regs (gdbarch, num_regs);
   set_gdbarch_register_type (gdbarch, mn10300_register_type);
   set_gdbarch_skip_prologue (gdbarch, mn10300_skip_prologue);
-  set_gdbarch_read_pc (gdbarch, mn10300_read_pc);
-  set_gdbarch_write_pc (gdbarch, mn10300_write_pc);
   set_gdbarch_pc_regnum (gdbarch, E_PC_REGNUM);
   set_gdbarch_sp_regnum (gdbarch, E_SP_REGNUM);
   set_gdbarch_dwarf2_reg_to_regnum (gdbarch, mn10300_dwarf2_reg_to_regnum);
@@ -1476,11 +1417,9 @@ mn10300_dump_tdep (struct gdbarch *gdbarch, struct ui_file *file)
 		      tdep->am33_mode);
 }
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_mn10300_tdep;
-
+void _initialize_mn10300_tdep ();
 void
-_initialize_mn10300_tdep (void)
+_initialize_mn10300_tdep ()
 {
   gdbarch_register (bfd_arch_mn10300, mn10300_gdbarch_init, mn10300_dump_tdep);
 }

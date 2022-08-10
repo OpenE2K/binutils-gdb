@@ -1,6 +1,6 @@
 // elfcpp.h -- main header file for elfcpp    -*- C++ -*-
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2020 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of elfcpp.
@@ -769,6 +769,9 @@ enum DT
   // Specify the value of _GLOBAL_OFFSET_TABLE_.
   DT_PPC_GOT = 0x70000000,
 
+  // Specify whether various optimisations are possible.
+  DT_PPC_OPT = 0x70000001,
+
   // Specify the start of the .glink section.
   DT_PPC64_GLINK = 0x70000000,
 
@@ -911,7 +914,8 @@ enum DF_1
   DF_1_INTERPOSE = 0x400,
   DF_1_NODEFLIB = 0x800,
   DF_1_NODUMP = 0x1000,
-  DF_1_CONLFAT = 0x2000
+  DF_1_CONLFAT = 0x2000,
+  DF_1_PIE = 0x08000000
 };
 
 // Version numbers which appear in the vd_version field of a Verdef
@@ -982,7 +986,9 @@ enum
   NT_GNU_BUILD_ID = 3,
   // The version of gold used to link.  Th descriptor is just a
   // string.
-  NT_GNU_GOLD_VERSION = 4
+  NT_GNU_GOLD_VERSION = 4,
+  // Program property note, as described in "Linux Extensions to the gABI".
+  NT_GNU_PROPERTY_TYPE_0 = 5
 };
 
 // The OS values which may appear in word 0 of a NT_GNU_ABI_TAG note.
@@ -995,6 +1001,21 @@ enum
   ELF_NOTE_OS_FREEBSD = 3,
   ELF_NOTE_OS_NETBSD = 4,
   ELF_NOTE_OS_SYLLABLE = 5
+};
+
+// Program property types for NT_GNU_PROPERTY_TYPE_0.
+
+enum
+{
+  GNU_PROPERTY_STACK_SIZE = 1,
+  GNU_PROPERTY_NO_COPY_ON_PROTECTED = 2,
+  GNU_PROPERTY_LOPROC = 0xc0000000,
+  GNU_PROPERTY_X86_ISA_1_USED = 0xc0000000,
+  GNU_PROPERTY_X86_ISA_1_NEEDED = 0xc0000001,
+  GNU_PROPERTY_X86_FEATURE_1_AND = 0xc0000002,
+  GNU_PROPERTY_HIPROC = 0xdfffffff,
+  GNU_PROPERTY_LOUSER = 0xe0000000,
+  GNU_PROPERTY_HIUSER = 0xffffffff
 };
 
 } // End namespace elfcpp.

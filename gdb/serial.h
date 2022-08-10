@@ -1,5 +1,5 @@
 /* Remote serial support interface definitions for GDB, the GNU Debugger.
-   Copyright (C) 1992-2017 Free Software Foundation, Inc.
+   Copyright (C) 1992-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -169,16 +169,6 @@ extern void serial_print_tty_state (struct serial *scb,
 				    serial_ttystate ttystate,
 				    struct ui_file *);
 
-/* Set the tty state to NEW_TTYSTATE, where OLD_TTYSTATE is the
-   current state (generally obtained from a recent call to
-   serial_get_tty_state()), but be careful not to discard any input.
-   This means that we never switch in or out of raw mode, even if
-   NEW_TTYSTATE specifies a switch.  */
-
-extern int serial_noflush_set_tty_state (struct serial *scb,
-					 serial_ttystate new_ttystate,
-					 serial_ttystate old_ttystate);
-
 /* Set the baudrate to the decimal value supplied.  Returns 0 for
    success, -1 for failure.  */
 
@@ -250,6 +240,7 @@ struct serial
 				   buffer.  -ve for sticky errors.  */
     unsigned char *bufp;	/* Current byte */
     unsigned char buf[BUFSIZ];	/* Da buffer itself */
+    char *name;			/* The name of the device or host */
     struct serial *next;	/* Pointer to the next `struct serial *' */
     int debug_p;		/* Trace this serial devices operation.  */
     int async_state;		/* Async internal state.  */
@@ -276,8 +267,6 @@ struct serial_ops
     int (*set_tty_state) (struct serial *, serial_ttystate);
     void (*print_tty_state) (struct serial *, serial_ttystate,
 			     struct ui_file *);
-    int (*noflush_set_tty_state) (struct serial *, serial_ttystate,
-				  serial_ttystate);
     int (*setbaudrate) (struct serial *, int rate);
     int (*setstopbits) (struct serial *, int num);
     /* Set the value PARITY as parity setting for serial object.

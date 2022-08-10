@@ -1,6 +1,6 @@
 /* Common code for ARM software single stepping support.
 
-   Copyright (C) 1988-2017 Free Software Foundation, Inc.
+   Copyright (C) 1988-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,8 +17,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef ARM_GET_NEXT_PCS_H
-#define ARM_GET_NEXT_PCS_H 1
+#ifndef ARCH_ARM_GET_NEXT_PCS_H
+#define ARCH_ARM_GET_NEXT_PCS_H
 
 #include <vector>
 
@@ -64,4 +64,4 @@ void arm_get_next_pcs_ctor (struct arm_get_next_pcs *self,
 /* Find the next possible PCs after the current instruction executes.  */
 std::vector<CORE_ADDR> arm_get_next_pcs (struct arm_get_next_pcs *self);
 
-#endif /* ARM_GET_NEXT_PCS_H */
+#endif /* ARCH_ARM_GET_NEXT_PCS_H */

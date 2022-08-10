@@ -1,6 +1,6 @@
 /* Read MiniDebugInfo data from an objfile.
 
-   Copyright (C) 2012-2017 Free Software Foundation, Inc.
+   Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,6 +25,10 @@
 #include <algorithm>
 
 #ifdef HAVE_LIBLZMA
+
+/* We stash a reference to the .gnu_debugdata BFD on the enclosing
+   BFD.  */
+static const bfd_key<gdb_bfd_ref_ptr> gnu_debug_key;
 
 #include <lzma.h>
 
@@ -83,12 +87,11 @@ lzma_open (struct bfd *nbfd, void *open_closure)
   gdb_byte footer[LZMA_STREAM_HEADER_SIZE];
   gdb_byte *indexdata;
   lzma_index *index;
-  int ret;
   uint64_t memlimit = UINT64_MAX;
   struct gdb_lzma_stream *lstream;
   size_t pos;
 
-  size = bfd_get_section_size (section);
+  size = bfd_section_size (section);
   offset = section->filepos + size - LZMA_STREAM_HEADER_SIZE;
   if (size < LZMA_STREAM_HEADER_SIZE
       || bfd_seek (section->owner, offset, SEEK_SET) != 0
@@ -270,7 +273,14 @@ find_separate_debug_file_in_section (struct objfile *objfile)
     return NULL;
 
 #ifdef HAVE_LIBLZMA
-  abfd = gdb_bfd_openr_iovec (objfile_name (objfile), gnutarget, lzma_open,
+  gdb_bfd_ref_ptr *shared = gnu_debug_key.get (objfile->obfd);
+  if (shared != nullptr)
+    return *shared;
+
+  std::string filename = string_printf (_(".gnu_debugdata for %s"),
+					objfile_name (objfile));
+
+  abfd = gdb_bfd_openr_iovec (filename.c_str (), gnutarget, lzma_open,
 			      section, lzma_pread, lzma_close, lzma_stat);
   if (abfd == NULL)
     return NULL;
@@ -280,6 +290,9 @@ find_separate_debug_file_in_section (struct objfile *objfile)
       warning (_("Cannot parse .gnu_debugdata section; not a BFD object"));
       return NULL;
     }
+
+  gnu_debug_key.emplace (objfile->obfd, abfd);
+
 #else
   warning (_("Cannot parse .gnu_debugdata section; LZMA support was "
 	     "disabled at compile time"));

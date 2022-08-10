@@ -1,6 +1,6 @@
 /* <proc_service.h> implementation.
 
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,6 +21,7 @@
 
 #include "gdbcore.h"
 #include "inferior.h"
+#include "gdbthread.h"
 #include "symtab.h"
 #include "target.h"
 #include "regcache.h"
@@ -32,24 +33,6 @@
 
 /* Prototypes for supply_gregset etc.  */
 #include "gregset.h"
-
-
-/* Fix-up some broken systems.  */
-
-/* The prototypes in <proc_service.h> are slightly different on older
-   systems.  Compensate for the discrepancies.  */
-
-#ifdef PROC_SERVICE_IS_OLD
-typedef const struct ps_prochandle *gdb_ps_prochandle_t;
-typedef char *gdb_ps_read_buf_t;
-typedef char *gdb_ps_write_buf_t;
-typedef int gdb_ps_size_t;
-#else
-typedef struct ps_prochandle *gdb_ps_prochandle_t;
-typedef void *gdb_ps_read_buf_t;
-typedef const void *gdb_ps_write_buf_t;
-typedef size_t gdb_ps_size_t;
-#endif
 
 
 /* Helper functions.  */
@@ -87,19 +70,22 @@ static ps_err_e
 ps_xfer_memory (const struct ps_prochandle *ph, psaddr_t addr,
 		gdb_byte *buf, size_t len, int write)
 {
-  struct cleanup *old_chain = save_inferior_ptid ();
-  int ret;
+  scoped_restore_current_inferior restore_inferior;
+  set_current_inferior (ph->thread->inf);
+
+  scoped_restore_current_program_space restore_current_progspace;
+  set_current_program_space (ph->thread->inf->pspace);
+
+  scoped_restore save_inferior_ptid = make_scoped_restore (&inferior_ptid);
+  inferior_ptid = ph->thread->ptid;
+
   CORE_ADDR core_addr = ps_addr_to_core_addr (addr);
 
-  inferior_ptid = ph->ptid;
-
+  int ret;
   if (write)
     ret = target_write_memory (core_addr, buf, len);
   else
     ret = target_read_memory (core_addr, buf, len);
-
-  do_cleanups (old_chain);
-
   return (ret == 0 ? PS_OK : PS_ERR);
 }
 
@@ -109,10 +95,10 @@ ps_xfer_memory (const struct ps_prochandle *ph, psaddr_t addr,
    symbol is stored in SYM_ADDR.  */
 
 ps_err_e
-ps_pglobal_lookup (gdb_ps_prochandle_t ph, const char *obj,
+ps_pglobal_lookup (struct ps_prochandle *ph, const char *obj,
 		   const char *name, psaddr_t *sym_addr)
 {
-  struct inferior *inf = find_inferior_ptid (ph->ptid);
+  inferior *inf = ph->thread->inf;
 
   scoped_restore_current_program_space restore_pspace;
 
@@ -131,8 +117,7 @@ ps_pglobal_lookup (gdb_ps_prochandle_t ph, const char *obj,
    them into BUF.  */
 
 ps_err_e
-ps_pdread (gdb_ps_prochandle_t ph, psaddr_t addr,
-	   gdb_ps_read_buf_t buf, gdb_ps_size_t size)
+ps_pdread (struct ps_prochandle *ph, psaddr_t addr, void *buf, size_t size)
 {
   return ps_xfer_memory (ph, addr, (gdb_byte *) buf, size, 0);
 }
@@ -140,21 +125,33 @@ ps_pdread (gdb_ps_prochandle_t ph, psaddr_t addr,
 /* Write SIZE bytes from BUF into the target process PH at address ADDR.  */
 
 ps_err_e
-ps_pdwrite (gdb_ps_prochandle_t ph, psaddr_t addr,
-	    gdb_ps_write_buf_t buf, gdb_ps_size_t size)
+ps_pdwrite (struct ps_prochandle *ph, psaddr_t addr,
+	    const void *buf, size_t size)
 {
   return ps_xfer_memory (ph, addr, (gdb_byte *) buf, size, 1);
+}
+
+/* Get a regcache for LWPID using its inferior's "main" architecture,
+   which is the register set libthread_db expects to be using.  In
+   multi-arch debugging scenarios, the thread's architecture may
+   differ from the inferior's "main" architecture.  */
+
+static struct regcache *
+get_ps_regcache (struct ps_prochandle *ph, lwpid_t lwpid)
+{
+  inferior *inf = ph->thread->inf;
+  return get_thread_arch_regcache (inf->process_target (),
+				   ptid_t (inf->pid, lwpid),
+				   inf->gdbarch);
 }
 
 /* Get the general registers of LWP LWPID within the target process PH
    and store them in GREGSET.  */
 
 ps_err_e
-ps_lgetregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, prgregset_t gregset)
+ps_lgetregs (struct ps_prochandle *ph, lwpid_t lwpid, prgregset_t gregset)
 {
-  ptid_t ptid = ptid_build (ptid_get_pid (ph->ptid), lwpid, 0);
-  struct regcache *regcache
-    = get_thread_arch_regcache (ptid, target_gdbarch ());
+  struct regcache *regcache = get_ps_regcache (ph, lwpid);
 
   target_fetch_registers (regcache, -1);
   fill_gregset (regcache, (gdb_gregset_t *) gregset, -1);
@@ -166,11 +163,9 @@ ps_lgetregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, prgregset_t gregset)
    from GREGSET.  */
 
 ps_err_e
-ps_lsetregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, const prgregset_t gregset)
+ps_lsetregs (struct ps_prochandle *ph, lwpid_t lwpid, const prgregset_t gregset)
 {
-  ptid_t ptid = ptid_build (ptid_get_pid (ph->ptid), lwpid, 0);
-  struct regcache *regcache
-    = get_thread_arch_regcache (ptid, target_gdbarch ());
+  struct regcache *regcache = get_ps_regcache (ph, lwpid);
 
   supply_gregset (regcache, (const gdb_gregset_t *) gregset);
   target_store_registers (regcache, -1);
@@ -182,12 +177,10 @@ ps_lsetregs (gdb_ps_prochandle_t ph, lwpid_t lwpid, const prgregset_t gregset)
    process PH and store them in FPREGSET.  */
 
 ps_err_e
-ps_lgetfpregs (gdb_ps_prochandle_t ph, lwpid_t lwpid,
-	       gdb_prfpregset_t *fpregset)
+ps_lgetfpregs (struct ps_prochandle *ph, lwpid_t lwpid,
+	       prfpregset_t *fpregset)
 {
-  ptid_t ptid = ptid_build (ptid_get_pid (ph->ptid), lwpid, 0);
-  struct regcache *regcache
-    = get_thread_arch_regcache (ptid, target_gdbarch ());
+  struct regcache *regcache = get_ps_regcache (ph, lwpid);
 
   target_fetch_registers (regcache, -1);
   fill_fpregset (regcache, (gdb_fpregset_t *) fpregset, -1);
@@ -199,12 +192,10 @@ ps_lgetfpregs (gdb_ps_prochandle_t ph, lwpid_t lwpid,
    process PH from FPREGSET.  */
 
 ps_err_e
-ps_lsetfpregs (gdb_ps_prochandle_t ph, lwpid_t lwpid,
-	       const gdb_prfpregset_t *fpregset)
+ps_lsetfpregs (struct ps_prochandle *ph, lwpid_t lwpid,
+	       const prfpregset_t *fpregset)
 {
-  ptid_t ptid = ptid_build (ptid_get_pid (ph->ptid), lwpid, 0);
-  struct regcache *regcache
-    = get_thread_arch_regcache (ptid, target_gdbarch ());
+  struct regcache *regcache = get_ps_regcache (ph, lwpid);
 
   supply_fpregset (regcache, (const gdb_fpregset_t *) fpregset);
   target_store_registers (regcache, -1);
@@ -216,16 +207,14 @@ ps_lsetfpregs (gdb_ps_prochandle_t ph, lwpid_t lwpid,
    -- not used on Solaris.  */
 
 pid_t
-ps_getpid (gdb_ps_prochandle_t ph)
+ps_getpid (struct ps_prochandle *ph)
 {
-  return ptid_get_pid (ph->ptid);
+  return ph->thread->ptid.pid ();
 }
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_proc_service;
-
+void _initialize_proc_service ();
 void
-_initialize_proc_service (void)
+_initialize_proc_service ()
 {
   /* This function solely exists to make sure this module is linked
      into the final binary.  */

@@ -1,6 +1,6 @@
 /* Definitions for BFD wrappers used by GDB.
 
-   Copyright (C) 2011-2017 Free Software Foundation, Inc.
+   Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,7 +21,8 @@
 #define GDB_BFD_H
 
 #include "registry.h"
-#include "common/gdb_ref_ptr.h"
+#include "gdbsupport/byte-vector.h"
+#include "gdbsupport/gdb_ref_ptr.h"
 
 DECLARE_REGISTRY (bfd);
 
@@ -71,16 +72,18 @@ typedef gdb::ref_ptr<struct bfd, gdb_bfd_ref_policy> gdb_bfd_ref_ptr;
 /* Open a read-only (FOPEN_RB) BFD given arguments like bfd_fopen.
    If NAME starts with TARGET_SYSROOT_PREFIX then the BFD will be
    opened using target fileio operations if necessary.  Returns NULL
-   on error.  On success, returns a new reference to the BFD, which
-   must be freed with gdb_bfd_unref.  BFDs returned by this call are
-   shared among all callers opening the same file.  If FD is not -1,
-   then after this call it is owned by BFD.  If the BFD was not
-   accessed using target fileio operations then the filename
-   associated with the BFD and accessible with bfd_get_filename will
-   not be exactly NAME but rather NAME with TARGET_SYSROOT_PREFIX
-   stripped.  */
+   on error.  On success, returns a new reference to the BFD.  BFDs
+   returned by this call are shared among all callers opening the same
+   file.  If FD is not -1, then after this call it is owned by BFD.
+   If the BFD was not accessed using target fileio operations then the
+   filename associated with the BFD and accessible with
+   bfd_get_filename will not be exactly NAME but rather NAME with
+   TARGET_SYSROOT_PREFIX stripped.  If WARN_IF_SLOW is true, print a
+   warning message if the file is being accessed over a link that may
+   be slow.  */
 
-gdb_bfd_ref_ptr gdb_bfd_open (const char *name, const char *target, int fd);
+gdb_bfd_ref_ptr gdb_bfd_open (const char *name, const char *target,
+			      int fd = -1, bool warn_if_slow = true);
 
 /* Mark the CHILD BFD as being a member of PARENT.  Also, increment
    the reference count of CHILD.  Calling this function ensures that
@@ -105,15 +108,14 @@ void gdb_bfd_mark_parent (bfd *child, bfd *parent);
 
 void gdb_bfd_record_inclusion (bfd *includer, bfd *includee);
 
-/* Try to read or map the contents of the section SECT.  If
-   successful, the section data is returned and *SIZE is set to the
-   size of the section data; this may not be the same as the size
-   according to bfd_get_section_size if the section was compressed.
-   The returned section data is associated with the BFD and will be
-   destroyed when the BFD is destroyed.  There is no other way to free
-   it; for temporary uses of section data, see
-   bfd_malloc_and_get_section.  SECT may not have relocations.  This
-   function will throw on error.  */
+/* Try to read or map the contents of the section SECT.  If successful, the
+   section data is returned and *SIZE is set to the size of the section data;
+   this may not be the same as the size according to bfd_section_size if the
+   section was compressed.  The returned section data is associated with the BFD
+   and will be destroyed when the BFD is destroyed.  There is no other way to
+   free it; for temporary uses of section data, see bfd_malloc_and_get_section.
+   SECT may not have relocations.  If there is an error reading the section,
+   this issues a warning, sets *SIZE to 0, and returns NULL.  */
 
 const gdb_byte *gdb_bfd_map_section (asection *section, bfd_size_type *size);
 
@@ -163,11 +165,6 @@ gdb_bfd_ref_ptr gdb_bfd_openr_iovec (const char *filename, const char *target,
 
 gdb_bfd_ref_ptr gdb_bfd_openr_next_archived_file (bfd *archive, bfd *previous);
 
-/* A wrapper for bfd_fdopenr that initializes the gdb-specific
-   reference count.  */
-
-gdb_bfd_ref_ptr gdb_bfd_fdopenr (const char *filename, const char *target,
-				 int fd);
 
 
 
@@ -187,5 +184,13 @@ int gdb_bfd_count_sections (bfd *abfd);
    otherwise.  */
 
 int gdb_bfd_requires_relocations (bfd *abfd);
+
+/* Alternative to bfd_get_full_section_contents that returns the section
+   contents in *CONTENTS, instead of an allocated buffer.
+
+   Return true on success, false otherwise.  */
+
+bool gdb_bfd_get_full_section_contents (bfd *abfd, asection *section,
+					gdb::byte_vector *contents);
 
 #endif /* GDB_BFD_H */

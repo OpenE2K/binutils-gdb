@@ -1,5 +1,5 @@
 /* tc-vax.c - vax-specific -
-   Copyright (C) 1987-2017 Free Software Foundation, Inc.
+   Copyright (C) 1987-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -381,7 +381,7 @@ md_estimate_size_before_relax (fragS *fragP, segT segment)
 	  int old_fr_fix;
 
 	  old_fr_fix = fragP->fr_fix;
-	  p = fragP->fr_literal + old_fr_fix;
+	  p = &fragP->fr_literal[0] + old_fr_fix;
 #ifdef OBJ_ELF
 	  /* If this is to an undefined symbol, then if it's an indirect
 	     reference indicate that is can mutated into a GLOB_DAT or
@@ -525,7 +525,7 @@ md_convert_frag (bfd *headers ATTRIBUTE_UNUSED,
 
   know (fragP->fr_type == rs_machine_dependent);
   where = fragP->fr_fix;
-  addressP = fragP->fr_literal + where;
+  addressP = &fragP->fr_literal[0] + where;
   opcodeP = fragP->fr_opcode;
   symbolP = fragP->fr_symbol;
   know (symbolP);

@@ -1,6 +1,6 @@
 /* Target-dependent code for the ALPHA architecture, for GDB, the GNU Debugger.
 
-   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,11 +18,10 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include "doublest.h"
 #include "frame.h"
 #include "frame-unwind.h"
 #include "frame-base.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "inferior.h"
 #include "symtab.h"
 #include "value.h"
@@ -253,7 +252,6 @@ alpha_register_to_value (struct frame_info *frame, int regnum,
   if (*optimizedp || *unavailablep)
     {
       release_value (value);
-      value_free (value);
       return 0;
     }
 
@@ -263,7 +261,6 @@ alpha_register_to_value (struct frame_info *frame, int regnum,
   alpha_sts (gdbarch, out, value_contents_all (value));
 
   release_value (value);
-  value_free (value);
   return 1;
 }
 
@@ -298,11 +295,12 @@ static CORE_ADDR
 alpha_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		       struct regcache *regcache, CORE_ADDR bp_addr,
 		       int nargs, struct value **args, CORE_ADDR sp,
-		       int struct_return, CORE_ADDR struct_addr)
+		       function_call_return_method return_method,
+		       CORE_ADDR struct_addr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   int i;
-  int accumulate_size = struct_return ? 8 : 0;
+  int accumulate_size = (return_method == return_method_struct) ? 8 : 0;
   struct alpha_arg
     {
       const gdb_byte *contents;
@@ -329,7 +327,7 @@ alpha_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       struct type *arg_type = check_typedef (value_type (arg));
 
       /* Cast argument to long if necessary as the compiler does it too.  */
-      switch (TYPE_CODE (arg_type))
+      switch (arg_type->code ())
 	{
 	case TYPE_CODE_INT:
 	case TYPE_CODE_BOOL:
@@ -449,17 +447,17 @@ alpha_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       /* Everything else goes to the stack.  */
       write_memory (sp + offset - sizeof(arg_reg_buffer), contents, len);
     }
-  if (struct_return)
+  if (return_method == return_method_struct)
     store_unsigned_integer (arg_reg_buffer, ALPHA_REGISTER_SIZE,
 			    byte_order, struct_addr);
 
   /* Load the argument registers.  */
   for (i = 0; i < required_arg_regs; i++)
     {
-      regcache_cooked_write (regcache, ALPHA_A0_REGNUM + i,
-			     arg_reg_buffer + i*ALPHA_REGISTER_SIZE);
-      regcache_cooked_write (regcache, ALPHA_FPA0_REGNUM + i,
-			     arg_reg_buffer + i*ALPHA_REGISTER_SIZE);
+      regcache->cooked_write (ALPHA_A0_REGNUM + i,
+			      arg_reg_buffer + i * ALPHA_REGISTER_SIZE);
+      regcache->cooked_write (ALPHA_FPA0_REGNUM + i,
+			      arg_reg_buffer + i * ALPHA_REGISTER_SIZE);
     }
 
   /* Finally, update the stack pointer.  */
@@ -475,23 +473,23 @@ static void
 alpha_extract_return_value (struct type *valtype, struct regcache *regcache,
 			    gdb_byte *valbuf)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   gdb_byte raw_buffer[ALPHA_REGISTER_SIZE];
   ULONGEST l;
 
-  switch (TYPE_CODE (valtype))
+  switch (valtype->code ())
     {
     case TYPE_CODE_FLT:
       switch (TYPE_LENGTH (valtype))
 	{
 	case 4:
-	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, raw_buffer);
+	  regcache->cooked_read (ALPHA_FP0_REGNUM, raw_buffer);
 	  alpha_sts (gdbarch, valbuf, raw_buffer);
 	  break;
 
 	case 8:
-	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  regcache->cooked_read (ALPHA_FP0_REGNUM, valbuf);
 	  break;
 
 	case 16:
@@ -510,12 +508,12 @@ alpha_extract_return_value (struct type *valtype, struct regcache *regcache,
 	{
 	case 8:
 	  /* ??? This isn't correct wrt the ABI, but it's what GCC does.  */
-	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  regcache->cooked_read (ALPHA_FP0_REGNUM, valbuf);
 	  break;
 
 	case 16:
-	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM, valbuf);
-	  regcache_cooked_read (regcache, ALPHA_FP0_REGNUM + 1, valbuf + 8);
+	  regcache->cooked_read (ALPHA_FP0_REGNUM, valbuf);
+	  regcache->cooked_read (ALPHA_FP0_REGNUM + 1, valbuf + 8);
 	  break;
 
 	case 32:
@@ -544,22 +542,22 @@ static void
 alpha_store_return_value (struct type *valtype, struct regcache *regcache,
 			  const gdb_byte *valbuf)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   gdb_byte raw_buffer[ALPHA_REGISTER_SIZE];
   ULONGEST l;
 
-  switch (TYPE_CODE (valtype))
+  switch (valtype->code ())
     {
     case TYPE_CODE_FLT:
       switch (TYPE_LENGTH (valtype))
 	{
 	case 4:
 	  alpha_lds (gdbarch, raw_buffer, valbuf);
-	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, raw_buffer);
+	  regcache->cooked_write (ALPHA_FP0_REGNUM, raw_buffer);
 	  break;
 
 	case 8:
-	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  regcache->cooked_write (ALPHA_FP0_REGNUM, valbuf);
 	  break;
 
 	case 16:
@@ -579,12 +577,12 @@ alpha_store_return_value (struct type *valtype, struct regcache *regcache,
 	{
 	case 8:
 	  /* ??? This isn't correct wrt the ABI, but it's what GCC does.  */
-	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, valbuf);
+	  regcache->cooked_write (ALPHA_FP0_REGNUM, valbuf);
 	  break;
 
 	case 16:
-	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM, valbuf);
-	  regcache_cooked_write (regcache, ALPHA_FP0_REGNUM + 1, valbuf + 8);
+	  regcache->cooked_write (ALPHA_FP0_REGNUM, valbuf);
+	  regcache->cooked_write (ALPHA_FP0_REGNUM + 1, valbuf + 8);
 	  break;
 
 	case 32:
@@ -616,7 +614,7 @@ alpha_return_value (struct gdbarch *gdbarch, struct value *function,
 		    struct type *type, struct regcache *regcache,
 		    gdb_byte *readbuf, const gdb_byte *writebuf)
 {
-  enum type_code code = TYPE_CODE (type);
+  enum type_code code = type->code ();
 
   if ((code == TYPE_CODE_STRUCT
        || code == TYPE_CODE_UNION
@@ -768,11 +766,9 @@ static const int stq_c_opcode = 0x2f;
    the sequence.  */
 
 static std::vector<CORE_ADDR>
-alpha_deal_with_atomic_sequence (struct regcache *regcache)
+alpha_deal_with_atomic_sequence (struct gdbarch *gdbarch, CORE_ADDR pc)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
-  CORE_ADDR pc = regcache_read_pc (regcache);
-  CORE_ADDR breaks[2] = {-1, -1};
+  CORE_ADDR breaks[2] = {CORE_ADDR_MAX, CORE_ADDR_MAX};
   CORE_ADDR loc = pc;
   CORE_ADDR closing_insn; /* Instruction that closes the atomic sequence.  */
   unsigned int insn = alpha_read_insn (gdbarch, loc);
@@ -998,11 +994,11 @@ alpha_sigtramp_frame_sniffer (const struct frame_unwind *self,
   const char *name;
 
   /* NOTE: cagney/2004-04-30: Do not copy/clone this code.  Instead
-     look at tramp-frame.h and other simplier per-architecture
+     look at tramp-frame.h and other simpler per-architecture
      sigtramp unwinders.  */
 
   /* We shouldn't even bother to try if the OSABI didn't register a
-     sigcontext_addr handler or pc_in_sigtramp hander.  */
+     sigcontext_addr handler or pc_in_sigtramp handler.  */
   if (gdbarch_tdep (gdbarch)->sigcontext_addr == NULL)
     return 0;
   if (gdbarch_tdep (gdbarch)->pc_in_sigtramp == NULL)
@@ -1462,33 +1458,11 @@ static const struct frame_base alpha_heuristic_frame_base = {
    callable as an sfunc.  Used by the "set heuristic-fence-post" command.  */
 
 static void
-reinit_frame_cache_sfunc (char *args, int from_tty, struct cmd_list_element *c)
+reinit_frame_cache_sfunc (const char *args,
+			  int from_tty, struct cmd_list_element *c)
 {
   reinit_frame_cache ();
 }
-
-
-/* Assuming NEXT_FRAME->prev is a dummy, return the frame ID of that
-   dummy frame.  The frame ID's base needs to match the TOS value
-   saved by save_dummy_frame_tos(), and the PC match the dummy frame's
-   breakpoint.  */
-
-static struct frame_id
-alpha_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  ULONGEST base;
-  base = get_frame_register_unsigned (this_frame, ALPHA_SP_REGNUM);
-  return frame_id_build (base, get_frame_pc (this_frame));
-}
-
-static CORE_ADDR
-alpha_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  ULONGEST pc;
-  pc = frame_unwind_register_unsigned (next_frame, ALPHA_PC_REGNUM);
-  return pc;
-}
-
 
 /* Helper routines for alpha*-nat.c files to move register sets to and
    from core files.  The UNIQUE pointer is allowed to be NULL, as most
@@ -1503,20 +1477,20 @@ alpha_supply_int_regs (struct regcache *regcache, int regno,
 
   for (i = 0; i < 31; ++i)
     if (regno == i || regno == -1)
-      regcache_raw_supply (regcache, i, regs + i * 8);
+      regcache->raw_supply (i, regs + i * 8);
 
   if (regno == ALPHA_ZERO_REGNUM || regno == -1)
     {
       const gdb_byte zero[8] = { 0 };
 
-      regcache_raw_supply (regcache, ALPHA_ZERO_REGNUM, zero);
+      regcache->raw_supply (ALPHA_ZERO_REGNUM, zero);
     }
 
   if (regno == ALPHA_PC_REGNUM || regno == -1)
-    regcache_raw_supply (regcache, ALPHA_PC_REGNUM, pc);
+    regcache->raw_supply (ALPHA_PC_REGNUM, pc);
 
   if (regno == ALPHA_UNIQUE_REGNUM || regno == -1)
-    regcache_raw_supply (regcache, ALPHA_UNIQUE_REGNUM, unique);
+    regcache->raw_supply (ALPHA_UNIQUE_REGNUM, unique);
 }
 
 void
@@ -1528,13 +1502,13 @@ alpha_fill_int_regs (const struct regcache *regcache,
 
   for (i = 0; i < 31; ++i)
     if (regno == i || regno == -1)
-      regcache_raw_collect (regcache, i, regs + i * 8);
+      regcache->raw_collect (i, regs + i * 8);
 
   if (regno == ALPHA_PC_REGNUM || regno == -1)
-    regcache_raw_collect (regcache, ALPHA_PC_REGNUM, pc);
+    regcache->raw_collect (ALPHA_PC_REGNUM, pc);
 
   if (unique && (regno == ALPHA_UNIQUE_REGNUM || regno == -1))
-    regcache_raw_collect (regcache, ALPHA_UNIQUE_REGNUM, unique);
+    regcache->raw_collect (ALPHA_UNIQUE_REGNUM, unique);
 }
 
 void
@@ -1546,11 +1520,10 @@ alpha_supply_fp_regs (struct regcache *regcache, int regno,
 
   for (i = ALPHA_FP0_REGNUM; i < ALPHA_FP0_REGNUM + 31; ++i)
     if (regno == i || regno == -1)
-      regcache_raw_supply (regcache, i,
-			   regs + (i - ALPHA_FP0_REGNUM) * 8);
+      regcache->raw_supply (i, regs + (i - ALPHA_FP0_REGNUM) * 8);
 
   if (regno == ALPHA_FPCR_REGNUM || regno == -1)
-    regcache_raw_supply (regcache, ALPHA_FPCR_REGNUM, fpcr);
+    regcache->raw_supply (ALPHA_FPCR_REGNUM, fpcr);
 }
 
 void
@@ -1562,11 +1535,10 @@ alpha_fill_fp_regs (const struct regcache *regcache,
 
   for (i = ALPHA_FP0_REGNUM; i < ALPHA_FP0_REGNUM + 31; ++i)
     if (regno == i || regno == -1)
-      regcache_raw_collect (regcache, i,
-			    regs + (i - ALPHA_FP0_REGNUM) * 8);
+      regcache->raw_collect (i, regs + (i - ALPHA_FP0_REGNUM) * 8);
 
   if (regno == ALPHA_FPCR_REGNUM || regno == -1)
-    regcache_raw_collect (regcache, ALPHA_FPCR_REGNUM, fpcr);
+    regcache->raw_collect (ALPHA_FPCR_REGNUM, fpcr);
 }
 
 
@@ -1602,7 +1574,7 @@ fp_register_sign_bit (LONGEST reg)
 static CORE_ADDR
 alpha_next_pc (struct regcache *regcache, CORE_ADDR pc)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   unsigned int insn;
   unsigned int op;
   int regno;
@@ -1723,12 +1695,17 @@ alpha_next_pc (struct regcache *regcache, CORE_ADDR pc)
 std::vector<CORE_ADDR>
 alpha_software_single_step (struct regcache *regcache)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
-  CORE_ADDR pc;
+  struct gdbarch *gdbarch = regcache->arch ();
 
-  pc = alpha_next_pc (regcache, regcache_read_pc (regcache));
+  CORE_ADDR pc = regcache_read_pc (regcache);
 
-  return {pc};
+  std::vector<CORE_ADDR> next_pcs
+    = alpha_deal_with_atomic_sequence (gdbarch, pc);
+  if (!next_pcs.empty ())
+    return next_pcs;
+
+  CORE_ADDR next_pc = alpha_next_pc (regcache, pc);
+  return {next_pc};
 }
 
 
@@ -1807,12 +1784,6 @@ alpha_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   /* Settings for calling functions in the inferior.  */
   set_gdbarch_push_dummy_call (gdbarch, alpha_push_dummy_call);
 
-  /* Methods for saving / extracting a dummy frame's ID.  */
-  set_gdbarch_dummy_id (gdbarch, alpha_dummy_id);
-
-  /* Return the unwound PC value.  */
-  set_gdbarch_unwind_pc (gdbarch, alpha_unwind_pc);
-
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
   set_gdbarch_skip_trampoline_code (gdbarch, find_solib_trampoline_target);
 
@@ -1824,7 +1795,7 @@ alpha_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_cannot_step_breakpoint (gdbarch, 1);
 
   /* Handles single stepping of atomic sequences.  */
-  set_gdbarch_software_single_step (gdbarch, alpha_deal_with_atomic_sequence);
+  set_gdbarch_software_single_step (gdbarch, alpha_software_single_step);
 
   /* Hook in ABI-specific overrides, if they have been registered.  */
   gdbarch_init_osabi (info, gdbarch);
@@ -1850,10 +1821,9 @@ alpha_dwarf2_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   frame_base_append_sniffer (gdbarch, dwarf2_frame_base_sniffer);
 }
 
-extern initialize_file_ftype _initialize_alpha_tdep; /* -Wmissing-prototypes */
-
+void _initialize_alpha_tdep ();
 void
-_initialize_alpha_tdep (void)
+_initialize_alpha_tdep ()
 {
 
   gdbarch_register (bfd_arch_alpha, alpha_gdbarch_init, NULL);

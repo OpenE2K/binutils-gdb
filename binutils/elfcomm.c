@@ -1,5 +1,5 @@
 /* elfcomm.c -- common code for ELF format file.
-   Copyright (C) 2010-2017 Free Software Foundation, Inc.
+   Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
    Originally developed by Eric Youngdale <eric@andante.jic.com>
    Modifications by Nick Clifton <nickc@redhat.com>
@@ -21,14 +21,18 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
+/* Do not include bfd.h in this file.  Functions in this file are used
+   by readelf.c and elfedit.c which define BFD64, and by objdump.c
+   which doesn't.  */
+
 #include "sysdep.h"
 #include "libiberty.h"
 #include "filenames.h"
-#include "bfd.h"
 #include "aout/ar.h"
-#include "bucomm.h"
 #include "elfcomm.h"
 #include <assert.h>
+
+extern char *program_name;
 
 void
 error (const char *message, ...)
@@ -125,10 +129,10 @@ byte_put_big_endian (unsigned char * field, elf_vma value, int size)
     }
 }
 
-elf_vma (*byte_get) (unsigned char *, int);
+elf_vma (*byte_get) (const unsigned char *, int);
 
 elf_vma
-byte_get_little_endian (unsigned char *field, int size)
+byte_get_little_endian (const unsigned char *field, int size)
 {
   switch (size)
     {
@@ -231,7 +235,7 @@ byte_get_little_endian (unsigned char *field, int size)
 }
 
 elf_vma
-byte_get_big_endian (unsigned char *field, int size)
+byte_get_big_endian (const unsigned char *field, int size)
 {
   switch (size)
     {
@@ -341,7 +345,7 @@ byte_get_big_endian (unsigned char *field, int size)
 }
 
 elf_vma
-byte_get_signed (unsigned char *field, int size)
+byte_get_signed (const unsigned char *field, int size)
 {
   elf_vma x = byte_get (field, size);
 
@@ -373,7 +377,7 @@ byte_get_signed (unsigned char *field, int size)
    of an 8-byte value separately.  */
 
 void
-byte_get_64 (unsigned char *field, elf_vma *high, elf_vma *low)
+byte_get_64 (const unsigned char *field, elf_vma *high, elf_vma *low)
 {
   if (byte_get == byte_get_big_endian)
     {
@@ -456,24 +460,28 @@ adjust_relative_path (const char *file_name, const char *name,
     ARCH->sym_size and ARCH->sym_table.
    It is the caller's responsibility to free ARCH->index_array and
     ARCH->sym_table.
-   Returns TRUE upon success, FALSE otherwise.
+   Returns 1 upon success, 0 otherwise.
    If failure occurs an error message is printed.  */
 
-static bfd_boolean
-process_archive_index_and_symbols (struct archive_info *  arch,
-				   unsigned int           sizeof_ar_index,
-				   bfd_boolean            read_symbols)
+static int
+process_archive_index_and_symbols (struct archive_info *arch,
+				   unsigned int sizeof_ar_index,
+				   int read_symbols)
 {
   size_t got;
   unsigned long size;
+  char fmag_save;
 
+  fmag_save = arch->arhdr.ar_fmag[0];
+  arch->arhdr.ar_fmag[0] = 0;
   size = strtoul (arch->arhdr.ar_size, NULL, 10);
+  arch->arhdr.ar_fmag[0] = fmag_save;
   /* PR 17531: file: 912bd7de.  */
   if ((signed long) size < 0)
     {
       error (_("%s: invalid archive header size: %ld\n"),
 	     arch->file_name, size);
-      return FALSE;
+      return 0;
     }
 
   size = size + (size & 1);
@@ -486,7 +494,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
 	{
 	  error (_("%s: failed to skip archive symbol table\n"),
 		 arch->file_name);
-	  return FALSE;
+	  return 0;
 	}
     }
   else
@@ -504,7 +512,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
       if (size < sizeof_ar_index)
 	{
 	  error (_("%s: the archive index is empty\n"), arch->file_name);
-	  return FALSE;
+	  return 0;
 	}
 
       /* Read the number of entries in the archive index.  */
@@ -512,7 +520,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
       if (got != sizeof_ar_index)
 	{
 	  error (_("%s: failed to read archive index\n"), arch->file_name);
-	  return FALSE;
+	  return 0;
 	}
 
       arch->index_num = byte_get_big_endian (integer_buffer, sizeof_ar_index);
@@ -524,7 +532,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
 	{
 	  error (_("%s: the archive index is supposed to have 0x%lx entries of %d bytes, but the size is only 0x%lx\n"),
 		 arch->file_name, (long) arch->index_num, sizeof_ar_index, size);
-	  return FALSE;
+	  return 0;
 	}
 
       /* Read in the archive index.  */
@@ -533,7 +541,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
       if (index_buffer == NULL)
 	{
 	  error (_("Out of memory whilst trying to read archive symbol index\n"));
-	  return FALSE;
+	  return 0;
 	}
 
       got = fread (index_buffer, sizeof_ar_index, arch->index_num, arch->file);
@@ -541,7 +549,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
 	{
 	  free (index_buffer);
 	  error (_("%s: failed to read archive index\n"), arch->file_name);
-	  return FALSE;
+	  return 0;
 	}
 
       size -= arch->index_num * sizeof_ar_index;
@@ -553,7 +561,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
 	{
 	  free (index_buffer);
 	  error (_("Out of memory whilst trying to convert the archive symbol index\n"));
-	  return FALSE;
+	  return 0;
 	}
 
       for (i = 0; i < arch->index_num; i++)
@@ -567,14 +575,14 @@ process_archive_index_and_symbols (struct archive_info *  arch,
 	{
 	  error (_("%s: the archive has an index but no symbols\n"),
 		 arch->file_name);
-	  return FALSE;
+	  return 0;
 	}
 
       arch->sym_table = (char *) malloc (size);
       if (arch->sym_table == NULL)
 	{
 	  error (_("Out of memory whilst trying to read archive index symbol table\n"));
-	  return FALSE;
+	  return 0;
 	}
 
       arch->sym_size = size;
@@ -583,7 +591,7 @@ process_archive_index_and_symbols (struct archive_info *  arch,
 	{
 	  error (_("%s: failed to read archive index symbol table\n"),
 		 arch->file_name);
-	  return FALSE;
+	  return 0;
 	}
     }
 
@@ -593,18 +601,18 @@ process_archive_index_and_symbols (struct archive_info *  arch,
     {
       error (_("%s: failed to read archive header following archive index\n"),
 	     arch->file_name);
-      return FALSE;
+      return 0;
     }
 
-  return TRUE;
+  return 1;
 }
 
 /* Read the symbol table and long-name table from an archive.  */
 
 int
 setup_archive (struct archive_info *arch, const char *file_name,
-	       FILE *file, bfd_boolean is_thin_archive,
-	       bfd_boolean read_symbols)
+	       FILE *file, off_t file_size,
+	       int is_thin_archive, int read_symbols)
 {
   size_t got;
 
@@ -618,7 +626,7 @@ setup_archive (struct archive_info *arch, const char *file_name,
   arch->longnames_size = 0;
   arch->nested_member_origin = 0;
   arch->is_thin_archive = is_thin_archive;
-  arch->uses_64bit_indicies = FALSE;
+  arch->uses_64bit_indices = 0;
   arch->next_arhdr_offset = SARMAG;
 
   /* Read the first archive member header.  */
@@ -645,7 +653,7 @@ setup_archive (struct archive_info *arch, const char *file_name,
     }
   else if (const_strneq (arch->arhdr.ar_name, "/SYM64/         "))
     {
-      arch->uses_64bit_indicies = TRUE;
+      arch->uses_64bit_indices = 1;
       if (! process_archive_index_and_symbols (arch, 8, read_symbols))
 	return 1;
     }
@@ -655,7 +663,10 @@ setup_archive (struct archive_info *arch, const char *file_name,
   if (const_strneq (arch->arhdr.ar_name, "//              "))
     {
       /* This is the archive string table holding long member names.  */
+      char fmag_save = arch->arhdr.ar_fmag[0];
+      arch->arhdr.ar_fmag[0] = 0;
       arch->longnames_size = strtoul (arch->arhdr.ar_size, NULL, 10);
+      arch->arhdr.ar_fmag[0] = fmag_save;
       /* PR 17531: file: 01068045.  */
       if (arch->longnames_size < 8)
 	{
@@ -664,7 +675,8 @@ setup_archive (struct archive_info *arch, const char *file_name,
 	  return 1;
 	}
       /* PR 17531: file: 639d6a26.  */
-      if ((signed long) arch->longnames_size < 0)
+      if ((off_t) arch->longnames_size > file_size
+	  || (signed long) arch->longnames_size < 0)
 	{
 	  error (_("%s: long name table is too big, (size = 0x%lx)\n"),
 		 file_name, arch->longnames_size);
@@ -706,6 +718,7 @@ setup_nested_archive (struct archive_info *nested_arch,
 		      const char *member_file_name)
 {
   FILE * member_file;
+  struct stat statbuf;
 
   /* Have we already setup this archive?  */
   if (nested_arch->file_name != NULL
@@ -714,14 +727,19 @@ setup_nested_archive (struct archive_info *nested_arch,
 
   /* Close previous file and discard cached information.  */
   if (nested_arch->file != NULL)
-    fclose (nested_arch->file);
+    {
+      fclose (nested_arch->file);
+      nested_arch->file = NULL;
+    }
   release_archive (nested_arch);
 
   member_file = fopen (member_file_name, "rb");
   if (member_file == NULL)
     return 1;
+  if (fstat (fileno (member_file), &statbuf) < 0)
+    return 1;
   return setup_archive (nested_arch, member_file_name, member_file,
-			FALSE, FALSE);
+			statbuf.st_size, 0, 0);
 }
 
 /* Release the memory used for the archive information.  */
@@ -729,14 +747,14 @@ setup_nested_archive (struct archive_info *nested_arch,
 void
 release_archive (struct archive_info * arch)
 {
-  if (arch->file_name != NULL)
-    free (arch->file_name);
-  if (arch->index_array != NULL)
-    free (arch->index_array);
-  if (arch->sym_table != NULL)
-    free (arch->sym_table);
-  if (arch->longnames != NULL)
-    free (arch->longnames);
+  free (arch->file_name);
+  free (arch->index_array);
+  free (arch->sym_table);
+  free (arch->longnames);
+  arch->file_name = NULL;
+  arch->index_array = NULL;
+  arch->sym_table = NULL;
+  arch->longnames = NULL;
 }
 
 /* Get the name of an archive member from the current archive header.
@@ -758,6 +776,7 @@ get_archive_member_name (struct archive_info *arch,
       char *endp;
       char *member_file_name;
       char *member_name;
+      char fmag_save;
 
       if (arch->longnames == NULL || arch->longnames_size == 0)
 	{
@@ -766,9 +785,12 @@ get_archive_member_name (struct archive_info *arch,
 	}
 
       arch->nested_member_origin = 0;
+      fmag_save = arch->arhdr.ar_fmag[0];
+      arch->arhdr.ar_fmag[0] = 0;
       k = j = strtoul (arch->arhdr.ar_name + 1, &endp, 10);
       if (arch->is_thin_archive && endp != NULL && * endp == ':')
         arch->nested_member_origin = strtoul (endp + 1, NULL, 10);
+      arch->arhdr.ar_fmag[0] = fmag_save;
 
       if (j > arch->longnames_size)
 	{
@@ -786,7 +808,7 @@ get_archive_member_name (struct archive_info *arch,
       arch->longnames[j] = '\0';
 
       if (!arch->is_thin_archive || arch->nested_member_origin == 0)
-        return arch->longnames + k;
+	return xstrdup (arch->longnames + k);
 
       /* PR 17531: file: 2896dc8b.  */
       if (k >= j)
@@ -802,7 +824,7 @@ get_archive_member_name (struct archive_info *arch,
       if (member_file_name != NULL
           && setup_nested_archive (nested_arch, member_file_name) == 0)
 	{
-          member_name = get_archive_member_name_at (nested_arch,
+	  member_name = get_archive_member_name_at (nested_arch,
 						    arch->nested_member_origin,
 						    NULL);
 	  if (member_name != NULL)
@@ -814,7 +836,7 @@ get_archive_member_name (struct archive_info *arch,
       free (member_file_name);
 
       /* Last resort: just return the name of the nested archive.  */
-      return arch->longnames + k;
+      return xstrdup (arch->longnames + k);
     }
 
   /* We have a normal (short) name.  */
@@ -822,7 +844,7 @@ get_archive_member_name (struct archive_info *arch,
     if (arch->arhdr.ar_name[j] == '/')
       {
 	arch->arhdr.ar_name[j] = '\0';
-	return arch->arhdr.ar_name;
+	return xstrdup (arch->arhdr.ar_name);
       }
 
   /* The full ar_name field is used.  Don't rely on ar_date starting

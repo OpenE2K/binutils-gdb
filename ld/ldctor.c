@@ -1,5 +1,5 @@
 /* ldctor.c -- constructor support routines
-   Copyright (C) 1991-2017 Free Software Foundation, Inc.
+   Copyright (C) 1991-2020 Free Software Foundation, Inc.
    By Steve Chamberlain <sac@cygnus.com>
 
    This file is part of the GNU Binutils.
@@ -23,6 +23,7 @@
 #include "bfd.h"
 #include "bfdlink.h"
 #include "safe-ctype.h"
+#include "ctf-api.h"
 
 #include "ld.h"
 #include "ldexp.h"
@@ -80,7 +81,7 @@ ldctor_add_set_entry (struct bfd_link_hash_entry *h,
     {
       if (p->reloc != reloc)
 	{
-	  einfo (_("%P%X: Different relocs used in set %s\n"),
+	  einfo (_("%X%P: different relocs used in set %s\n"),
 		 h->root.string);
 	  return;
 	}
@@ -98,19 +99,19 @@ ldctor_add_set_entry (struct bfd_link_hash_entry *h,
 	  && strcmp (bfd_get_target (section->owner),
 		     bfd_get_target (p->elements->section->owner)) != 0)
 	{
-	  einfo (_("%P%X: Different object file formats composing set %s\n"),
+	  einfo (_("%X%P: different object file formats composing set %s\n"),
 		 h->root.string);
 	  return;
 	}
     }
 
   e = (struct set_element *) xmalloc (sizeof (struct set_element));
-  e->next = NULL;
+  e->u.next = NULL;
   e->name = name;
   e->section = section;
   e->value = value;
 
-  for (epp = &p->elements; *epp != NULL; epp = &(*epp)->next)
+  for (epp = &p->elements; *epp != NULL; epp = &(*epp)->u.next)
     ;
   *epp = e;
 
@@ -151,19 +152,17 @@ ctor_prio (const char *name)
 static int
 ctor_cmp (const void *p1, const void *p2)
 {
-  const struct set_element *const *pe1
-    = (const struct set_element *const *) p1;
-  const struct set_element *const *pe2
-    = (const struct set_element *const *) p2;
+  const struct set_element *pe1 = *(const struct set_element **) p1;
+  const struct set_element *pe2 = *(const struct set_element **) p2;
   const char *n1;
   const char *n2;
   int prio1;
   int prio2;
 
-  n1 = (*pe1)->name;
+  n1 = pe1->name;
   if (n1 == NULL)
     n1 = "";
-  n2 = (*pe2)->name;
+  n2 = pe2->name;
   if (n2 == NULL)
     n2 = "";
 
@@ -177,17 +176,15 @@ ctor_cmp (const void *p1, const void *p2)
   /* We sort in reverse order because that is what g++ expects.  */
   if (prio1 < prio2)
     return 1;
-  else if (prio1 > prio2)
+  if (prio1 > prio2)
     return -1;
 
   /* Force a stable sort.  */
-
-  if (pe1 < pe2)
+  if (pe1->u.idx < pe2->u.idx)
     return -1;
-  else if (pe1 > pe2)
+  if (pe1->u.idx > pe2->u.idx)
     return 1;
-  else
-    return 0;
+  return 0;
 }
 
 /* This function is called after the first phase of the link and
@@ -213,22 +210,24 @@ ldctor_build_sets (void)
       for (p = sets; p != NULL; p = p->next)
 	{
 	  int c, i;
-	  struct set_element *e;
+	  struct set_element *e, *enext;
 	  struct set_element **array;
 
 	  if (p->elements == NULL)
 	    continue;
 
 	  c = 0;
-	  for (e = p->elements; e != NULL; e = e->next)
+	  for (e = p->elements; e != NULL; e = e->u.next)
 	    ++c;
 
 	  array = (struct set_element **) xmalloc (c * sizeof *array);
 
 	  i = 0;
-	  for (e = p->elements; e != NULL; e = e->next)
+	  for (e = p->elements; e != NULL; e = enext)
 	    {
 	      array[i] = e;
+	      enext = e->u.next;
+	      e->u.idx = i;
 	      ++i;
 	    }
 
@@ -237,8 +236,8 @@ ldctor_build_sets (void)
 	  e = array[0];
 	  p->elements = e;
 	  for (i = 0; i < c - 1; i++)
-	    array[i]->next = array[i + 1];
-	  array[i]->next = NULL;
+	    array[i]->u.next = array[i + 1];
+	  array[i]->u.next = NULL;
 
 	  free (array);
 	}
@@ -276,7 +275,7 @@ ldctor_build_sets (void)
 	{
 	  if (bfd_link_relocatable (&link_info))
 	    {
-	      einfo (_("%P%X: %s does not support reloc %s for set %s\n"),
+	      einfo (_("%X%P: %s does not support reloc %s for set %s\n"),
 		     bfd_get_target (link_info.output_bfd),
 		     bfd_get_reloc_code_name (p->reloc),
 		     p->h->root.string);
@@ -292,12 +291,12 @@ ldctor_build_sets (void)
 	    {
 	      /* See PR 20911 for a reproducer.  */
 	      if (p->elements->section->owner == NULL)
-		einfo (_("%P%X: Special section %s does not support reloc %s for set %s\n"),
-		       bfd_get_section_name (link_info.output_bfd, p->elements->section),
+		einfo (_("%X%P: special section %s does not support reloc %s for set %s\n"),
+		       bfd_section_name (p->elements->section),
 		       bfd_get_reloc_code_name (p->reloc),
 		       p->h->root.string);
 	      else
-		einfo (_("%P%X: %s does not support reloc %s for set %s\n"),
+		einfo (_("%X%P: %s does not support reloc %s for set %s\n"),
 		       bfd_get_target (p->elements->section->owner),
 		       bfd_get_reloc_code_name (p->reloc),
 		       p->h->root.string);
@@ -318,7 +317,7 @@ ldctor_build_sets (void)
 	    size = QUAD;
 	  break;
 	default:
-	  einfo (_("%P%X: Unsupported size %d for set %s\n"),
+	  einfo (_("%X%P: unsupported size %d for set %s\n"),
 		 bfd_get_reloc_size (howto), p->h->root.string);
 	  size = LONG;
 	  break;
@@ -333,7 +332,7 @@ ldctor_build_sets (void)
 				       FALSE));
       lang_add_data (size, exp_intop (p->count));
 
-      for (e = p->elements; e != NULL; e = e->next)
+      for (e = p->elements; e != NULL; e = e->u.next)
 	{
 	  if (config.map_file != NULL)
 	    {
@@ -360,7 +359,7 @@ ldctor_build_sets (void)
 		}
 
 	      if (e->name != NULL)
-		minfo ("%T\n", e->name);
+		minfo ("%pT\n", e->name);
 	      else
 		minfo ("%G\n", e->section->owner, e->section, e->value);
 	    }

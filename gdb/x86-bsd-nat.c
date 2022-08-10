@@ -1,6 +1,6 @@
 /* Native-dependent code for X86 BSD's.
 
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -33,6 +33,19 @@
 #include "inf-ptrace.h"
 
 
+static PTRACE_TYPE_RET
+gdb_ptrace (PTRACE_TYPE_ARG1 request, ptid_t ptid, PTRACE_TYPE_ARG3 addr)
+{
+#ifdef __NetBSD__
+  /* Support for NetBSD threads: unlike other ptrace implementations in this
+     file, NetBSD requires that we pass both the pid and lwp.  */
+  return ptrace (request, ptid.pid (), addr, ptid.lwp ());
+#else
+  pid_t pid = get_ptrace_pid (ptid);
+  return ptrace (request, pid, addr, 0);
+#endif
+}
+
 #ifdef PT_GETXSTATE_INFO
 size_t x86bsd_xsave_len;
 #endif
@@ -40,21 +53,16 @@ size_t x86bsd_xsave_len;
 /* Support for debug registers.  */
 
 #ifdef HAVE_PT_GETDBREGS
-static void (*super_mourn_inferior) (struct target_ops *ops);
 
-/* Implement the "to_mourn_inferior" target_ops method.  */
-
-static void
-x86bsd_mourn_inferior (struct target_ops *ops)
-{
-  x86_cleanup_dregs ();
-  super_mourn_inferior (ops);
-}
-
-/* Not all versions of FreeBSD/i386 that support the debug registers
-   have this macro.  */
+/* Helper macro to access debug register X.  FreeBSD/amd64 and modern
+   versions of FreeBSD/i386 provide this macro in system headers.  Define
+   a local version for systems that do not provide it.  */
 #ifndef DBREG_DRX
+#ifdef __NetBSD__
+#define DBREG_DRX(d, x) ((d)->dr[x])
+#else
 #define DBREG_DRX(d, x) ((&d->dr0)[x])
+#endif
 #endif
 
 static unsigned long
@@ -62,21 +70,18 @@ x86bsd_dr_get (ptid_t ptid, int regnum)
 {
   struct dbreg dbregs;
 
-  if (ptrace (PT_GETDBREGS, get_ptrace_pid (inferior_ptid),
-	      (PTRACE_TYPE_ARG3) &dbregs, 0) == -1)
+  if (gdb_ptrace (PT_GETDBREGS, ptid, (PTRACE_TYPE_ARG3) &dbregs) == -1)
     perror_with_name (_("Couldn't read debug registers"));
 
   return DBREG_DRX ((&dbregs), regnum);
 }
 
 static void
-x86bsd_dr_set (int regnum, unsigned long value)
+x86bsd_dr_set (ptid_t ptid, int regnum, unsigned long value)
 {
-  struct thread_info *thread;
   struct dbreg dbregs;
 
-  if (ptrace (PT_GETDBREGS, get_ptrace_pid (inferior_ptid),
-              (PTRACE_TYPE_ARG3) &dbregs, 0) == -1)
+  if (gdb_ptrace (PT_GETDBREGS, ptid, (PTRACE_TYPE_ARG3) &dbregs) == -1)
     perror_with_name (_("Couldn't get debug registers"));
 
   /* For some mysterious reason, some of the reserved bits in the
@@ -86,19 +91,18 @@ x86bsd_dr_set (int regnum, unsigned long value)
 
   DBREG_DRX ((&dbregs), regnum) = value;
 
-  ALL_NON_EXITED_THREADS (thread)
-    if (thread->inf == current_inferior ())
-      {
-	if (ptrace (PT_SETDBREGS, get_ptrace_pid (thread->ptid),
-		    (PTRACE_TYPE_ARG3) &dbregs, 0) == -1)
-	  perror_with_name (_("Couldn't write debug registers"));
-      }
+  for (thread_info *thread : current_inferior ()->non_exited_threads ())
+    {
+      if (gdb_ptrace (PT_SETDBREGS, thread->ptid,
+		      (PTRACE_TYPE_ARG3) &dbregs) == -1)
+	perror_with_name (_("Couldn't write debug registers"));
+    }
 }
 
 static void
 x86bsd_dr_set_control (unsigned long control)
 {
-  x86bsd_dr_set (7, control);
+  x86bsd_dr_set (inferior_ptid, 7, control);
 }
 
 static void
@@ -106,7 +110,7 @@ x86bsd_dr_set_addr (int regnum, CORE_ADDR addr)
 {
   gdb_assert (regnum >= 0 && regnum <= 4);
 
-  x86bsd_dr_set (regnum, addr);
+  x86bsd_dr_set (inferior_ptid, regnum, addr);
 }
 
 static CORE_ADDR
@@ -129,28 +133,16 @@ x86bsd_dr_get_control (void)
 
 #endif /* PT_GETDBREGS */
 
-/* Create a prototype *BSD/x86 target.  The client can override it
-   with local methods.  */
-
-struct target_ops *
-x86bsd_target (void)
+void _initialize_x86_bsd_nat ();
+void
+_initialize_x86_bsd_nat ()
 {
-  struct target_ops *t;
-
-  t = inf_ptrace_target ();
-
 #ifdef HAVE_PT_GETDBREGS
-  x86_use_watchpoints (t);
-
   x86_dr_low.set_control = x86bsd_dr_set_control;
   x86_dr_low.set_addr = x86bsd_dr_set_addr;
   x86_dr_low.get_addr = x86bsd_dr_get_addr;
   x86_dr_low.get_status = x86bsd_dr_get_status;
   x86_dr_low.get_control = x86bsd_dr_get_control;
   x86_set_debug_register_length (sizeof (void *));
-  super_mourn_inferior = t->to_mourn_inferior;
-  t->to_mourn_inferior = x86bsd_mourn_inferior;
 #endif /* HAVE_PT_GETDBREGS */
-
-  return t;
 }

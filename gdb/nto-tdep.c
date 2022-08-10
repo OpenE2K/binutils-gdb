@@ -1,6 +1,6 @@
 /* nto-tdep.c - general QNX Neutrino target functionality.
 
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    Contributed by QNX Software Systems Ltd.
 
@@ -31,6 +31,8 @@
 #include "solib-svr4.h"
 #include "gdbcore.h"
 #include "objfiles.h"
+#include "source.h"
+#include "gdbsupport/pathstuff.h"
 
 #define QNX_NOTE_NAME	"QNX"
 #define QNX_INFO_SECT_NAME "QNX_info"
@@ -49,7 +51,8 @@ static char default_nto_target[] = "";
 
 struct nto_target_ops current_nto_target;
 
-static const struct inferior_data *nto_inferior_data_reg;
+static const struct inferior_key<struct nto_inferior_data>
+  nto_inferior_data_reg;
 
 static char *
 nto_target (void)
@@ -88,7 +91,7 @@ nto_map_arch_to_cputype (const char *arch)
 
 int
 nto_find_and_open_solib (const char *solib, unsigned o_flags,
-			 char **temp_pathname)
+			 gdb::unique_xmalloc_ptr<char> *temp_pathname)
 {
   char *buf, *arch_path, *nto_root;
   const char *endian;
@@ -144,7 +147,7 @@ nto_find_and_open_solib (const char *solib, unsigned o_flags,
 	  if (ret >= 0)
 	    *temp_pathname = gdb_realpath (arch_path);
 	  else
-	    *temp_pathname = NULL;
+	    temp_pathname->reset (NULL);
 	}
     }
   return ret;
@@ -316,8 +319,8 @@ nto_sniff_abi_note_section (bfd *abfd, asection *sect, void *obj)
   const char *name;
   const unsigned sizeof_Elf_Nhdr = 12;
 
-  sectname = bfd_get_section_name (abfd, sect);
-  sectsize = bfd_section_size (abfd, sect);
+  sectname = bfd_section_name (sect);
+  sectsize = bfd_section_size (sect);
 
   if (sectsize > 128)
     sectsize = 128;
@@ -380,9 +383,13 @@ static const char *nto_thread_state_str[] =
 const char *
 nto_extra_thread_info (struct target_ops *self, struct thread_info *ti)
 {
-  if (ti && ti->priv
-      && ti->priv->state < ARRAY_SIZE (nto_thread_state_str))
-    return (char *)nto_thread_state_str [ti->priv->state];
+  if (ti != NULL && ti->priv != NULL)
+    {
+      nto_thread_info *priv = get_nto_thread_info (ti);
+
+      if (priv->state < ARRAY_SIZE (nto_thread_state_str))
+	return nto_thread_state_str [priv->state];
+    }
   return "";
 }
 
@@ -492,25 +499,6 @@ nto_read_auxv_from_initial_stack (CORE_ADDR initial_stack, gdb_byte *readbuf,
   return len_read;
 }
 
-/* Allocate new nto_inferior_data object.  */
-
-static struct nto_inferior_data *
-nto_new_inferior_data (void)
-{
-  struct nto_inferior_data *const inf_data
-    = XCNEW (struct nto_inferior_data);
-
-  return inf_data;
-}
-
-/* Free inferior data.  */
-
-static void
-nto_inferior_data_cleanup (struct inferior *const inf, void *const dat)
-{
-  xfree (dat);
-}
-
 /* Return nto_inferior_data for the given INFERIOR.  If not yet created,
    construct it.  */
 
@@ -522,23 +510,9 @@ nto_inferior_data (struct inferior *const inferior)
 
   gdb_assert (inf != NULL);
 
-  inf_data
-    = (struct nto_inferior_data *) inferior_data (inf, nto_inferior_data_reg);
+  inf_data = nto_inferior_data_reg.get (inf);
   if (inf_data == NULL)
-    {
-      set_inferior_data (inf, nto_inferior_data_reg,
-			 (inf_data = nto_new_inferior_data ()));
-    }
+    inf_data = nto_inferior_data_reg.emplace (inf);
 
   return inf_data;
-}
-
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_nto_tdep;
-
-void
-_initialize_nto_tdep (void)
-{
-  nto_inferior_data_reg
-    = register_inferior_data_with_cleanup (NULL, nto_inferior_data_cleanup);
 }

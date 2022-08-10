@@ -1,5 +1,5 @@
 /* Terminal interface definitions for GDB, the GNU Debugger.
-   Copyright (C) 1986-2017 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -28,6 +28,9 @@ extern void new_tty (void);
 extern void new_tty_postfork (void);
 
 extern void copy_terminal_info (struct inferior *to, struct inferior *from);
+
+/* Exchange the terminal info and state between inferiors A and B.  */
+extern void swap_terminal_info (inferior *a, inferior *b);
 
 extern pid_t create_tty_session (void);
 

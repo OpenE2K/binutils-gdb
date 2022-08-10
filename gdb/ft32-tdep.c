@@ -1,6 +1,6 @@
 /* Target-dependent code for FT32.
 
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -44,10 +44,6 @@
 #include <algorithm>
 
 #define RAM_BIAS  0x800000  /* Bias added to RAM addresses.  */
-
-/* Local functions.  */
-
-extern void _initialize_ft32_tdep (void);
 
 /* Use an invalid address -1 as 'not available' marker.  */
 enum { REG_UNAVAIL = (CORE_ADDR) (-1) };
@@ -127,7 +123,7 @@ static void
 ft32_store_return_value (struct type *type, struct regcache *regcache,
 			 const gdb_byte *valbuf)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR regval;
   int len = TYPE_LENGTH (type);
@@ -141,6 +137,25 @@ ft32_store_return_value (struct type *type, struct regcache *regcache,
 					 len - 4, byte_order);
       regcache_cooked_write_unsigned (regcache, FT32_R1_REGNUM, regval);
     }
+}
+
+/* Fetch a single 32-bit instruction from address a. If memory contains
+   a compressed instruction pair, return the expanded instruction.  */
+
+static ULONGEST
+ft32_fetch_instruction (CORE_ADDR a, int *isize,
+		        enum bfd_endian byte_order)
+{
+  unsigned int sc[2];
+  ULONGEST inst;
+
+  CORE_ADDR a4 = a & ~3;
+  inst = read_code_unsigned_integer (a4, 4, byte_order);
+  *isize = ft32_decode_shortcode (a4, inst, sc) ? 2 : 4;
+  if (*isize == 2)
+    return sc[1 & (a >> 1)];
+  else
+    return inst;
 }
 
 /* Decode the instructions within the given address range.  Decide
@@ -157,6 +172,7 @@ ft32_analyze_prologue (CORE_ADDR start_addr, CORE_ADDR end_addr,
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR next_addr;
   ULONGEST inst;
+  int isize = 0;
   int regnum, pushreg;
   struct bound_minimal_symbol msymbol;
   const int first_saved_reg = 13;	/* The first saved register.  */
@@ -190,16 +206,15 @@ ft32_analyze_prologue (CORE_ADDR start_addr, CORE_ADDR end_addr,
     return end_addr;
 
   cache->established = 0;
-  for (next_addr = start_addr; next_addr < end_addr;)
+  for (next_addr = start_addr; next_addr < end_addr; next_addr += isize)
     {
-      inst = read_memory_unsigned_integer (next_addr, 4, byte_order);
+      inst = ft32_fetch_instruction (next_addr, &isize, byte_order);
 
       if (FT32_IS_PUSH (inst))
 	{
 	  pushreg = FT32_PUSH_REG (inst);
 	  cache->framesize += 4;
 	  cache->saved_regs[FT32_R0_REGNUM + pushreg] = cache->framesize;
-	  next_addr += 4;
 	}
       else if (FT32_IS_CALL (inst))
 	{
@@ -214,7 +229,6 @@ ft32_analyze_prologue (CORE_ADDR start_addr, CORE_ADDR end_addr,
 		      cache->saved_regs[FT32_R0_REGNUM + pushreg] =
 			cache->framesize;
 		    }
-		  next_addr += 4;
 		}
 	    }
 	  break;
@@ -233,7 +247,7 @@ ft32_analyze_prologue (CORE_ADDR start_addr, CORE_ADDR end_addr,
   /* It is a LINK?  */
   if (next_addr < end_addr)
     {
-      inst = read_memory_unsigned_integer (next_addr, 4, byte_order);
+      inst = ft32_fetch_instruction (next_addr, &isize, byte_order);
       if (FT32_IS_LINK (inst))
 	{
 	  cache->established = 1;
@@ -245,7 +259,7 @@ ft32_analyze_prologue (CORE_ADDR start_addr, CORE_ADDR end_addr,
 	  cache->saved_regs[FT32_PC_REGNUM] = cache->framesize + 4;
 	  cache->saved_regs[FT32_FP_REGNUM] = 0;
 	  cache->framesize += FT32_LINK_SIZE (inst);
-	  next_addr += 4;
+	  next_addr += isize;
 	}
     }
 
@@ -285,7 +299,7 @@ ft32_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 	  /* Found a function.  */
 	  sym = lookup_symbol (func_name, NULL, VAR_DOMAIN, NULL).symbol;
 	  /* Don't use line number debug info for assembly source files.  */
-	  if ((sym != NULL) && SYMBOL_LANGUAGE (sym) != language_asm)
+	  if ((sym != NULL) && sym->language () != language_asm)
 	    {
 	      sal = find_pc_line (func_addr, 0);
 	      if (sal.end && sal.end < func_end)
@@ -369,34 +383,6 @@ ft32_address_class_name_to_type_flags (struct gdbarch *gdbarch,
     return 0;
 }
 
-
-/* Implement the "read_pc" gdbarch method.  */
-
-static CORE_ADDR
-ft32_read_pc (struct regcache *regcache)
-{
-  ULONGEST pc;
-
-  regcache_cooked_read_unsigned (regcache, FT32_PC_REGNUM, &pc);
-  return pc;
-}
-
-/* Implement the "write_pc" gdbarch method.  */
-
-static void
-ft32_write_pc (struct regcache *regcache, CORE_ADDR val)
-{
-  regcache_cooked_write_unsigned (regcache, FT32_PC_REGNUM, val);
-}
-
-/* Implement the "unwind_sp" gdbarch method.  */
-
-static CORE_ADDR
-ft32_unwind_sp (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame, FT32_SP_REGNUM);
-}
-
 /* Given a return value in `regbuf' with a type `valtype',
    extract and copy its value into `valbuf'.  */
 
@@ -404,7 +390,7 @@ static void
 ft32_extract_return_value (struct type *type, struct regcache *regcache,
 			   gdb_byte *dst)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   bfd_byte *valbuf = dst;
   int len = TYPE_LENGTH (type);
@@ -498,14 +484,6 @@ ft32_frame_cache (struct frame_info *this_frame, void **this_cache)
   return cache;
 }
 
-/* Implement the "unwind_pc" gdbarch method.  */
-
-static CORE_ADDR
-ft32_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame, FT32_PC_REGNUM);
-}
-
 /* Given a GDB frame, determine the address of the calling function's
    frame.  This will be used to create a new GDB frame struct.  */
 
@@ -573,14 +551,6 @@ static const struct frame_base ft32_frame_base =
   ft32_frame_base_address
 };
 
-static struct frame_id
-ft32_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  CORE_ADDR sp = get_frame_register_unsigned (this_frame, FT32_SP_REGNUM);
-
-  return frame_id_build (sp, get_frame_pc (this_frame));
-}
-
 /* Allocate and initialize the ft32 gdbarch object.  */
 
 static struct gdbarch *
@@ -602,15 +572,11 @@ ft32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Create a type for PC.  We can't use builtin types here, as they may not
      be defined.  */
-  void_type = arch_type (gdbarch, TYPE_CODE_VOID, 1, "void");
+  void_type = arch_type (gdbarch, TYPE_CODE_VOID, TARGET_CHAR_BIT, "void");
   func_void_type = make_function_type (void_type, NULL);
   tdep->pc_type = arch_pointer_type (gdbarch, 4 * TARGET_CHAR_BIT, NULL,
 				     func_void_type);
   TYPE_INSTANCE_FLAGS (tdep->pc_type) |= TYPE_INSTANCE_FLAG_ADDRESS_CLASS_1;
-
-  set_gdbarch_read_pc (gdbarch, ft32_read_pc);
-  set_gdbarch_write_pc (gdbarch, ft32_write_pc);
-  set_gdbarch_unwind_sp (gdbarch, ft32_unwind_sp);
 
   set_gdbarch_num_regs (gdbarch, FT32_NUM_REGS);
   set_gdbarch_sp_regnum (gdbarch, FT32_SP_REGNUM);
@@ -629,13 +595,6 @@ ft32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_frame_align (gdbarch, ft32_frame_align);
 
   frame_base_set_default (gdbarch, &ft32_frame_base);
-
-  /* Methods for saving / extracting a dummy frame's ID.  The ID's
-     stack address must match the SP value returned by
-     PUSH_DUMMY_CALL, and saved by generic_save_dummy_frame_tos.  */
-  set_gdbarch_dummy_id (gdbarch, ft32_dummy_id);
-
-  set_gdbarch_unwind_pc (gdbarch, ft32_unwind_pc);
 
   /* Hook in ABI-specific overrides, if they have been registered.  */
   gdbarch_init_osabi (info, gdbarch);
@@ -657,8 +616,9 @@ ft32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
 /* Register this machine's init routine.  */
 
+void _initialize_ft32_tdep ();
 void
-_initialize_ft32_tdep (void)
+_initialize_ft32_tdep ()
 {
   register_gdbarch_init (bfd_arch_ft32, ft32_gdbarch_init);
 }

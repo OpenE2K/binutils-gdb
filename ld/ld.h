@@ -1,5 +1,5 @@
 /* ld.h -- general linker header file
-   Copyright (C) 1991-2017 Free Software Foundation, Inc.
+   Copyright (C) 1991-2020 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -55,8 +55,14 @@
 # define gettext(Msgid) (Msgid)
 # define dgettext(Domainname, Msgid) (Msgid)
 # define dcgettext(Domainname, Msgid, Category) (Msgid)
-# define textdomain(Domainname) while (0) /* nothing */
-# define bindtextdomain(Domainname, Dirname) while (0) /* nothing */
+# define ngettext(Msgid1, Msgid2, n) \
+  (n == 1 ? Msgid1 : Msgid2)
+# define dngettext(Domainname, Msgid1, Msgid2, n) \
+  (n == 1 ? Msgid1 : Msgid2)
+# define dcngettext(Domainname, Msgid1, Msgid2, n, Category) \
+  (n == 1 ? Msgid1 : Msgid2)
+# define textdomain(Domainname) do {} while (0)
+# define bindtextdomain(Domainname, Dirname) do {} while (0)
 # define _(String) (String)
 # define N_(String) (String)
 #endif
@@ -113,27 +119,10 @@ struct wildcard_list
 
 enum endian_enum { ENDIAN_UNSET = 0, ENDIAN_BIG, ENDIAN_LITTLE };
 
-enum symbolic_enum
-{
-  symbolic_unset = 0,
-  symbolic,
-  symbolic_functions,
-};
-
-enum dynamic_list_enum
-{
-  dynamic_list_unset = 0,
-  dynamic_list_data,
-  dynamic_list
-};
-
 typedef struct
 {
   /* 1 => assign space to common symbols even if `relocatable_output'.  */
   bfd_boolean force_common_definition;
-
-  /* 1 => do not assign addresses to common symbols.  */
-  bfd_boolean inhibit_common_definition;
 
   /* If TRUE, build MIPS embedded PIC relocation tables in the output
      file.  */
@@ -179,13 +168,6 @@ typedef struct
 
   /* Big or little endian as set on command line.  */
   enum endian_enum endian;
-
-  /* -Bsymbolic and -Bsymbolic-functions, as set on command line.  */
-  enum symbolic_enum symbolic;
-
-  /* --dynamic-list, --dynamic-list-cpp-new, --dynamic-list-cpp-typeinfo
-     and --dynamic-list FILE, as set on command line.  */
-  enum dynamic_list_enum dynamic_list;
 
   /* Name of runtime interpreter to invoke.  */
   char *interpreter;
@@ -304,6 +286,8 @@ typedef struct
   char *map_filename;
   FILE *map_file;
 
+  char *dependency_file;
+
   unsigned int split_by_reloc;
   bfd_size_type split_by_file;
 
@@ -315,6 +299,9 @@ typedef struct
 
   /* The common page size for ELF.  */
   bfd_vma commonpagesize;
+
+  /* If set, print discarded sections in map file output.  */
+  bfd_boolean print_map_discarded;
 } ld_config_type;
 
 extern ld_config_type config;

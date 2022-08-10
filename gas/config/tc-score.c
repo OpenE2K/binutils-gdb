@@ -1,5 +1,5 @@
 /* tc-score.c -- Assembler for Score
-   Copyright (C) 2006-2017 Free Software Foundation, Inc.
+   Copyright (C) 2006-2020 Free Software Foundation, Inc.
    Contributed by:
    Brain.lin (brain.lin@sunplusct.com)
    Mei Ligang (ligang@sunnorth.com.cn)
@@ -300,7 +300,6 @@ size_t md_longopts_size = sizeof (md_longopts);
                              ? s3_INSN16_SIZE : (s3_GET_INSN_CLASS (type) == INSN_CLASS_48) \
                                              ? s3_INSN48_SIZE : s3_INSN_SIZE)
 
-#define s3_MAX_LITTLENUMS 6
 #define s3_INSN_NAME_LEN 16
 
 /* Relax will need some padding for alignment.  */
@@ -4096,7 +4095,7 @@ s3_build_la_pic (int reg_rd, expressionS exp)
       /* Fix part
          For an external symbol: lw rD, <sym>($gp)
 	 (BFD_RELOC_SCORE_GOT15 or BFD_RELOC_SCORE_CALL15)  */
-      sprintf (tmp, "lw_pic r%d, %s", reg_rd, add_symbol->bsym->name);
+      sprintf (tmp, "lw_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
       if (s3_append_insn (tmp, FALSE) == (int) s3_FAIL)
 	return;
 
@@ -4110,7 +4109,7 @@ s3_build_la_pic (int reg_rd, expressionS exp)
 	 addi rD, <sym>       (BFD_RELOC_GOT_LO16) */
       s3_inst.reloc.type = BFD_RELOC_SCORE_GOT15;
       memcpy (&var_insts[0], &s3_inst, sizeof (struct s3_score_it));
-      sprintf (tmp, "addi_s_pic r%d, %s", reg_rd, add_symbol->bsym->name);
+      sprintf (tmp, "addi_s_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
       if (s3_append_insn (tmp, FALSE) == (int) s3_FAIL)
 	return;
 
@@ -4120,7 +4119,7 @@ s3_build_la_pic (int reg_rd, expressionS exp)
   else if (add_number >= -0x8000 && add_number <= 0x7fff)
     {
       /* Insn 1: lw rD, <sym>($gp)    (BFD_RELOC_SCORE_GOT15)  */
-      sprintf (tmp, "lw_pic r%d, %s", reg_rd, add_symbol->bsym->name);
+      sprintf (tmp, "lw_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
       if (s3_append_insn (tmp, TRUE) == (int) s3_FAIL)
 	return;
 
@@ -4137,7 +4136,8 @@ s3_build_la_pic (int reg_rd, expressionS exp)
 
       /* Var part
  	 For a local symbol: addi rD, <sym>+<constant>    (BFD_RELOC_GOT_LO16)  */
-      sprintf (tmp, "addi_s_pic r%d, %s + %d", reg_rd, add_symbol->bsym->name, (int)add_number);
+      sprintf (tmp, "addi_s_pic r%d, %s + %d", reg_rd,
+	       S_GET_NAME (add_symbol), (int) add_number);
       if (s3_append_insn (tmp, FALSE) == (int) s3_FAIL)
 	return;
 
@@ -4150,7 +4150,7 @@ s3_build_la_pic (int reg_rd, expressionS exp)
       int lo = add_number & 0x0000FFFF;
 
       /* Insn 1: lw rD, <sym>($gp)    (BFD_RELOC_SCORE_GOT15)  */
-      sprintf (tmp, "lw_pic r%d, %s", reg_rd, add_symbol->bsym->name);
+      sprintf (tmp, "lw_pic r%d, %s", reg_rd, S_GET_NAME (add_symbol));
       if (s3_append_insn (tmp, TRUE) == (int) s3_FAIL)
 	return;
 
@@ -4192,7 +4192,7 @@ s3_build_la_pic (int reg_rd, expressionS exp)
 
       /* Var part
   	 For a local symbol: addi r1, <sym>+LO%<constant>    (BFD_RELOC_GOT_LO16)  */
-      sprintf (tmp, "addi_u_pic r1, %s + %d", add_symbol->bsym->name, lo);
+      sprintf (tmp, "addi_u_pic r1, %s + %d", S_GET_NAME (add_symbol), lo);
       if (s3_append_insn (tmp, FALSE) == (int) s3_FAIL)
 	return;
 
@@ -4485,9 +4485,9 @@ static void
 s3_do_macro_bcmp (char *str)
 {
   int reg_a , reg_b;
-  char keep_data[s3_MAX_LITERAL_POOL_SIZE];
-  char* ptemp;
-  int i = 0;
+  char *keep_data;
+  size_t keep_data_size;
+  int i;
   struct s3_score_it inst_expand[2];
   struct s3_score_it inst_main;
 
@@ -4498,26 +4498,23 @@ s3_do_macro_bcmp (char *str)
       ||(reg_b = s3_reg_required_here (&str, 10, s3_REG_TYPE_SCORE)) == (int) s3_FAIL
       || s3_skip_past_comma (&str) == (int) s3_FAIL)
     return;
-  ptemp = str;
-  while (*ptemp != 0)
-    {
-      keep_data[i] = *ptemp;
-      i++;
-      ptemp++;
-    }
-  keep_data[i] = 0;
+
+  keep_data_size = strlen (str) + 1;
+  keep_data = xmalloc (keep_data_size * 2 + 14);
+  memcpy (keep_data, str, keep_data_size);
+
   if (s3_my_get_expression (&s3_inst.reloc.exp, &str) == (int) s3_FAIL
       ||reg_b == 0
       || s3_end_of_line (str) == (int) s3_FAIL)
-    return;
+    goto out;
   else if (s3_inst.reloc.exp.X_add_symbol == 0)
     {
       s3_inst.error = _("lacking label  ");
-      return;
+      goto out;
     }
   else
     {
-      char append_str[s3_MAX_LITERAL_POOL_SIZE];
+      char *append_str = keep_data + keep_data_size;
       s3_SET_INSN_ERROR (NULL);
 
       s3_inst.reloc.type = BFD_RELOC_SCORE_BCMP;
@@ -4536,15 +4533,16 @@ s3_do_macro_bcmp (char *str)
           /* support bcmp --> cmp!+beq (bne) */
           if (s3_score_pic == s3_NO_PIC)
             {
-              sprintf (&append_str[0], "cmp! r%d, r%d", reg_a, reg_b);
-              if (s3_append_insn (&append_str[0], TRUE) == (int) s3_FAIL)
-                return;
-              if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
-                sprintf (&append_str[1], "beq %s", keep_data);
-              else
-                sprintf (&append_str[1], "bne %s", keep_data);
-              if (s3_append_insn (&append_str[1], TRUE) == (int) s3_FAIL)
-                return;
+	      sprintf (append_str, "cmp! r%d, r%d", reg_a, reg_b);
+	      if (s3_append_insn (append_str, TRUE) == (int) s3_FAIL)
+		goto out;
+	      if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
+		memcpy (append_str, "beq ", 4);
+	      else
+		memcpy (append_str, "bne ", 4);
+	      memmove (append_str + 4, keep_data, strlen (keep_data) + 1);
+	      if (s3_append_insn (append_str, TRUE) == (int) s3_FAIL)
+		goto out;
 	    }
 	  else
 	    {
@@ -4552,7 +4550,7 @@ s3_do_macro_bcmp (char *str)
 	    }
 	  /* Set bwarn as -1, so macro instruction itself will not be generated frag.  */
 	  s3_inst.bwarn = -1;
-	  return;
+	  goto out;
         }
       else
         {
@@ -4567,18 +4565,19 @@ s3_do_macro_bcmp (char *str)
 
       if (s3_score_pic == s3_NO_PIC)
         {
-          sprintf (&append_str[0], "cmp! r%d, r%d", reg_a, reg_b);
-          if (s3_append_insn (&append_str[0], FALSE) == (int) s3_FAIL)
-            return;
-          memcpy (&inst_expand[0], &s3_inst, sizeof (struct s3_score_it));
+	  sprintf (append_str, "cmp! r%d, r%d", reg_a, reg_b);
+	  if (s3_append_insn (append_str, FALSE) == (int) s3_FAIL)
+	    goto out;
+	  memcpy (&inst_expand[0], &s3_inst, sizeof (struct s3_score_it));
 
-          if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
-            sprintf (&append_str[1], "beq %s", keep_data);
-          else
-            sprintf (&append_str[1], "bne %s", keep_data);
-          if (s3_append_insn (&append_str[1], FALSE) == (int) s3_FAIL)
-            return;
-          memcpy (&inst_expand[1], &s3_inst, sizeof (struct s3_score_it));
+	  if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
+	    memcpy (append_str, "beq ", 4);
+	  else
+	    memcpy (append_str, "bne ", 4);
+	  memmove (append_str + 4, keep_data, strlen (keep_data) + 1);
+	  if (s3_append_insn (append_str, FALSE) == (int) s3_FAIL)
+	    goto out;
+	  memcpy (&inst_expand[1], &s3_inst, sizeof (struct s3_score_it));
         }
       else
         {
@@ -4634,6 +4633,8 @@ s3_do_macro_bcmp (char *str)
       /* Set bwarn as -1, so macro instruction itself will not be generated frag.  */
       s3_inst.bwarn = -1;
     }
+ out:
+  free (keep_data);
 }
 
 /* Handle bcmpeqz / bcmpnez  */
@@ -4641,9 +4642,9 @@ static void
 s3_do_macro_bcmpz (char *str)
 {
   int reg_a;
-  char keep_data[s3_MAX_LITERAL_POOL_SIZE];
-  char* ptemp;
-  int i = 0;
+  char *keep_data;
+  size_t keep_data_size;
+  int i;
   struct s3_score_it inst_expand[2];
   struct s3_score_it inst_main;
 
@@ -4652,27 +4653,22 @@ s3_do_macro_bcmpz (char *str)
   if (( reg_a = s3_reg_required_here (&str, 15, s3_REG_TYPE_SCORE)) == (int) s3_FAIL
       || s3_skip_past_comma (&str) == (int) s3_FAIL)
     return;
-  ptemp = str;
-  while (*ptemp != 0)
-    {
-      keep_data[i] = *ptemp;
-      i++;
-      ptemp++;
-    }
 
-  keep_data[i] = 0;
+  keep_data_size = strlen (str) + 1;
+  keep_data = xmalloc (keep_data_size * 2 + 13);
+  memcpy (keep_data, str, keep_data_size);
 
   if (s3_my_get_expression (&s3_inst.reloc.exp, &str) == (int) s3_FAIL
       || s3_end_of_line (str) == (int) s3_FAIL)
-    return;
+    goto out;
   else if (s3_inst.reloc.exp.X_add_symbol == 0)
     {
       s3_inst.error = _("lacking label  ");
-      return;
+      goto out;
     }
   else
     {
-      char append_str[s3_MAX_LITERAL_POOL_SIZE];
+      char *append_str = keep_data + keep_data_size;
       s3_SET_INSN_ERROR (NULL);
       s3_inst.reloc.type = BFD_RELOC_SCORE_BCMP;
       s3_inst.reloc.pc_rel = 1;
@@ -4687,15 +4683,16 @@ s3_do_macro_bcmpz (char *str)
         {
           if (s3_score_pic == s3_NO_PIC)
             {
-              sprintf (&append_str[0], "cmpi! r%d,0", reg_a);
-              if (s3_append_insn (&append_str[0], TRUE) == (int) s3_FAIL)
-                return;
-              if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
-                sprintf (&append_str[1], "beq %s", keep_data);
-              else
-                sprintf (&append_str[1], "bne %s", keep_data);
-              if (s3_append_insn (&append_str[1], TRUE) == (int) s3_FAIL)
-                return;
+	      sprintf (append_str, "cmpi! r%d, 0", reg_a);
+	      if (s3_append_insn (append_str, TRUE) == (int) s3_FAIL)
+		goto out;
+	      if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
+		memcpy (append_str, "beq ", 4);
+	      else
+		memcpy (append_str, "bne ", 4);
+	      memmove (append_str + 4, keep_data, strlen (keep_data) + 1);
+	      if (s3_append_insn (append_str, TRUE) == (int) s3_FAIL)
+		goto out;
             }
           else
             {
@@ -4703,7 +4700,7 @@ s3_do_macro_bcmpz (char *str)
             }
           /* Set bwarn as -1, so macro instruction itself will not be generated frag.  */
           s3_inst.bwarn = -1;
-          return;
+	  goto out;
         }
       else
         {
@@ -4718,17 +4715,18 @@ s3_do_macro_bcmpz (char *str)
 
       if (s3_score_pic == s3_NO_PIC)
         {
-          sprintf (&append_str[0], "cmpi! r%d, 0", reg_a);
-          if (s3_append_insn (&append_str[0], FALSE) == (int) s3_FAIL)
-            return;
-          memcpy (&inst_expand[0], &s3_inst, sizeof (struct s3_score_it));
-          if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
-            sprintf (&append_str[1], "beq %s", keep_data);
-          else
-            sprintf (&append_str[1], "bne %s", keep_data);
-          if (s3_append_insn (&append_str[1], FALSE) == (int) s3_FAIL)
-            return;
-          memcpy (&inst_expand[1], &s3_inst, sizeof (struct s3_score_it));
+	  sprintf (append_str, "cmpi! r%d, 0", reg_a);
+	  if (s3_append_insn (append_str, FALSE) == (int) s3_FAIL)
+	    goto out;
+	  memcpy (&inst_expand[0], &s3_inst, sizeof (struct s3_score_it));
+	  if ((inst_main.instruction & 0x3e00007e) == 0x0000004c)
+	    memcpy (append_str, "beq ", 4);
+	  else
+	    memcpy (append_str, "bne ", 4);
+	  memmove (append_str + 4, keep_data, strlen (keep_data) + 1);
+	  if (s3_append_insn (append_str, FALSE) == (int) s3_FAIL)
+	    goto out;
+	  memcpy (&inst_expand[1], &s3_inst, sizeof (struct s3_score_it));
         }
       else
         {
@@ -4784,6 +4782,8 @@ s3_do_macro_bcmpz (char *str)
       /* Set bwarn as -1, so macro instruction itself will not be generated frag.  */
       s3_inst.bwarn = -1;
     }
+ out:
+  free (keep_data);
 }
 
 static int
@@ -4864,7 +4864,7 @@ s3_build_lwst_pic (int reg_rd, expressionS exp, const char *insn_name)
       /* Fix part
          For an external symbol: lw rD, <sym>($gp)
 	 (BFD_RELOC_SCORE_GOT15)  */
-      sprintf (tmp, "lw_pic r1, %s", add_symbol->bsym->name);
+      sprintf (tmp, "lw_pic r1, %s", S_GET_NAME (add_symbol));
       if (s3_append_insn (tmp, FALSE) == (int) s3_FAIL)
         return;
 
@@ -4876,7 +4876,7 @@ s3_build_lwst_pic (int reg_rd, expressionS exp, const char *insn_name)
 	 addi rD, <sym>       (BFD_RELOC_GOT_LO16) */
       s3_inst.reloc.type = BFD_RELOC_SCORE_GOT15;
       memcpy (&var_insts[0], &s3_inst, sizeof (struct s3_score_it));
-      sprintf (tmp, "addi_s_pic r1, %s", add_symbol->bsym->name);
+      sprintf (tmp, "addi_s_pic r1, %s", S_GET_NAME (add_symbol));
       if (s3_append_insn (tmp, FALSE) == (int) s3_FAIL)
         return;
 
@@ -5304,7 +5304,7 @@ s3_pic_need_relax (symbolS *sym, asection *segtype)
   linkonce = FALSE;
   if (symsec != segtype && ! S_IS_LOCAL (sym))
     {
-      if ((bfd_get_section_flags (stdoutput, symsec) & SEC_LINK_ONCE) != 0)
+      if ((bfd_section_flags (symsec) & SEC_LINK_ONCE) != 0)
 	linkonce = TRUE;
 
       /* The GNU toolchain uses an extension for ELF: a section
@@ -5550,7 +5550,7 @@ static void
 s3_score_s_section (int ignore)
 {
   obj_elf_section (ignore);
-  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
+  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
     record_alignment (now_seg, 2);
 
 }
@@ -5573,14 +5573,16 @@ s3_s_change_sec (int sec)
     {
     case 'r':
       seg = subseg_new (s3_RDATA_SECTION_NAME, (subsegT) get_absolute_expression ());
-      bfd_set_section_flags (stdoutput, seg, (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_RELOC | SEC_DATA));
+      bfd_set_section_flags (seg, (SEC_ALLOC | SEC_LOAD | SEC_READONLY
+				   | SEC_RELOC | SEC_DATA));
       if (strcmp (TARGET_OS, "elf") != 0)
         record_alignment (seg, 4);
       demand_empty_rest_of_line ();
       break;
     case 's':
       seg = subseg_new (".sdata", (subsegT) get_absolute_expression ());
-      bfd_set_section_flags (stdoutput, seg, SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA);
+      bfd_set_section_flags (seg, (SEC_ALLOC | SEC_LOAD | SEC_RELOC
+				   | SEC_DATA | SEC_SMALL_DATA));
       if (strcmp (TARGET_OS, "elf") != 0)
         record_alignment (seg, 4);
       demand_empty_rest_of_line ();
@@ -5689,17 +5691,10 @@ s3_s_score_ent (int aent)
   if (ISDIGIT (*input_line_pointer) || *input_line_pointer == '-')
     s3_get_number ();
 
-#ifdef BFD_ASSEMBLER
-  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
+  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
     maybe_text = 1;
   else
     maybe_text = 0;
-#else
-  if (now_seg != data_section && now_seg != bss_section)
-    maybe_text = 1;
-  else
-    maybe_text = 0;
-#endif
   if (!maybe_text)
     as_warn (_(".ent or .aent not in text section."));
   if (!aent && s3_cur_proc_ptr)
@@ -5798,17 +5793,10 @@ s3_s_score_end (int x ATTRIBUTE_UNUSED)
   else
     p = NULL;
 
-#ifdef BFD_ASSEMBLER
-  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
+  if ((bfd_section_flags (now_seg) & SEC_CODE) != 0)
     maybe_text = 1;
   else
     maybe_text = 0;
-#else
-  if (now_seg != data_section && now_seg != bss_section)
-    maybe_text = 1;
-  else
-    maybe_text = 0;
-#endif
 
   if (!maybe_text)
     as_warn (_(".end not in text section"));
@@ -6132,15 +6120,14 @@ s3_s_score_lcomm (int bytes_p)
   if (OUTPUT_FLAVOR == bfd_target_ecoff_flavour || OUTPUT_FLAVOR == bfd_target_elf_flavour)
     {
       /* For Score and Alpha ECOFF or ELF, small objects are put in .sbss.  */
-      if ((unsigned)temp <= bfd_get_gp_size (stdoutput))
-        {
-          bss_seg = subseg_new (".sbss", 1);
-          seg_info (bss_seg)->bss = 1;
-#ifdef BFD_ASSEMBLER
-          if (!bfd_set_section_flags (stdoutput, bss_seg, SEC_ALLOC))
-            as_warn (_("error setting flags for \".sbss\": %s"), bfd_errmsg (bfd_get_error ()));
-#endif
-        }
+      if ((unsigned) temp <= bfd_get_gp_size (stdoutput))
+	{
+	  bss_seg = subseg_new (".sbss", 1);
+	  seg_info (bss_seg)->bss = 1;
+	  if (!bfd_set_section_flags (bss_seg, SEC_ALLOC | SEC_SMALL_DATA))
+	    as_warn (_("error setting flags for \".sbss\": %s"),
+		     bfd_errmsg (bfd_get_error ()));
+	}
     }
 #endif
 
@@ -6217,14 +6204,9 @@ s3_s_score_lcomm (int bytes_p)
   *p = c;
 
   if (
-#if (defined (OBJ_AOUT) || defined (OBJ_MAYBE_AOUT)	\
-     || defined (OBJ_BOUT) || defined (OBJ_MAYBE_BOUT))
-#ifdef BFD_ASSEMBLER
+#if (defined (OBJ_AOUT) || defined (OBJ_MAYBE_AOUT))
       (OUTPUT_FLAVOR != bfd_target_aout_flavour
        || (S_GET_OTHER (symbolP) == 0 && S_GET_DESC (symbolP) == 0)) &&
-#else
-      (S_GET_OTHER (symbolP) == 0 && S_GET_DESC (symbolP) == 0) &&
-#endif
 #endif
       (S_GET_SEGMENT (symbolP) == bss_seg || (!S_IS_DEFINED (symbolP) && S_GET_VALUE (symbolP) == 0)))
     {
@@ -6543,8 +6525,8 @@ s3_begin (void)
   seg = now_seg;
   subseg = now_subseg;
   s3_pdr_seg = subseg_new (".pdr", (subsegT) 0);
-  (void)bfd_set_section_flags (stdoutput, s3_pdr_seg, SEC_READONLY | SEC_RELOC | SEC_DEBUGGING);
-  (void)bfd_set_section_alignment (stdoutput, s3_pdr_seg, 2);
+  bfd_set_section_flags (s3_pdr_seg, SEC_READONLY | SEC_RELOC | SEC_DEBUGGING);
+  bfd_set_section_alignment (s3_pdr_seg, 2);
   subseg_set (seg, subseg);
 
   if (s3_USE_GLOBAL_POINTER_OPT)
@@ -6661,7 +6643,7 @@ static const char *
 s3_atof (int type, char *litP, int *sizeP)
 {
   int prec;
-  LITTLENUM_TYPE words[s3_MAX_LITTLENUMS];
+  LITTLENUM_TYPE words[MAX_LITTLENUMS];
   char *t;
   int i;
 
@@ -6852,10 +6834,7 @@ s3_relax_branch_inst16 (fragS * fragp)
   if (s == NULL)
     frag_addr = 0;
   else
-    {
-      if (s->bsym != NULL)
-        symbol_address = (addressT) symbol_get_frag (s)->fr_address;
-    }
+    symbol_address = (addressT) symbol_get_frag (s)->fr_address;
 
   inst_value = s3_md_chars_to_number (fragp->fr_literal, s3_INSN16_SIZE);
   offset = (inst_value & 0x1ff) << 1;
@@ -6867,7 +6846,6 @@ s3_relax_branch_inst16 (fragS * fragp)
   if (relaxable_p
       && (!((value & 0xfffffe00) == 0 || (value & 0xfffffe00) == 0xfffffe00))
       && fragp->fr_fix == 2
-      && (s->bsym != NULL)
       && (S_IS_DEFINED (s)
           && !S_IS_COMMON (s)
           && !S_IS_EXTERNAL (s)))
@@ -6899,10 +6877,7 @@ s3_relax_cmpbranch_inst32 (fragS * fragp)
   if (s == NULL)
     frag_addr = 0;
   else
-    {
-      if (s->bsym != NULL)
-	symbol_address = (addressT) symbol_get_frag (s)->fr_address;
-    }
+    symbol_address = (addressT) symbol_get_frag (s)->fr_address;
 
   inst_value = s3_md_chars_to_number (fragp->fr_literal, s3_INSN_SIZE);
   offset = (inst_value & 0x1)
@@ -6926,8 +6901,7 @@ s3_relax_cmpbranch_inst32 (fragS * fragp)
   /* need to translate when extern or not defined or common symbol */
   else if ((relaxable_p
 	    && (!((value & 0xfffffe00) == 0 || (value & 0xfffffe00) == 0xfffffe00))
-	    && fragp->fr_fix == 4
-	    && (s->bsym != NULL))
+	    && fragp->fr_fix == 4)
 	   || !S_IS_DEFINED (s)
 	   ||S_IS_COMMON (s)
 	   ||S_IS_EXTERNAL (s))
@@ -7023,8 +6997,8 @@ s3_relax_frag (asection * sec ATTRIBUTE_UNUSED, fragS * fragp, long stretch ATTR
 static void
 s3_convert_frag (bfd * abfd ATTRIBUTE_UNUSED, segT sec ATTRIBUTE_UNUSED, fragS * fragp)
 {
-  int r_old;
-  int r_new;
+  unsigned int r_old;
+  unsigned int r_new;
   char backup[20];
   fixS *fixp;
 
@@ -7089,7 +7063,7 @@ s3_pcrel_from (fixS * fixP)
 static valueT
 s3_section_align (segT segment ATTRIBUTE_UNUSED, valueT size)
 {
-  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align = bfd_section_alignment (segment);
   return ((size + (1 << align) - 1) & -(1 << align));
 }
 

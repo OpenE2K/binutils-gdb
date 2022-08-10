@@ -1,5 +1,5 @@
 /* tc-crx.c -- Assembler code for the CRX CPU core.
-   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+   Copyright (C) 2004-2020 Free Software Foundation, Inc.
 
    Contributed by Tomer Levi, NSC, Israel.
    Originally written for GAS 2.12 by Tomer Levi, NSC, Israel.
@@ -153,7 +153,7 @@ static void    handle_LoadStor	        (const char *);
 static int     get_cinv_parameters      (const char *);
 static long    getconstant		(long, int);
 static op_err  check_range		(long *, int, unsigned int, int);
-static int     getreg_image	        (reg);
+static int     getreg_image	        (int);
 static void    parse_operands	        (ins *, char *);
 static void    parse_insn	        (ins *, char *);
 static void    print_operand	        (int, int, argument *);
@@ -402,7 +402,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, asection *sec, fragS *fragP)
 {
   /* 'opcode' points to the start of the instruction, whether
      we need to change the instruction's fixed encoding.  */
-  char *opcode = fragP->fr_literal + fragP->fr_fix;
+  char *opcode = &fragP->fr_literal[0] + fragP->fr_fix;
   bfd_reloc_code_real_type reloc;
 
   subseg_change (sec, 0);
@@ -900,8 +900,8 @@ parse_operand (char *operand, ins * crx_ins)
     cur_arg->type = arg_c;
   goto set_params;
 
-/* Parse an operand according to its type.  */
-set_params:
+  /* Parse an operand according to its type.  */
+ set_params:
   cur_arg->constant = 0;
   set_operand (operand, crx_ins);
 }
@@ -1107,7 +1107,7 @@ get_cinv_parameters (const char *operand)
    issue an error.  */
 
 static int
-getreg_image (reg r)
+getreg_image (int r)
 {
   const reg_entry *rreg;
   char *reg_name;
@@ -1135,8 +1135,7 @@ getreg_image (reg r)
 /* Issue a error message when register is illegal.  */
 #define IMAGE_ERR \
   as_bad (_("Illegal register (`%s') in instruction: `%s'"), \
-	    reg_name, ins_parse);			     \
-  break;
+	  reg_name, ins_parse);
 
   switch (rreg->type)
   {
@@ -1145,18 +1144,21 @@ getreg_image (reg r)
 	return rreg->image;
       else
 	IMAGE_ERR;
+      break;
 
     case CRX_CFG_REGTYPE:
       if (is_procreg)
 	return rreg->image;
       else
 	IMAGE_ERR;
+      break;
 
     case CRX_R_REGTYPE:
       if (! is_procreg)
 	return rreg->image;
       else
 	IMAGE_ERR;
+      break;
 
     case CRX_C_REGTYPE:
     case CRX_CS_REGTYPE:
@@ -1165,6 +1167,7 @@ getreg_image (reg r)
 
     default:
       IMAGE_ERR;
+      break;
   }
 
   return 0;
@@ -1567,8 +1570,8 @@ assemble_insn (char *mnemonic, ins *insn)
       match = 1;
       break;
 
-/* Try again with next instruction.  */
-next_insn:
+      /* Try again with next instruction.  */
+    next_insn:
       instruction++;
     }
 
@@ -1842,7 +1845,7 @@ preprocess_reglist (char *param, int *allocated)
 	as_bad (_("Maximum %d bits may be set in `mask16' operand"),
 		MAX_REGS_IN_MASK16);
 
-next_inst:
+    next_inst:
       while (!ISALNUM (*paramP) && *paramP != '}')
 	  paramP++;
     }

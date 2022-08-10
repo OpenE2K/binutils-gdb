@@ -1,6 +1,6 @@
 /* ARM Symbian OS target support.
 
-   Copyright (C) 2008-2017 Free Software Foundation, Inc.
+   Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -119,11 +119,9 @@ arm_symbian_osabi_sniffer (bfd *abfd)
   return GDB_OSABI_SYMBIAN;
 }
 
-/* -Wmissing-prototypes */
-extern initialize_file_ftype _initialize_arm_symbian_tdep;
-
+void _initialize_arm_symbian_tdep ();
 void
-_initialize_arm_symbian_tdep (void)
+_initialize_arm_symbian_tdep ()
 {
   gdbarch_register_osabi_sniffer (bfd_arch_arm,
 				  bfd_target_elf_flavour,

@@ -1,6 +1,6 @@
 /* Header only used inside opcodes library for disassemble.
 
-   Copyright (C) 2017 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,11 +32,11 @@ extern int print_insn_big_powerpc	(bfd_vma, disassemble_info *);
 extern int print_insn_big_score         (bfd_vma, disassemble_info *);
 extern int print_insn_cr16              (bfd_vma, disassemble_info *);
 extern int print_insn_crx               (bfd_vma, disassemble_info *);
+extern int print_insn_csky		(bfd_vma, disassemble_info *);
 extern int print_insn_d10v		(bfd_vma, disassemble_info *);
 extern int print_insn_d30v		(bfd_vma, disassemble_info *);
 extern int print_insn_dlx		(bfd_vma, disassemble_info *);
-extern int print_insn_e2k 		(bfd_vma, disassemble_info *);
-extern int print_insn_dsp 		(bfd_vma, disassemble_info *);
+extern int print_insn_bpf		(bfd_vma, disassemble_info *);
 extern int print_insn_epiphany		(bfd_vma, disassemble_info *);
 extern int print_insn_fr30		(bfd_vma, disassemble_info *);
 extern int print_insn_frv		(bfd_vma, disassemble_info *);
@@ -44,14 +44,10 @@ extern int print_insn_ft32		(bfd_vma, disassemble_info *);
 extern int print_insn_h8300		(bfd_vma, disassemble_info *);
 extern int print_insn_h8300h		(bfd_vma, disassemble_info *);
 extern int print_insn_h8300s		(bfd_vma, disassemble_info *);
-extern int print_insn_h8500		(bfd_vma, disassemble_info *);
 extern int print_insn_hppa		(bfd_vma, disassemble_info *);
-extern int print_insn_i370		(bfd_vma, disassemble_info *);
 extern int print_insn_i386		(bfd_vma, disassemble_info *);
 extern int print_insn_i386_att		(bfd_vma, disassemble_info *);
 extern int print_insn_i386_intel	(bfd_vma, disassemble_info *);
-extern int print_insn_i860		(bfd_vma, disassemble_info *);
-extern int print_insn_i960		(bfd_vma, disassemble_info *);
 extern int print_insn_ia64		(bfd_vma, disassemble_info *);
 extern int print_insn_ip2k		(bfd_vma, disassemble_info *);
 extern int print_insn_iq2000		(bfd_vma, disassemble_info *);
@@ -67,8 +63,8 @@ extern int print_insn_m68hc11		(bfd_vma, disassemble_info *);
 extern int print_insn_m68hc12		(bfd_vma, disassemble_info *);
 extern int print_insn_m9s12x		(bfd_vma, disassemble_info *);
 extern int print_insn_m9s12xg		(bfd_vma, disassemble_info *);
+extern int print_insn_s12z		(bfd_vma, disassemble_info *);
 extern int print_insn_m68k		(bfd_vma, disassemble_info *);
-extern int print_insn_m88k		(bfd_vma, disassemble_info *);
 extern int print_insn_mcore		(bfd_vma, disassemble_info *);
 extern int print_insn_metag		(bfd_vma, disassemble_info *);
 extern int print_insn_microblaze	(bfd_vma, disassemble_info *);
@@ -79,26 +75,23 @@ extern int print_insn_moxie		(bfd_vma, disassemble_info *);
 extern int print_insn_msp430		(bfd_vma, disassemble_info *);
 extern int print_insn_mt                (bfd_vma, disassemble_info *);
 extern int print_insn_nds32		(bfd_vma, disassemble_info *);
+extern int print_insn_nfp		(bfd_vma, disassemble_info *);
 extern int print_insn_ns32k		(bfd_vma, disassemble_info *);
 extern int print_insn_or1k		(bfd_vma, disassemble_info *);
 extern int print_insn_pdp11		(bfd_vma, disassemble_info *);
 extern int print_insn_pj		(bfd_vma, disassemble_info *);
 extern int print_insn_pru		(bfd_vma, disassemble_info *);
-extern int print_insn_rs6000		(bfd_vma, disassemble_info *);
 extern int print_insn_s390		(bfd_vma, disassemble_info *);
-extern int print_insn_sh64		(bfd_vma, disassemble_info *);
 extern int print_insn_spu		(bfd_vma, disassemble_info *);
 extern int print_insn_tic30		(bfd_vma, disassemble_info *);
 extern int print_insn_tic4x		(bfd_vma, disassemble_info *);
 extern int print_insn_tic54x		(bfd_vma, disassemble_info *);
 extern int print_insn_tic6x		(bfd_vma, disassemble_info *);
-extern int print_insn_tic80		(bfd_vma, disassemble_info *);
 extern int print_insn_tilegx		(bfd_vma, disassemble_info *);
 extern int print_insn_tilepro		(bfd_vma, disassemble_info *);
 extern int print_insn_v850		(bfd_vma, disassemble_info *);
 extern int print_insn_vax		(bfd_vma, disassemble_info *);
 extern int print_insn_visium		(bfd_vma, disassemble_info *);
-extern int print_insn_w65		(bfd_vma, disassemble_info *);
 extern int print_insn_wasm32		(bfd_vma, disassemble_info *);
 extern int print_insn_xc16x		(bfd_vma, disassemble_info *);
 extern int print_insn_xgate             (bfd_vma, disassemble_info *);
@@ -108,5 +101,12 @@ extern int print_insn_z80		(bfd_vma, disassemble_info *);
 extern int print_insn_z8001		(bfd_vma, disassemble_info *);
 extern int print_insn_z8002		(bfd_vma, disassemble_info *);
 
+extern disassembler_ftype csky_get_disassembler (bfd *);
 extern disassembler_ftype rl78_get_disassembler (bfd *);
+
+extern void ATTRIBUTE_NORETURN opcodes_assert (const char *, int);
+
+#define OPCODES_ASSERT(x) \
+  do { if (!(x)) opcodes_assert (__FILE__, __LINE__); } while (0)
+
 #endif /* DISASSEMBLE_H */

@@ -1,6 +1,6 @@
 /* Dynamic architecture support for GDB, the GNU debugger.
 
-   Copyright (C) 1998-2017 Free Software Foundation, Inc.
+   Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,10 +17,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#ifndef GDBARCH_UTILS_H
-#define GDBARCH_UTILS_H
+#ifndef ARCH_UTILS_H
+#define ARCH_UTILS_H
 
-struct gdbarch;
+#include "gdbarch.h"
+
 struct frame_info;
 struct minimal_symbol;
 struct type;
@@ -72,18 +73,6 @@ struct bp_manipulation_endian
 #define BP_MANIPULATION_ENDIAN(BREAK_INSN_LITTLE, BREAK_INSN_BIG) \
   bp_manipulation_endian<sizeof (BREAK_INSN_LITTLE),		  \
   BREAK_INSN_LITTLE, BREAK_INSN_BIG>
-
-/* An implementation of gdbarch_displaced_step_copy_insn for
-   processors that don't need to modify the instruction before
-   single-stepping the displaced copy.
-
-   Simply copy gdbarch_max_insn_length (ARCH) bytes from FROM to TO.
-   The closure is an array of that many bytes containing the
-   instruction's bytes, allocated with xmalloc.  */
-extern struct displaced_step_closure *
-  simple_displaced_step_copy_insn (struct gdbarch *gdbarch,
-                                   CORE_ADDR from, CORE_ADDR to,
-                                   struct regcache *regs);
 
 /* Default implementation of gdbarch_displaced_hw_singlestep.  */
 extern int
@@ -214,7 +203,7 @@ extern struct gdbarch *get_current_arch (void);
 extern int default_has_shared_address_space (struct gdbarch *);
 
 extern int default_fast_tracepoint_valid_at (struct gdbarch *gdbarch,
-					     CORE_ADDR addr, char **msg);
+					     CORE_ADDR addr, std::string *msg);
 
 extern const gdb_byte *default_breakpoint_from_pc (struct gdbarch *gdbarch,
 						   CORE_ADDR *pcptr,
@@ -239,6 +228,10 @@ extern int default_insn_is_call (struct gdbarch *, CORE_ADDR);
 extern int default_insn_is_ret (struct gdbarch *, CORE_ADDR);
 extern int default_insn_is_jump (struct gdbarch *, CORE_ADDR);
 
+/* Default implementation of gdbarch_program_breakpoint_here_p.  */
+extern bool default_program_breakpoint_here_p (struct gdbarch *gdbarch,
+					       CORE_ADDR addr);
+
 /* Do-nothing version of vsyscall_range.  Returns false.  */
 
 extern int default_vsyscall_range (struct gdbarch *gdbarch, struct mem_range *range);
@@ -258,7 +251,7 @@ extern void default_skip_permanent_breakpoint (struct regcache *regcache);
 
 extern CORE_ADDR default_infcall_mmap (CORE_ADDR size, unsigned prot);
 extern void default_infcall_munmap (CORE_ADDR addr, CORE_ADDR size);
-extern char *default_gcc_target_options (struct gdbarch *gdbarch);
+extern std::string default_gcc_target_options (struct gdbarch *gdbarch);
 extern const char *default_gnu_triplet_regexp (struct gdbarch *gdbarch);
 extern int default_addressable_memory_unit_size (struct gdbarch *gdbarch);
 
@@ -268,4 +261,23 @@ extern void default_guess_tracepoint_registers (struct gdbarch *gdbarch,
 
 extern int default_print_insn (bfd_vma memaddr, disassemble_info *info);
 
-#endif
+/* Wrapper to gdbarch_skip_prologue, but doesn't throw exception.  Catch
+   exception thrown from gdbarch_skip_prologue, and return PC.  */
+
+extern CORE_ADDR gdbarch_skip_prologue_noexcept (gdbarch *gdbarch,
+						 CORE_ADDR pc) noexcept;
+
+/* Default implementation of gdbarch_in_indirect_branch_thunk that returns
+   false.  */
+extern bool default_in_indirect_branch_thunk (gdbarch *gdbarch,
+					      CORE_ADDR pc);
+
+/* Default implementation of gdbarch type_align method.  */
+extern ULONGEST default_type_align (struct gdbarch *gdbarch,
+				    struct type *type);
+
+/* Default implementation of gdbarch get_pc_address_flags method.  */
+extern std::string default_get_pc_address_flags (frame_info *frame,
+						 CORE_ADDR pc);
+
+#endif /* ARCH_UTILS_H */

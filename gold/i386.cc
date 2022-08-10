@@ -1,6 +1,6 @@
 // i386.cc -- i386 target support for gold.
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2020 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -925,6 +925,7 @@ const Target::Target_info Target_i386::i386_info =
   NULL,			// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 // Get the GOT section, creating it if necessary.
@@ -2956,10 +2957,9 @@ Target_i386::Relocate::relocate(const Relocate_info<32, false>* relinfo,
 
     case elfcpp::R_386_GOTOFF:
       {
-	elfcpp::Elf_types<32>::Elf_Addr value;
-	value = (psymval->value(object, 0)
-		 - target->got_plt_section()->address());
-	Relocate_functions<32, false>::rel32(view, value);
+	elfcpp::Elf_types<32>::Elf_Addr reladdr;
+	reladdr = target->got_plt_section()->address();
+	Relocate_functions<32, false>::pcrel32(view, object, psymval, reladdr);
       }
       break;
 
@@ -4203,6 +4203,7 @@ const Target::Target_info Target_i386_nacl::i386_nacl_info =
   NULL,			// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 #define	NACLMASK	0xe0            // 32-byte alignment mask
@@ -4440,6 +4441,7 @@ const Target::Target_info Target_iamcu::iamcu_info =
   NULL,			// attributes_vendor
   "_start",		// entry_symbol_name
   32,			// hash_entry_size
+  elfcpp::SHT_PROGBITS,	// unwind_section_type
 };
 
 class Target_selector_iamcu : public Target_selector

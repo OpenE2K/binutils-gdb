@@ -1,4 +1,4 @@
-#readelf: -Sr -x1 -x4
+#readelf: -Sr -T -x1 -x4
 There are 11 section headers, starting at offset .*:
 #...
   \[ 4\] \.MMIX\.spec_data\.2 PROGBITS         0+  0+48
@@ -15,7 +15,7 @@ Relocation section '\.rela\.MMIX\.spec_data\.2' at offset .* contains 2 entries:
 0+  0+600000004 R_MMIX_32 +0+ +forw +\+ 0
 0+8  0+700000005 R_MMIX_64 +0+ +other +\+ 0
 
-Relocation section '\.rela\.MMIX\.spec_data\.3' at offset .* contains 1 entries:
+Relocation section '\.rela\.MMIX\.spec_data\.3' at offset .* contains 1 entry:
 .*
 0+  0+700000005 R_MMIX_64 +0+ +other +\+ 0
 

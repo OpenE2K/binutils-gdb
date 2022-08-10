@@ -3,7 +3,7 @@
 
 /* Dynamic architecture support for GDB, the GNU debugger.
 
-   Copyright (C) 1998-2017 Free Software Foundation, Inc.
+   Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,17 +20,7 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* This file was created with the aid of ``gdbarch.sh''.
-
-   The Bourne shell script ``gdbarch.sh'' creates the files
-   ``new-gdbarch.c'' and ``new-gdbarch.h and then compares them
-   against the existing ``gdbarch.[hc]''.  Any differences found
-   being reported.
-
-   If editing this file, please also run gdbarch.sh and merge any
-   changes into that script. Conversely, when making sweeping changes
-   to this file, modifying gdbarch.sh and using its output may prove
-   easier.  */
+/* This file was created with the aid of ``gdbarch.sh''.  */
 
 
 #include "defs.h"
@@ -44,10 +34,12 @@
 #include "reggroups.h"
 #include "osabi.h"
 #include "gdb_obstack.h"
-#include "observer.h"
+#include "observable.h"
 #include "regcache.h"
 #include "objfiles.h"
 #include "auxv.h"
+#include "frame-unwind.h"
+#include "dummy-frame.h"
 
 /* Static function declarations */
 
@@ -170,12 +162,10 @@ struct gdbarch
 
      */
 
-  int bits_big_endian;
   int short_bit;
   int int_bit;
   int long_bit;
   int long_long_bit;
-  int long_long_align_bit;
   int half_bit;
   const struct floatformat ** half_format;
   int float_bit;
@@ -250,6 +240,7 @@ struct gdbarch
   CORE_ADDR deprecated_function_start_offset;
   gdbarch_remote_register_number_ftype *remote_register_number;
   gdbarch_fetch_tls_load_module_address_ftype *fetch_tls_load_module_address;
+  gdbarch_get_thread_local_address_ftype *get_thread_local_address;
   CORE_ADDR frame_args_skip;
   gdbarch_unwind_pc_ftype *unwind_pc;
   gdbarch_unwind_sp_ftype *unwind_sp;
@@ -259,12 +250,14 @@ struct gdbarch
   int frame_red_zone_size;
   gdbarch_convert_from_func_ptr_addr_ftype *convert_from_func_ptr_addr;
   gdbarch_addr_bits_remove_ftype *addr_bits_remove;
+  int significant_addr_bit;
   gdbarch_software_single_step_ftype *software_single_step;
   gdbarch_single_step_through_delay_ftype *single_step_through_delay;
   gdbarch_print_insn_ftype *print_insn;
   gdbarch_skip_trampoline_code_ftype *skip_trampoline_code;
   gdbarch_skip_solib_resolver_ftype *skip_solib_resolver;
   gdbarch_in_solib_return_trampoline_ftype *in_solib_return_trampoline;
+  gdbarch_in_indirect_branch_thunk_ftype *in_indirect_branch_thunk;
   gdbarch_stack_frame_destroyed_p_ftype *stack_frame_destroyed_p;
   gdbarch_elf_make_msymbol_special_ftype *elf_make_msymbol_special;
   gdbarch_coff_make_msymbol_special_ftype *coff_make_msymbol_special;
@@ -281,12 +274,12 @@ struct gdbarch
   gdbarch_fetch_pointer_argument_ftype *fetch_pointer_argument;
   gdbarch_iterate_over_regset_sections_ftype *iterate_over_regset_sections;
   gdbarch_make_corefile_notes_ftype *make_corefile_notes;
-  gdbarch_elfcore_write_linux_prpsinfo_ftype *elfcore_write_linux_prpsinfo;
   gdbarch_find_memory_regions_ftype *find_memory_regions;
   gdbarch_core_xfer_shared_libraries_ftype *core_xfer_shared_libraries;
   gdbarch_core_xfer_shared_libraries_aix_ftype *core_xfer_shared_libraries_aix;
   gdbarch_core_pid_to_str_ftype *core_pid_to_str;
   gdbarch_core_thread_name_ftype *core_thread_name;
+  gdbarch_core_xfer_siginfo_ftype *core_xfer_siginfo;
   const char * gcore_bfd_target;
   int vtable_function_descriptors;
   int vbit_in_delta;
@@ -299,7 +292,6 @@ struct gdbarch
   gdbarch_relocate_instruction_ftype *relocate_instruction;
   gdbarch_overlay_update_ftype *overlay_update;
   gdbarch_core_read_description_ftype *core_read_description;
-  gdbarch_static_transform_name_ftype *static_transform_name;
   int sofun_address_maybe_missing;
   gdbarch_process_record_ftype *process_record;
   gdbarch_process_record_signal_ftype *process_record_signal;
@@ -320,6 +312,7 @@ struct gdbarch
   const char * stap_gdb_register_suffix;
   gdbarch_stap_is_single_operand_ftype *stap_is_single_operand;
   gdbarch_stap_parse_special_token_ftype *stap_parse_special_token;
+  gdbarch_stap_adjust_register_ftype *stap_adjust_register;
   gdbarch_dtrace_parse_probe_argument_ftype *dtrace_parse_probe_argument;
   gdbarch_dtrace_probe_is_enabled_ftype *dtrace_probe_is_enabled;
   gdbarch_dtrace_enable_probe_ftype *dtrace_enable_probe;
@@ -341,6 +334,7 @@ struct gdbarch
   gdbarch_insn_is_call_ftype *insn_is_call;
   gdbarch_insn_is_ret_ftype *insn_is_ret;
   gdbarch_insn_is_jump_ftype *insn_is_jump;
+  gdbarch_program_breakpoint_here_p_ftype *program_breakpoint_here_p;
   gdbarch_auxv_parse_ftype *auxv_parse;
   gdbarch_print_auxv_entry_ftype *print_auxv_entry;
   gdbarch_vsyscall_range_ftype *vsyscall_range;
@@ -349,8 +343,11 @@ struct gdbarch
   gdbarch_gcc_target_options_ftype *gcc_target_options;
   gdbarch_gnu_triplet_regexp_ftype *gnu_triplet_regexp;
   gdbarch_addressable_memory_unit_size_ftype *addressable_memory_unit_size;
+  const char * disassembler_options_implicit;
   char ** disassembler_options;
-  const disasm_options_t * valid_disassembler_options;
+  const disasm_options_and_args_t * valid_disassembler_options;
+  gdbarch_type_align_ftype *type_align;
+  gdbarch_get_pc_address_flags_ftype *get_pc_address_flags;
 };
 
 /* Create a new ``struct gdbarch'' based on information provided by
@@ -381,12 +378,10 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->target_desc = info->target_desc;
 
   /* Force the explicit initialization of these.  */
-  gdbarch->bits_big_endian = (gdbarch->byte_order == BFD_ENDIAN_BIG);
   gdbarch->short_bit = 2*TARGET_CHAR_BIT;
   gdbarch->int_bit = 4*TARGET_CHAR_BIT;
   gdbarch->long_bit = 4*TARGET_CHAR_BIT;
   gdbarch->long_long_bit = 2*gdbarch->long_bit;
-  gdbarch->long_long_align_bit = 2*gdbarch->long_bit;
   gdbarch->half_bit = 2*TARGET_CHAR_BIT;
   gdbarch->float_bit = 4*TARGET_CHAR_BIT;
   gdbarch->double_bit = 8*TARGET_CHAR_BIT;
@@ -406,6 +401,7 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->ecoff_reg_to_regnum = no_op_reg_to_regnum;
   gdbarch->sdb_reg_to_regnum = no_op_reg_to_regnum;
   gdbarch->dwarf2_reg_to_regnum = no_op_reg_to_regnum;
+  gdbarch->dummy_id = default_dummy_id;
   gdbarch->deprecated_fp_regnum = -1;
   gdbarch->call_dummy_location = AT_ENTRY_POINT;
   gdbarch->code_of_frame_writable = default_code_of_frame_writable;
@@ -425,6 +421,8 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->memory_insert_breakpoint = default_memory_insert_breakpoint;
   gdbarch->memory_remove_breakpoint = default_memory_remove_breakpoint;
   gdbarch->remote_register_number = default_remote_register_number;
+  gdbarch->unwind_pc = default_unwind_pc;
+  gdbarch->unwind_sp = default_unwind_sp;
   gdbarch->stabs_argument_has_addr = default_stabs_argument_has_addr;
   gdbarch->convert_from_func_ptr_addr = convert_from_func_ptr_addr_identity;
   gdbarch->addr_bits_remove = core_addr_identity;
@@ -432,6 +430,7 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->skip_trampoline_code = generic_skip_trampoline_code;
   gdbarch->skip_solib_resolver = generic_skip_solib_resolver;
   gdbarch->in_solib_return_trampoline = generic_in_solib_return_trampoline;
+  gdbarch->in_indirect_branch_thunk = default_in_indirect_branch_thunk;
   gdbarch->stack_frame_destroyed_p = generic_stack_frame_destroyed_p;
   gdbarch->coff_make_msymbol_special = default_coff_make_msymbol_special;
   gdbarch->make_symbol_special = default_make_symbol_special;
@@ -455,6 +454,7 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->insn_is_call = default_insn_is_call;
   gdbarch->insn_is_ret = default_insn_is_ret;
   gdbarch->insn_is_jump = default_insn_is_jump;
+  gdbarch->program_breakpoint_here_p = default_program_breakpoint_here_p;
   gdbarch->print_auxv_entry = default_print_auxv_entry;
   gdbarch->vsyscall_range = default_vsyscall_range;
   gdbarch->infcall_mmap = default_infcall_mmap;
@@ -462,21 +462,18 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->gcc_target_options = default_gcc_target_options;
   gdbarch->gnu_triplet_regexp = default_gnu_triplet_regexp;
   gdbarch->addressable_memory_unit_size = default_addressable_memory_unit_size;
+  gdbarch->type_align = default_type_align;
+  gdbarch->get_pc_address_flags = default_get_pc_address_flags;
   /* gdbarch_alloc() */
 
   return gdbarch;
 }
 
 
-/* Allocate extra space using the per-architecture obstack.  */
 
-void *
-gdbarch_obstack_zalloc (struct gdbarch *arch, long size)
+obstack *gdbarch_obstack (gdbarch *arch)
 {
-  void *data = obstack_alloc (arch->obstack, size);
-
-  memset (data, 0, size);
-  return data;
+  return arch->obstack;
 }
 
 /* See gdbarch.h.  */
@@ -520,12 +517,10 @@ verify_gdbarch (struct gdbarch *gdbarch)
   if (gdbarch->bfd_arch_info == NULL)
     log.puts ("\n\tbfd_arch_info");
   /* Check those that need to be defined for the given multi-arch level.  */
-  /* Skip verify of bits_big_endian, invalid_p == 0 */
   /* Skip verify of short_bit, invalid_p == 0 */
   /* Skip verify of int_bit, invalid_p == 0 */
   /* Skip verify of long_bit, invalid_p == 0 */
   /* Skip verify of long_long_bit, invalid_p == 0 */
-  /* Skip verify of long_long_align_bit, invalid_p == 0 */
   /* Skip verify of half_bit, invalid_p == 0 */
   if (gdbarch->half_format == 0)
     gdbarch->half_format = floatformats_ieee_half;
@@ -572,7 +567,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   if (gdbarch->register_name == 0)
     log.puts ("\n\tregister_name");
   /* Skip verify of register_type, has predicate.  */
-  /* Skip verify of dummy_id, has predicate.  */
+  /* Skip verify of dummy_id, invalid_p == 0 */
   /* Skip verify of deprecated_fp_regnum, invalid_p == 0 */
   /* Skip verify of push_dummy_call, has predicate.  */
   /* Skip verify of call_dummy_location, invalid_p == 0 */
@@ -610,20 +605,23 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of deprecated_function_start_offset, invalid_p == 0 */
   /* Skip verify of remote_register_number, invalid_p == 0 */
   /* Skip verify of fetch_tls_load_module_address, has predicate.  */
+  /* Skip verify of get_thread_local_address, has predicate.  */
   /* Skip verify of frame_args_skip, invalid_p == 0 */
-  /* Skip verify of unwind_pc, has predicate.  */
-  /* Skip verify of unwind_sp, has predicate.  */
+  /* Skip verify of unwind_pc, invalid_p == 0 */
+  /* Skip verify of unwind_sp, invalid_p == 0 */
   /* Skip verify of frame_num_args, has predicate.  */
   /* Skip verify of frame_align, has predicate.  */
   /* Skip verify of stabs_argument_has_addr, invalid_p == 0 */
   /* Skip verify of convert_from_func_ptr_addr, invalid_p == 0 */
   /* Skip verify of addr_bits_remove, invalid_p == 0 */
+  /* Skip verify of significant_addr_bit, invalid_p == 0 */
   /* Skip verify of software_single_step, has predicate.  */
   /* Skip verify of single_step_through_delay, has predicate.  */
   /* Skip verify of print_insn, invalid_p == 0 */
   /* Skip verify of skip_trampoline_code, invalid_p == 0 */
   /* Skip verify of skip_solib_resolver, invalid_p == 0 */
   /* Skip verify of in_solib_return_trampoline, invalid_p == 0 */
+  /* Skip verify of in_indirect_branch_thunk, invalid_p == 0 */
   /* Skip verify of stack_frame_destroyed_p, invalid_p == 0 */
   /* Skip verify of elf_make_msymbol_special, has predicate.  */
   /* Skip verify of coff_make_msymbol_special, invalid_p == 0 */
@@ -640,12 +638,12 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of fetch_pointer_argument, has predicate.  */
   /* Skip verify of iterate_over_regset_sections, has predicate.  */
   /* Skip verify of make_corefile_notes, has predicate.  */
-  /* Skip verify of elfcore_write_linux_prpsinfo, has predicate.  */
   /* Skip verify of find_memory_regions, has predicate.  */
   /* Skip verify of core_xfer_shared_libraries, has predicate.  */
   /* Skip verify of core_xfer_shared_libraries_aix, has predicate.  */
   /* Skip verify of core_pid_to_str, has predicate.  */
   /* Skip verify of core_thread_name, has predicate.  */
+  /* Skip verify of core_xfer_siginfo, has predicate.  */
   /* Skip verify of gcore_bfd_target, has predicate.  */
   /* Skip verify of vtable_function_descriptors, invalid_p == 0 */
   /* Skip verify of vbit_in_delta, invalid_p == 0 */
@@ -659,7 +657,6 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of relocate_instruction, has predicate.  */
   /* Skip verify of overlay_update, has predicate.  */
   /* Skip verify of core_read_description, has predicate.  */
-  /* Skip verify of static_transform_name, has predicate.  */
   /* Skip verify of sofun_address_maybe_missing, invalid_p == 0 */
   /* Skip verify of process_record, has predicate.  */
   /* Skip verify of process_record_signal, has predicate.  */
@@ -680,6 +677,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of stap_gdb_register_suffix, invalid_p == 0 */
   /* Skip verify of stap_is_single_operand, has predicate.  */
   /* Skip verify of stap_parse_special_token, has predicate.  */
+  /* Skip verify of stap_adjust_register, has predicate.  */
   /* Skip verify of dtrace_parse_probe_argument, has predicate.  */
   /* Skip verify of dtrace_probe_is_enabled, has predicate.  */
   /* Skip verify of dtrace_enable_probe, has predicate.  */
@@ -700,6 +698,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of insn_is_call, invalid_p == 0 */
   /* Skip verify of insn_is_ret, invalid_p == 0 */
   /* Skip verify of insn_is_jump, invalid_p == 0 */
+  /* Skip verify of program_breakpoint_here_p, invalid_p == 0 */
   /* Skip verify of auxv_parse, has predicate.  */
   /* Skip verify of print_auxv_entry, invalid_p == 0 */
   /* Skip verify of vsyscall_range, invalid_p == 0 */
@@ -708,8 +707,11 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of gcc_target_options, invalid_p == 0 */
   /* Skip verify of gnu_triplet_regexp, invalid_p == 0 */
   /* Skip verify of addressable_memory_unit_size, invalid_p == 0 */
+  /* Skip verify of disassembler_options_implicit, invalid_p == 0 */
   /* Skip verify of disassembler_options, invalid_p == 0 */
   /* Skip verify of valid_disassembler_options, invalid_p == 0 */
+  /* Skip verify of type_align, invalid_p == 0 */
+  /* Skip verify of get_pc_address_flags, invalid_p == 0 */
   if (!log.empty ())
     internal_error (__FILE__, __LINE__,
                     _("verify_gdbarch: the following are invalid ...%s"),
@@ -803,9 +805,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: bfd_arch_info = %s\n",
                       gdbarch_bfd_arch_info (gdbarch)->printable_name);
   fprintf_unfiltered (file,
-                      "gdbarch_dump: bits_big_endian = %s\n",
-                      plongest (gdbarch->bits_big_endian));
-  fprintf_unfiltered (file,
                       "gdbarch_dump: breakpoint_from_pc = <%s>\n",
                       host_address_to_string (gdbarch->breakpoint_from_pc));
   fprintf_unfiltered (file,
@@ -884,6 +883,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: core_xfer_shared_libraries_aix = <%s>\n",
                       host_address_to_string (gdbarch->core_xfer_shared_libraries_aix));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_core_xfer_siginfo_p() = %d\n",
+                      gdbarch_core_xfer_siginfo_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: core_xfer_siginfo = <%s>\n",
+                      host_address_to_string (gdbarch->core_xfer_siginfo));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: decr_pc_after_break = %s\n",
                       core_addr_to_string_nz (gdbarch->decr_pc_after_break));
   fprintf_unfiltered (file,
@@ -895,6 +900,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: disassembler_options = %s\n",
                       pstring_ptr (gdbarch->disassembler_options));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: disassembler_options_implicit = %s\n",
+                      pstring (gdbarch->disassembler_options_implicit));
   fprintf_unfiltered (file,
                       "gdbarch_dump: gdbarch_displaced_step_copy_insn_p() = %d\n",
                       gdbarch_displaced_step_copy_insn_p (gdbarch));
@@ -944,9 +952,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: dtrace_probe_is_enabled = <%s>\n",
                       host_address_to_string (gdbarch->dtrace_probe_is_enabled));
   fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_dummy_id_p() = %d\n",
-                      gdbarch_dummy_id_p (gdbarch));
-  fprintf_unfiltered (file,
                       "gdbarch_dump: dummy_id = <%s>\n",
                       host_address_to_string (gdbarch->dummy_id));
   fprintf_unfiltered (file,
@@ -964,12 +969,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: elf_make_msymbol_special = <%s>\n",
                       host_address_to_string (gdbarch->elf_make_msymbol_special));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_elfcore_write_linux_prpsinfo_p() = %d\n",
-                      gdbarch_elfcore_write_linux_prpsinfo_p (gdbarch));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: elfcore_write_linux_prpsinfo = <%s>\n",
-                      host_address_to_string (gdbarch->elfcore_write_linux_prpsinfo));
   fprintf_unfiltered (file,
                       "gdbarch_dump: execute_dwarf_cfa_vendor_op = <%s>\n",
                       host_address_to_string (gdbarch->execute_dwarf_cfa_vendor_op));
@@ -1055,6 +1054,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: get_longjmp_target = <%s>\n",
                       host_address_to_string (gdbarch->get_longjmp_target));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: get_pc_address_flags = <%s>\n",
+                      host_address_to_string (gdbarch->get_pc_address_flags));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: gdbarch_get_siginfo_type_p() = %d\n",
                       gdbarch_get_siginfo_type_p (gdbarch));
   fprintf_unfiltered (file,
@@ -1066,6 +1068,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: get_syscall_number = <%s>\n",
                       host_address_to_string (gdbarch->get_syscall_number));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_get_thread_local_address_p() = %d\n",
+                      gdbarch_get_thread_local_address_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: get_thread_local_address = <%s>\n",
+                      host_address_to_string (gdbarch->get_thread_local_address));
   fprintf_unfiltered (file,
                       "gdbarch_dump: gnu_triplet_regexp = <%s>\n",
                       host_address_to_string (gdbarch->gnu_triplet_regexp));
@@ -1099,6 +1107,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: have_nonsteppable_watchpoint = %s\n",
                       plongest (gdbarch->have_nonsteppable_watchpoint));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: in_indirect_branch_thunk = <%s>\n",
+                      host_address_to_string (gdbarch->in_indirect_branch_thunk));
   fprintf_unfiltered (file,
                       "gdbarch_dump: in_solib_return_trampoline = <%s>\n",
                       host_address_to_string (gdbarch->in_solib_return_trampoline));
@@ -1153,9 +1164,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: long_double_format = %s\n",
                       pformat (gdbarch->long_double_format));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: long_long_align_bit = %s\n",
-                      plongest (gdbarch->long_long_align_bit));
   fprintf_unfiltered (file,
                       "gdbarch_dump: long_long_bit = %s\n",
                       plongest (gdbarch->long_long_bit));
@@ -1231,6 +1239,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: process_record_signal = <%s>\n",
                       host_address_to_string (gdbarch->process_record_signal));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: program_breakpoint_here_p = <%s>\n",
+                      host_address_to_string (gdbarch->program_breakpoint_here_p));
   fprintf_unfiltered (file,
                       "gdbarch_dump: ps_regnum = %s\n",
                       plongest (gdbarch->ps_regnum));
@@ -1325,6 +1336,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: short_bit = %s\n",
                       plongest (gdbarch->short_bit));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: significant_addr_bit = %s\n",
+                      plongest (gdbarch->significant_addr_bit));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: gdbarch_single_step_through_delay_p() = %d\n",
                       gdbarch_single_step_through_delay_p (gdbarch));
   fprintf_unfiltered (file,
@@ -1379,6 +1393,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: stack_frame_destroyed_p = <%s>\n",
                       host_address_to_string (gdbarch->stack_frame_destroyed_p));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_stap_adjust_register_p() = %d\n",
+                      gdbarch_stap_adjust_register_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: stap_adjust_register = <%s>\n",
+                      host_address_to_string (gdbarch->stap_adjust_register));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: stap_gdb_register_prefix = %s\n",
                       pstring (gdbarch->stap_gdb_register_prefix));
   fprintf_unfiltered (file,
@@ -1415,12 +1435,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: stap_register_suffixes = %s\n",
                       pstring_list (gdbarch->stap_register_suffixes));
   fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_static_transform_name_p() = %d\n",
-                      gdbarch_static_transform_name_p (gdbarch));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: static_transform_name = <%s>\n",
-                      host_address_to_string (gdbarch->static_transform_name));
-  fprintf_unfiltered (file,
                       "gdbarch_dump: sw_breakpoint_from_kind = <%s>\n",
                       host_address_to_string (gdbarch->sw_breakpoint_from_kind));
   fprintf_unfiltered (file,
@@ -1430,14 +1444,11 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: target_desc = %s\n",
                       host_address_to_string (gdbarch->target_desc));
   fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_unwind_pc_p() = %d\n",
-                      gdbarch_unwind_pc_p (gdbarch));
+                      "gdbarch_dump: type_align = <%s>\n",
+                      host_address_to_string (gdbarch->type_align));
   fprintf_unfiltered (file,
                       "gdbarch_dump: unwind_pc = <%s>\n",
                       host_address_to_string (gdbarch->unwind_pc));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_unwind_sp_p() = %d\n",
-                      gdbarch_unwind_sp_p (gdbarch));
   fprintf_unfiltered (file,
                       "gdbarch_dump: unwind_sp = <%s>\n",
                       host_address_to_string (gdbarch->unwind_sp));
@@ -1536,23 +1547,6 @@ gdbarch_target_desc (struct gdbarch *gdbarch)
 }
 
 int
-gdbarch_bits_big_endian (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  /* Skip verify of bits_big_endian, invalid_p == 0 */
-  if (gdbarch_debug >= 2)
-    fprintf_unfiltered (gdb_stdlog, "gdbarch_bits_big_endian called\n");
-  return gdbarch->bits_big_endian;
-}
-
-void
-set_gdbarch_bits_big_endian (struct gdbarch *gdbarch,
-                             int bits_big_endian)
-{
-  gdbarch->bits_big_endian = bits_big_endian;
-}
-
-int
 gdbarch_short_bit (struct gdbarch *gdbarch)
 {
   gdb_assert (gdbarch != NULL);
@@ -1618,23 +1612,6 @@ set_gdbarch_long_long_bit (struct gdbarch *gdbarch,
                            int long_long_bit)
 {
   gdbarch->long_long_bit = long_long_bit;
-}
-
-int
-gdbarch_long_long_align_bit (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  /* Skip verify of long_long_align_bit, invalid_p == 0 */
-  if (gdbarch_debug >= 2)
-    fprintf_unfiltered (gdb_stdlog, "gdbarch_long_long_align_bit called\n");
-  return gdbarch->long_long_align_bit;
-}
-
-void
-set_gdbarch_long_long_align_bit (struct gdbarch *gdbarch,
-                                 int long_long_align_bit)
-{
-  gdbarch->long_long_align_bit = long_long_align_bit;
 }
 
 int
@@ -1900,7 +1877,7 @@ gdbarch_read_pc_p (struct gdbarch *gdbarch)
 }
 
 CORE_ADDR
-gdbarch_read_pc (struct gdbarch *gdbarch, struct regcache *regcache)
+gdbarch_read_pc (struct gdbarch *gdbarch, readable_regcache *regcache)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->read_pc != NULL);
@@ -1965,7 +1942,7 @@ gdbarch_pseudo_register_read_p (struct gdbarch *gdbarch)
 }
 
 enum register_status
-gdbarch_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache, int cookednum, gdb_byte *buf)
+gdbarch_pseudo_register_read (struct gdbarch *gdbarch, readable_regcache *regcache, int cookednum, gdb_byte *buf)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->pseudo_register_read != NULL);
@@ -1989,7 +1966,7 @@ gdbarch_pseudo_register_read_value_p (struct gdbarch *gdbarch)
 }
 
 struct value *
-gdbarch_pseudo_register_read_value (struct gdbarch *gdbarch, struct regcache *regcache, int cookednum)
+gdbarch_pseudo_register_read_value (struct gdbarch *gdbarch, readable_regcache *regcache, int cookednum)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->pseudo_register_read_value != NULL);
@@ -2313,13 +2290,6 @@ set_gdbarch_register_type (struct gdbarch *gdbarch,
   gdbarch->register_type = register_type;
 }
 
-int
-gdbarch_dummy_id_p (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  return gdbarch->dummy_id != NULL;
-}
-
 struct frame_id
 gdbarch_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
 {
@@ -2362,13 +2332,13 @@ gdbarch_push_dummy_call_p (struct gdbarch *gdbarch)
 }
 
 CORE_ADDR
-gdbarch_push_dummy_call (struct gdbarch *gdbarch, struct value *function, struct regcache *regcache, CORE_ADDR bp_addr, int nargs, struct value **args, CORE_ADDR sp, int struct_return, CORE_ADDR struct_addr)
+gdbarch_push_dummy_call (struct gdbarch *gdbarch, struct value *function, struct regcache *regcache, CORE_ADDR bp_addr, int nargs, struct value **args, CORE_ADDR sp, function_call_return_method return_method, CORE_ADDR struct_addr)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->push_dummy_call != NULL);
   if (gdbarch_debug >= 2)
     fprintf_unfiltered (gdb_stdlog, "gdbarch_push_dummy_call called\n");
-  return gdbarch->push_dummy_call (gdbarch, function, regcache, bp_addr, nargs, args, sp, struct_return, struct_addr);
+  return gdbarch->push_dummy_call (gdbarch, function, regcache, bp_addr, nargs, args, sp, return_method, struct_addr);
 }
 
 void
@@ -3035,6 +3005,30 @@ set_gdbarch_fetch_tls_load_module_address (struct gdbarch *gdbarch,
   gdbarch->fetch_tls_load_module_address = fetch_tls_load_module_address;
 }
 
+int
+gdbarch_get_thread_local_address_p (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  return gdbarch->get_thread_local_address != NULL;
+}
+
+CORE_ADDR
+gdbarch_get_thread_local_address (struct gdbarch *gdbarch, ptid_t ptid, CORE_ADDR lm_addr, CORE_ADDR offset)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->get_thread_local_address != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_get_thread_local_address called\n");
+  return gdbarch->get_thread_local_address (gdbarch, ptid, lm_addr, offset);
+}
+
+void
+set_gdbarch_get_thread_local_address (struct gdbarch *gdbarch,
+                                      gdbarch_get_thread_local_address_ftype get_thread_local_address)
+{
+  gdbarch->get_thread_local_address = get_thread_local_address;
+}
+
 CORE_ADDR
 gdbarch_frame_args_skip (struct gdbarch *gdbarch)
 {
@@ -3052,13 +3046,6 @@ set_gdbarch_frame_args_skip (struct gdbarch *gdbarch,
   gdbarch->frame_args_skip = frame_args_skip;
 }
 
-int
-gdbarch_unwind_pc_p (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  return gdbarch->unwind_pc != NULL;
-}
-
 CORE_ADDR
 gdbarch_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
 {
@@ -3074,13 +3061,6 @@ set_gdbarch_unwind_pc (struct gdbarch *gdbarch,
                        gdbarch_unwind_pc_ftype unwind_pc)
 {
   gdbarch->unwind_pc = unwind_pc;
-}
-
-int
-gdbarch_unwind_sp_p (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  return gdbarch->unwind_sp != NULL;
 }
 
 CORE_ADDR
@@ -3216,6 +3196,23 @@ set_gdbarch_addr_bits_remove (struct gdbarch *gdbarch,
 }
 
 int
+gdbarch_significant_addr_bit (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  /* Skip verify of significant_addr_bit, invalid_p == 0 */
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_significant_addr_bit called\n");
+  return gdbarch->significant_addr_bit;
+}
+
+void
+set_gdbarch_significant_addr_bit (struct gdbarch *gdbarch,
+                                  int significant_addr_bit)
+{
+  gdbarch->significant_addr_bit = significant_addr_bit;
+}
+
+int
 gdbarch_software_single_step_p (struct gdbarch *gdbarch)
 {
   gdb_assert (gdbarch != NULL);
@@ -3329,6 +3326,23 @@ set_gdbarch_in_solib_return_trampoline (struct gdbarch *gdbarch,
                                         gdbarch_in_solib_return_trampoline_ftype in_solib_return_trampoline)
 {
   gdbarch->in_solib_return_trampoline = in_solib_return_trampoline;
+}
+
+bool
+gdbarch_in_indirect_branch_thunk (struct gdbarch *gdbarch, CORE_ADDR pc)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->in_indirect_branch_thunk != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_in_indirect_branch_thunk called\n");
+  return gdbarch->in_indirect_branch_thunk (gdbarch, pc);
+}
+
+void
+set_gdbarch_in_indirect_branch_thunk (struct gdbarch *gdbarch,
+                                      gdbarch_in_indirect_branch_thunk_ftype in_indirect_branch_thunk)
+{
+  gdbarch->in_indirect_branch_thunk = in_indirect_branch_thunk;
 }
 
 int
@@ -3653,30 +3667,6 @@ set_gdbarch_make_corefile_notes (struct gdbarch *gdbarch,
 }
 
 int
-gdbarch_elfcore_write_linux_prpsinfo_p (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  return gdbarch->elfcore_write_linux_prpsinfo != NULL;
-}
-
-char *
-gdbarch_elfcore_write_linux_prpsinfo (struct gdbarch *gdbarch, bfd *obfd, char *note_data, int *note_size, const struct elf_internal_linux_prpsinfo *info)
-{
-  gdb_assert (gdbarch != NULL);
-  gdb_assert (gdbarch->elfcore_write_linux_prpsinfo != NULL);
-  if (gdbarch_debug >= 2)
-    fprintf_unfiltered (gdb_stdlog, "gdbarch_elfcore_write_linux_prpsinfo called\n");
-  return gdbarch->elfcore_write_linux_prpsinfo (obfd, note_data, note_size, info);
-}
-
-void
-set_gdbarch_elfcore_write_linux_prpsinfo (struct gdbarch *gdbarch,
-                                          gdbarch_elfcore_write_linux_prpsinfo_ftype elfcore_write_linux_prpsinfo)
-{
-  gdbarch->elfcore_write_linux_prpsinfo = elfcore_write_linux_prpsinfo;
-}
-
-int
 gdbarch_find_memory_regions_p (struct gdbarch *gdbarch)
 {
   gdb_assert (gdbarch != NULL);
@@ -3755,7 +3745,7 @@ gdbarch_core_pid_to_str_p (struct gdbarch *gdbarch)
   return gdbarch->core_pid_to_str != NULL;
 }
 
-const char *
+std::string
 gdbarch_core_pid_to_str (struct gdbarch *gdbarch, ptid_t ptid)
 {
   gdb_assert (gdbarch != NULL);
@@ -3794,6 +3784,30 @@ set_gdbarch_core_thread_name (struct gdbarch *gdbarch,
                               gdbarch_core_thread_name_ftype core_thread_name)
 {
   gdbarch->core_thread_name = core_thread_name;
+}
+
+int
+gdbarch_core_xfer_siginfo_p (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  return gdbarch->core_xfer_siginfo != NULL;
+}
+
+LONGEST
+gdbarch_core_xfer_siginfo (struct gdbarch *gdbarch, gdb_byte *readbuf, ULONGEST offset, ULONGEST len)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->core_xfer_siginfo != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_core_xfer_siginfo called\n");
+  return gdbarch->core_xfer_siginfo (gdbarch,  readbuf, offset, len);
+}
+
+void
+set_gdbarch_core_xfer_siginfo (struct gdbarch *gdbarch,
+                               gdbarch_core_xfer_siginfo_ftype core_xfer_siginfo)
+{
+  gdbarch->core_xfer_siginfo = core_xfer_siginfo;
 }
 
 int
@@ -3904,7 +3918,7 @@ gdbarch_displaced_step_copy_insn_p (struct gdbarch *gdbarch)
   return gdbarch->displaced_step_copy_insn != NULL;
 }
 
-struct displaced_step_closure *
+displaced_step_closure_up
 gdbarch_displaced_step_copy_insn (struct gdbarch *gdbarch, CORE_ADDR from, CORE_ADDR to, struct regcache *regs)
 {
   gdb_assert (gdbarch != NULL);
@@ -4051,30 +4065,6 @@ set_gdbarch_core_read_description (struct gdbarch *gdbarch,
                                    gdbarch_core_read_description_ftype core_read_description)
 {
   gdbarch->core_read_description = core_read_description;
-}
-
-int
-gdbarch_static_transform_name_p (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  return gdbarch->static_transform_name != NULL;
-}
-
-const char *
-gdbarch_static_transform_name (struct gdbarch *gdbarch, const char *name)
-{
-  gdb_assert (gdbarch != NULL);
-  gdb_assert (gdbarch->static_transform_name != NULL);
-  if (gdbarch_debug >= 2)
-    fprintf_unfiltered (gdb_stdlog, "gdbarch_static_transform_name called\n");
-  return gdbarch->static_transform_name (name);
-}
-
-void
-set_gdbarch_static_transform_name (struct gdbarch *gdbarch,
-                                   gdbarch_static_transform_name_ftype static_transform_name)
-{
-  gdbarch->static_transform_name = static_transform_name;
 }
 
 int
@@ -4246,13 +4236,13 @@ gdbarch_get_syscall_number_p (struct gdbarch *gdbarch)
 }
 
 LONGEST
-gdbarch_get_syscall_number (struct gdbarch *gdbarch, ptid_t ptid)
+gdbarch_get_syscall_number (struct gdbarch *gdbarch, thread_info *thread)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->get_syscall_number != NULL);
   if (gdbarch_debug >= 2)
     fprintf_unfiltered (gdb_stdlog, "gdbarch_get_syscall_number called\n");
-  return gdbarch->get_syscall_number (gdbarch, ptid);
+  return gdbarch->get_syscall_number (gdbarch, thread);
 }
 
 void
@@ -4481,6 +4471,30 @@ set_gdbarch_stap_parse_special_token (struct gdbarch *gdbarch,
 }
 
 int
+gdbarch_stap_adjust_register_p (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  return gdbarch->stap_adjust_register != NULL;
+}
+
+std::string
+gdbarch_stap_adjust_register (struct gdbarch *gdbarch, struct stap_parse_info *p, const std::string &regname, int regnum)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->stap_adjust_register != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_stap_adjust_register called\n");
+  return gdbarch->stap_adjust_register (gdbarch, p, regname, regnum);
+}
+
+void
+set_gdbarch_stap_adjust_register (struct gdbarch *gdbarch,
+                                  gdbarch_stap_adjust_register_ftype stap_adjust_register)
+{
+  gdbarch->stap_adjust_register = stap_adjust_register;
+}
+
+int
 gdbarch_dtrace_parse_probe_argument_p (struct gdbarch *gdbarch)
 {
   gdb_assert (gdbarch != NULL);
@@ -4488,13 +4502,13 @@ gdbarch_dtrace_parse_probe_argument_p (struct gdbarch *gdbarch)
 }
 
 void
-gdbarch_dtrace_parse_probe_argument (struct gdbarch *gdbarch, struct parser_state *pstate, int narg)
+gdbarch_dtrace_parse_probe_argument (struct gdbarch *gdbarch, struct expr_builder *builder, int narg)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->dtrace_parse_probe_argument != NULL);
   if (gdbarch_debug >= 2)
     fprintf_unfiltered (gdb_stdlog, "gdbarch_dtrace_parse_probe_argument called\n");
-  gdbarch->dtrace_parse_probe_argument (gdbarch, pstate, narg);
+  gdbarch->dtrace_parse_probe_argument (gdbarch, builder, narg);
 }
 
 void
@@ -4628,7 +4642,7 @@ set_gdbarch_has_shared_address_space (struct gdbarch *gdbarch,
 }
 
 int
-gdbarch_fast_tracepoint_valid_at (struct gdbarch *gdbarch, CORE_ADDR addr, char **msg)
+gdbarch_fast_tracepoint_valid_at (struct gdbarch *gdbarch, CORE_ADDR addr, std::string *msg)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->fast_tracepoint_valid_at != NULL);
@@ -4878,6 +4892,23 @@ set_gdbarch_insn_is_jump (struct gdbarch *gdbarch,
   gdbarch->insn_is_jump = insn_is_jump;
 }
 
+bool
+gdbarch_program_breakpoint_here_p (struct gdbarch *gdbarch, CORE_ADDR address)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->program_breakpoint_here_p != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_program_breakpoint_here_p called\n");
+  return gdbarch->program_breakpoint_here_p (gdbarch, address);
+}
+
+void
+set_gdbarch_program_breakpoint_here_p (struct gdbarch *gdbarch,
+                                       gdbarch_program_breakpoint_here_p_ftype program_breakpoint_here_p)
+{
+  gdbarch->program_breakpoint_here_p = program_breakpoint_here_p;
+}
+
 int
 gdbarch_auxv_parse_p (struct gdbarch *gdbarch)
 {
@@ -4970,7 +5001,7 @@ set_gdbarch_infcall_munmap (struct gdbarch *gdbarch,
   gdbarch->infcall_munmap = infcall_munmap;
 }
 
-char *
+std::string
 gdbarch_gcc_target_options (struct gdbarch *gdbarch)
 {
   gdb_assert (gdbarch != NULL);
@@ -5021,6 +5052,23 @@ set_gdbarch_addressable_memory_unit_size (struct gdbarch *gdbarch,
   gdbarch->addressable_memory_unit_size = addressable_memory_unit_size;
 }
 
+const char *
+gdbarch_disassembler_options_implicit (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  /* Skip verify of disassembler_options_implicit, invalid_p == 0 */
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_disassembler_options_implicit called\n");
+  return gdbarch->disassembler_options_implicit;
+}
+
+void
+set_gdbarch_disassembler_options_implicit (struct gdbarch *gdbarch,
+                                           const char * disassembler_options_implicit)
+{
+  gdbarch->disassembler_options_implicit = disassembler_options_implicit;
+}
+
 char **
 gdbarch_disassembler_options (struct gdbarch *gdbarch)
 {
@@ -5038,7 +5086,7 @@ set_gdbarch_disassembler_options (struct gdbarch *gdbarch,
   gdbarch->disassembler_options = disassembler_options;
 }
 
-const disasm_options_t *
+const disasm_options_and_args_t *
 gdbarch_valid_disassembler_options (struct gdbarch *gdbarch)
 {
   gdb_assert (gdbarch != NULL);
@@ -5050,9 +5098,43 @@ gdbarch_valid_disassembler_options (struct gdbarch *gdbarch)
 
 void
 set_gdbarch_valid_disassembler_options (struct gdbarch *gdbarch,
-                                        const disasm_options_t * valid_disassembler_options)
+                                        const disasm_options_and_args_t * valid_disassembler_options)
 {
   gdbarch->valid_disassembler_options = valid_disassembler_options;
+}
+
+ULONGEST
+gdbarch_type_align (struct gdbarch *gdbarch, struct type *type)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->type_align != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_type_align called\n");
+  return gdbarch->type_align (gdbarch, type);
+}
+
+void
+set_gdbarch_type_align (struct gdbarch *gdbarch,
+                        gdbarch_type_align_ftype type_align)
+{
+  gdbarch->type_align = type_align;
+}
+
+std::string
+gdbarch_get_pc_address_flags (struct gdbarch *gdbarch, frame_info *frame, CORE_ADDR pc)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->get_pc_address_flags != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_get_pc_address_flags called\n");
+  return gdbarch->get_pc_address_flags (frame, pc);
+}
+
+void
+set_gdbarch_get_pc_address_flags (struct gdbarch *gdbarch,
+                                  gdbarch_get_pc_address_flags_ftype get_pc_address_flags)
+{
+  gdbarch->get_pc_address_flags = get_pc_address_flags;
 }
 
 
@@ -5435,7 +5517,7 @@ set_target_gdbarch (struct gdbarch *new_gdbarch)
   gdb_assert (new_gdbarch != NULL);
   gdb_assert (new_gdbarch->initialized_p);
   current_inferior ()->gdbarch = new_gdbarch;
-  observer_notify_architecture_changed (new_gdbarch);
+  gdb::observers::architecture_changed.notify (new_gdbarch);
   registers_changed ();
 }
 
@@ -5447,10 +5529,9 @@ target_gdbarch (void)
   return current_inferior ()->gdbarch;
 }
 
-extern void _initialize_gdbarch (void);
-
+void _initialize_gdbarch ();
 void
-_initialize_gdbarch (void)
+_initialize_gdbarch ()
 {
   add_setshow_zuinteger_cmd ("arch", class_maintenance, &gdbarch_debug, _("\
 Set architecture debugging."), _("\

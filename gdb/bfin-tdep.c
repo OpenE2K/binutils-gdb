@@ -1,6 +1,6 @@
 /* Target-dependent code for Analog Devices Blackfin processor, for GDB.
 
-   Copyright (C) 2005-2017 Free Software Foundation, Inc.
+   Copyright (C) 2005-2020 Free Software Foundation, Inc.
 
    Contributed by Analog Devices, Inc.
 
@@ -31,7 +31,7 @@
 #include "dis-asm.h"
 #include "sim-regno.h"
 #include "gdb/sim-bfin.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "symtab.h"
 #include "elf-bfd.h"
 #include "elf/bfin.h"
@@ -498,7 +498,7 @@ bfin_push_dummy_call (struct gdbarch *gdbarch,
 		      int nargs,
 		      struct value **args,
 		      CORE_ADDR sp,
-		      int struct_return,
+		      function_call_return_method return_method,
 		      CORE_ADDR struct_addr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
@@ -526,7 +526,7 @@ bfin_push_dummy_call (struct gdbarch *gdbarch,
     {
       struct type *value_type = value_enclosing_type (args[i]);
       struct type *arg_type = check_typedef (value_type);
-      int container_len = (TYPE_LENGTH (value_type) + 3) & ~3;
+      int container_len = (TYPE_LENGTH (arg_type) + 3) & ~3;
 
       sp -= container_len;
       write_memory (sp, value_contents (args[i]), container_len);
@@ -543,7 +543,7 @@ bfin_push_dummy_call (struct gdbarch *gdbarch,
 
   /* Store struct value address.  */
 
-  if (struct_return)
+  if (return_method == return_method_struct)
     regcache_cooked_write_unsigned (regcache, BFIN_P0_REGNUM, struct_addr);
 
   /* Set the dummy return value to bp_addr.
@@ -608,7 +608,7 @@ bfin_extract_return_value (struct type *type,
 			   struct regcache *regs,
 			   gdb_byte *dst)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regs);
+  struct gdbarch *gdbarch = regs->arch ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   bfd_byte *valbuf = dst;
   int len = TYPE_LENGTH (type);
@@ -647,7 +647,7 @@ bfin_store_return_value (struct type *type,
 
   while (len > 0)
     {
-      regcache_cooked_write (regs, regno++, valbuf);
+      regs->cooked_write (regno++, valbuf);
       len -= 4;
       valbuf += 4;
     }
@@ -688,7 +688,7 @@ bfin_register_name (struct gdbarch *gdbarch, int i)
 }
 
 static enum register_status
-bfin_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
+bfin_pseudo_register_read (struct gdbarch *gdbarch, readable_regcache *regcache,
 			   int regnum, gdb_byte *buffer)
 {
   gdb_byte buf[BFIN_MAX_REGISTER_SIZE];
@@ -699,7 +699,7 @@ bfin_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 		    _("invalid register number %d"), regnum);
 
   /* Extract the CC bit from the ASTAT register.  */
-  status = regcache_raw_read (regcache, BFIN_ASTAT_REGNUM, buf);
+  status = regcache->raw_read (BFIN_ASTAT_REGNUM, buf);
   if (status == REG_VALID)
     {
       buffer[1] = buffer[2] = buffer[3] = 0;
@@ -719,9 +719,9 @@ bfin_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
 		    _("invalid register number %d"), regnum);
 
   /* Overlay the CC bit in the ASTAT register.  */
-  regcache_raw_read (regcache, BFIN_ASTAT_REGNUM, buf);
+  regcache->raw_read (BFIN_ASTAT_REGNUM, buf);
   buf[0] = (buf[0] & ~ASTAT_CC) | ((buffer[0] & 1) << ASTAT_CC_POS);
-  regcache_raw_write (regcache, BFIN_ASTAT_REGNUM, buf);
+  regcache->raw_write (BFIN_ASTAT_REGNUM, buf);
 }
 
 static CORE_ADDR
@@ -755,22 +755,6 @@ static const struct frame_base bfin_frame_base =
   bfin_frame_local_address,
   bfin_frame_args_address
 };
-
-static struct frame_id
-bfin_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  CORE_ADDR sp;
-
-  sp = get_frame_register_unsigned (this_frame, BFIN_SP_REGNUM);
-
-  return frame_id_build (sp, get_frame_pc (this_frame));
-}
-
-static CORE_ADDR
-bfin_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame, BFIN_PC_REGNUM);
-}
 
 static CORE_ADDR
 bfin_frame_align (struct gdbarch *gdbarch, CORE_ADDR address)
@@ -826,7 +810,6 @@ bfin_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_dwarf2_reg_to_regnum (gdbarch, bfin_reg_to_regnum);
   set_gdbarch_register_name (gdbarch, bfin_register_name);
   set_gdbarch_register_type (gdbarch, bfin_register_type);
-  set_gdbarch_dummy_id (gdbarch, bfin_dummy_id);
   set_gdbarch_push_dummy_call (gdbarch, bfin_push_dummy_call);
   set_gdbarch_believe_pcc_promotion (gdbarch, 1);
   set_gdbarch_return_value (gdbarch, bfin_return_value);
@@ -836,7 +819,6 @@ bfin_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_sw_breakpoint_from_kind (gdbarch, bfin_sw_breakpoint_from_kind);
   set_gdbarch_decr_pc_after_break (gdbarch, 2);
   set_gdbarch_frame_args_skip (gdbarch, 8);
-  set_gdbarch_unwind_pc (gdbarch, bfin_unwind_pc);
   set_gdbarch_frame_align (gdbarch, bfin_frame_align);
 
   /* Hook in ABI-specific overrides, if they have been registered.  */
@@ -851,11 +833,9 @@ bfin_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   return gdbarch;
 }
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_bfin_tdep;
-
+void _initialize_bfin_tdep ();
 void
-_initialize_bfin_tdep (void)
+_initialize_bfin_tdep ()
 {
   register_gdbarch_init (bfd_arch_bfin, bfin_gdbarch_init);
 }

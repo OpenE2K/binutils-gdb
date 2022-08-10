@@ -1,6 +1,6 @@
 /* Branch trace support for GDB, the GNU debugger.
 
-   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+   Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
    Contributed by Intel Corp. <markus.t.metzger@intel.com>.
 
@@ -26,9 +26,9 @@
    inferior.  For presentation purposes, the branch trace is represented as a
    list of sequential control-flow blocks, one such list per thread.  */
 
-#include "btrace-common.h"
+#include "gdbsupport/btrace-common.h"
 #include "target/waitstatus.h" /* For enum target_stop_reason.  */
-#include "common/enum-flags.h"
+#include "gdbsupport/enum-flags.h"
 
 #if defined (HAVE_LIBIPT)
 #  include <intel-pt.h>
@@ -80,10 +80,6 @@ struct btrace_insn
   /* A bit vector of BTRACE_INSN_FLAGS.  */
   btrace_insn_flags flags;
 };
-
-/* A vector of branch trace instructions.  */
-typedef struct btrace_insn btrace_insn_s;
-DEF_VEC_O (btrace_insn_s);
 
 /* Flags for btrace function segments.  */
 enum btrace_function_flag
@@ -161,7 +157,7 @@ struct btrace_function
   /* The instructions in this function segment.
      The instruction vector will be empty if the function segment
      represents a decode error.  */
-  VEC (btrace_insn_s) *insn = NULL;
+  std::vector<btrace_insn> insn;
 
   /* The error code of a decode error that led to a gap.
      Must be zero unless INSN is empty; non-zero otherwise.  */
@@ -232,7 +228,7 @@ struct btrace_call_history
 };
 
 /* Branch trace thread flags.  */
-enum btrace_thread_flag
+enum btrace_thread_flag : unsigned
 {
   /* The thread is to be stepped forwards.  */
   BTHR_STEP = (1 << 0),
@@ -268,9 +264,6 @@ struct btrace_pt_packet
   struct pt_packet packet;
 };
 
-/* Define functions operating on a vector of packets.  */
-typedef struct btrace_pt_packet btrace_pt_packet_s;
-DEF_VEC_O (btrace_pt_packet_s);
 #endif /* defined (HAVE_LIBIPT)  */
 
 /* Branch trace iteration state for "maintenance btrace packet-history".  */
@@ -304,7 +297,7 @@ struct btrace_maint_info
     struct
     {
       /* A vector of decoded packets.  */
-      VEC (btrace_pt_packet_s) *packets;
+      std::vector<btrace_pt_packet> *packets;
 
       /* The packet history iterator.
 	 We are iterating over the above PACKETS vector.  */
@@ -389,8 +382,10 @@ extern void btrace_teardown (struct thread_info *);
 
 extern const char *btrace_decode_error (enum btrace_format format, int errcode);
 
-/* Fetch the branch trace for a single thread.  */
-extern void btrace_fetch (struct thread_info *);
+/* Fetch the branch trace for a single thread.  If CPU is not NULL, assume
+   CPU for trace decode.  */
+extern void btrace_fetch (struct thread_info *,
+			  const struct btrace_cpu *cpu);
 
 /* Clear the branch trace for a single thread.  */
 extern void btrace_clear (struct thread_info *);
@@ -450,7 +445,7 @@ extern int btrace_find_insn_by_number (struct btrace_insn_iterator *,
 				       unsigned int number);
 
 /* Dereference a branch trace call iterator.  Return a pointer to the
-   function the iterator points to or NULL if the interator points past
+   function the iterator points to or NULL if the iterator points past
    the end of the branch trace.  */
 extern const struct btrace_function *
   btrace_call_get (const struct btrace_call_iterator *);
@@ -508,8 +503,5 @@ extern int btrace_is_replaying (struct thread_info *tp);
 
 /* Return non-zero if the branch trace for TP is empty; zero otherwise.  */
 extern int btrace_is_empty (struct thread_info *tp);
-
-/* Create a cleanup for DATA.  */
-extern struct cleanup *make_cleanup_btrace_data (struct btrace_data *data);
 
 #endif /* BTRACE_H */

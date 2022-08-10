@@ -1,5 +1,5 @@
 /* Support for the generic parts of PE/PEI, for BFD.
-   Copyright (C) 1995-2017 Free Software Foundation, Inc.
+   Copyright (C) 1995-2020 Free Software Foundation, Inc.
    Written by Cygnus Solutions.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -24,7 +24,7 @@
 			sac@cygnus.com
 
    PE/PEI rearrangement (and code added): Donn Terry
-                                       Softway Systems, Inc.  */
+				       Softway Systems, Inc.  */
 
 /* Hey look, some documentation [and in a place you expect to find it]!
 
@@ -64,7 +64,7 @@ static bfd_boolean (*pe_saved_coff_bfd_print_private_bfd_data) (bfd *, void *) =
 #undef coff_bfd_print_private_bfd_data
 #endif
 
-static bfd_boolean                      pe_print_private_bfd_data (bfd *, void *);
+static bfd_boolean			pe_print_private_bfd_data (bfd *, void *);
 #define coff_bfd_print_private_bfd_data pe_print_private_bfd_data
 
 static bfd_boolean (*pe_saved_coff_bfd_copy_private_bfd_data) (bfd *, bfd *) =
@@ -75,10 +75,10 @@ static bfd_boolean (*pe_saved_coff_bfd_copy_private_bfd_data) (bfd *, bfd *) =
 #undef coff_bfd_copy_private_bfd_data
 #endif
 
-static bfd_boolean                     pe_bfd_copy_private_bfd_data (bfd *, bfd *);
+static bfd_boolean		       pe_bfd_copy_private_bfd_data (bfd *, bfd *);
 #define coff_bfd_copy_private_bfd_data pe_bfd_copy_private_bfd_data
 
-#define coff_mkobject      pe_mkobject
+#define coff_mkobject	   pe_mkobject
 #define coff_mkobject_hook pe_mkobject_hook
 
 #ifdef COFF_IMAGE_WITH_PE
@@ -90,17 +90,17 @@ typedef struct
   bfd *			abfd;
   bfd_byte *		data;
   struct bfd_in_memory * bim;
-  unsigned short        magic;
+  unsigned short	magic;
 
   arelent *		reltab;
-  unsigned int 		relcount;
+  unsigned int		relcount;
 
-  coff_symbol_type * 	sym_cache;
-  coff_symbol_type * 	sym_ptr;
-  unsigned int       	sym_index;
+  coff_symbol_type *	sym_cache;
+  coff_symbol_type *	sym_ptr;
+  unsigned int		sym_index;
 
-  unsigned int * 	sym_table;
-  unsigned int * 	table_ptr;
+  unsigned int *	sym_table;
+  unsigned int *	table_ptr;
 
   combined_entry_type * native_syms;
   combined_entry_type * native_ptr;
@@ -110,19 +110,19 @@ typedef struct
 
   unsigned int		sec_index;
 
-  char *                string_table;
-  char *                string_ptr;
+  char *		string_table;
+  char *		string_ptr;
   char *		end_string_ptr;
 
-  SYMENT *              esym_table;
-  SYMENT *              esym_ptr;
+  SYMENT *		esym_table;
+  SYMENT *		esym_ptr;
 
   struct internal_reloc * int_reltab;
 }
 pe_ILF_vars;
 #endif /* COFF_IMAGE_WITH_PE */
 
-const bfd_target *coff_real_object_p
+bfd_cleanup coff_real_object_p
   (bfd *, unsigned, struct internal_filehdr *, struct internal_aouthdr *);
 
 #ifndef NO_COFF_RELOCS
@@ -244,7 +244,7 @@ coff_swap_scnhdr_in (bfd * abfd, void * ext, void * in)
   if (scnhdr_int->s_paddr > 0
       && (((scnhdr_int->s_flags & IMAGE_SCN_CNT_UNINITIALIZED_DATA) != 0
 	   && (! bfd_pei_p (abfd) || scnhdr_int->s_size == 0))
-          || (bfd_pei_p (abfd) && (scnhdr_int->s_size > scnhdr_int->s_paddr))))
+	  || (bfd_pei_p (abfd) && (scnhdr_int->s_size > scnhdr_int->s_paddr))))
   /* This code used to set scnhdr_int->s_paddr to 0.  However,
      coff_set_alignment_hook stores s_paddr in virt_size, which
      only works if it correctly holds the virtual size of the
@@ -257,7 +257,7 @@ static bfd_boolean
 pe_mkobject (bfd * abfd)
 {
   pe_data_type *pe;
-  bfd_size_type amt = sizeof (pe_data_type);
+  size_t amt = sizeof (pe_data_type);
 
   abfd->tdata.pe_obj_data = (struct pe_tdata *) bfd_zalloc (abfd, amt);
 
@@ -270,6 +270,24 @@ pe_mkobject (bfd * abfd)
 
   /* in_reloc_p is architecture dependent.  */
   pe->in_reloc_p = in_reloc_p;
+
+  /* Default DOS message string.  */
+  pe->dos_message[0]  = 0x0eba1f0e;
+  pe->dos_message[1]  = 0xcd09b400;
+  pe->dos_message[2]  = 0x4c01b821;
+  pe->dos_message[3]  = 0x685421cd;
+  pe->dos_message[4]  = 0x70207369;
+  pe->dos_message[5]  = 0x72676f72;
+  pe->dos_message[6]  = 0x63206d61;
+  pe->dos_message[7]  = 0x6f6e6e61;
+  pe->dos_message[8]  = 0x65622074;
+  pe->dos_message[9]  = 0x6e757220;
+  pe->dos_message[10] = 0x206e6920;
+  pe->dos_message[11] = 0x20534f44;
+  pe->dos_message[12] = 0x65646f6d;
+  pe->dos_message[13] = 0x0a0d0d2e;
+  pe->dos_message[14] = 0x24;
+  pe->dos_message[15] = 0x0;
 
   memset (& pe->pe_opthdr, 0, sizeof pe->pe_opthdr);
   return TRUE;
@@ -324,6 +342,9 @@ pe_mkobject_hook (bfd * abfd,
   if (! _bfd_coff_arm_set_private_flags (abfd, internal_f->f_flags))
     coff_data (abfd) ->flags = 0;
 #endif
+
+  memcpy (pe->dos_message, internal_f->pe.dos_message,
+	  sizeof (pe->dos_message));
 
   return (void *) pe;
 }
@@ -400,8 +421,8 @@ pe_bfd_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
       the table in order to for the string lookup code in coffgen/coffcode to
       work.  */
 #define NUM_ILF_RELOCS		8
-#define NUM_ILF_SECTIONS        6
-#define NUM_ILF_SYMS 		(2 + NUM_ILF_SECTIONS)
+#define NUM_ILF_SECTIONS	6
+#define NUM_ILF_SYMS		(2 + NUM_ILF_SECTIONS)
 
 #define SIZEOF_ILF_SYMS		 (NUM_ILF_SYMS * sizeof (* vars.sym_cache))
 #define SIZEOF_ILF_SYM_TABLE	 (NUM_ILF_SYMS * sizeof (* vars.sym_table))
@@ -427,7 +448,7 @@ pe_bfd_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
 
 #define SIZEOF_IDATA6		(2 + strlen (symbol_name) + 1 + 1)
 #define SIZEOF_IDATA7		(strlen (source_dll) + 1 + 1)
-#define SIZEOF_ILF_SECTIONS     (NUM_ILF_SECTIONS * sizeof (struct coff_section_tdata))
+#define SIZEOF_ILF_SECTIONS	(NUM_ILF_SECTIONS * sizeof (struct coff_section_tdata))
 
 #define ILF_DATA_SIZE				\
     + SIZEOF_ILF_SYMS				\
@@ -449,11 +470,11 @@ pe_bfd_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
 /* Create an empty relocation against the given symbol.  */
 
 static void
-pe_ILF_make_a_symbol_reloc (pe_ILF_vars *               vars,
-			    bfd_vma                     address,
-			    bfd_reloc_code_real_type    reloc,
-			    struct bfd_symbol **  	sym,
-			    unsigned int                sym_index)
+pe_ILF_make_a_symbol_reloc (pe_ILF_vars *		vars,
+			    bfd_vma			address,
+			    bfd_reloc_code_real_type	reloc,
+			    struct bfd_symbol **	sym,
+			    unsigned int		sym_index)
 {
   arelent * entry;
   struct internal_reloc * internal;
@@ -478,10 +499,10 @@ pe_ILF_make_a_symbol_reloc (pe_ILF_vars *               vars,
 /* Create an empty relocation against the given section.  */
 
 static void
-pe_ILF_make_a_reloc (pe_ILF_vars *             vars,
-		     bfd_vma                   address,
+pe_ILF_make_a_reloc (pe_ILF_vars *	       vars,
+		     bfd_vma		       address,
 		     bfd_reloc_code_real_type  reloc,
-		     asection_ptr              sec)
+		     asection_ptr	       sec)
 {
   pe_ILF_make_a_symbol_reloc (vars, address, reloc, sec->symbol_ptr_ptr,
 			      coff_section_data (vars->abfd, sec)->i);
@@ -565,8 +586,8 @@ pe_ILF_make_a_symbol (pe_ILF_vars *  vars,
      zero initialised.  They are just kept here as reminders.  */
 
   /* Initialise the internal symbol structure.  */
-  ent->u.syment.n_sclass          = sclass;
-  ent->u.syment.n_scnum           = section->target_index;
+  ent->u.syment.n_sclass	  = sclass;
+  ent->u.syment.n_scnum		  = section->target_index;
   ent->u.syment._n._n_n._n_offset = (bfd_hostptr_t) sym;
   ent->is_sym = TRUE;
 
@@ -574,7 +595,7 @@ pe_ILF_make_a_symbol (pe_ILF_vars *  vars,
   sym->symbol.name    = vars->string_ptr;
   sym->symbol.flags   = BSF_EXPORT | BSF_GLOBAL | extra_flags;
   sym->symbol.section = section;
-  sym->native         = ent;
+  sym->native	      = ent;
 
   * vars->table_ptr = vars->sym_index;
   * vars->sym_ptr_ptr = sym;
@@ -601,6 +622,7 @@ pe_ILF_make_a_section (pe_ILF_vars * vars,
 {
   asection_ptr sec;
   flagword     flags;
+  intptr_t alignment;
 
   sec = bfd_make_section_old_way (vars->abfd, name);
   if (sec == NULL)
@@ -608,16 +630,16 @@ pe_ILF_make_a_section (pe_ILF_vars * vars,
 
   flags = SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_KEEP | SEC_IN_MEMORY;
 
-  bfd_set_section_flags (vars->abfd, sec, flags | extra_flags);
+  bfd_set_section_flags (sec, flags | extra_flags);
 
-  (void) bfd_set_section_alignment (vars->abfd, sec, 2);
+  bfd_set_section_alignment (sec, 2);
 
   /* Check that we will not run out of space.  */
   BFD_ASSERT (vars->data + size < vars->bim->buffer + vars->bim->size);
 
   /* Set the section size and contents.  The actual
      contents are filled in by our parent.  */
-  bfd_set_section_size (vars->abfd, sec, (bfd_size_type) size);
+  bfd_set_section_size (sec, (bfd_size_type) size);
   sec->contents = vars->data;
   sec->target_index = vars->sec_index ++;
 
@@ -631,20 +653,18 @@ pe_ILF_make_a_section (pe_ILF_vars * vars,
   if (size & 1)
     vars->data --;
 
-# if (GCC_VERSION >= 3000)
   /* PR 18758: See note in pe_ILF_buid_a_bfd.  We must make sure that we
-     preserve host alignment requirements.  We test 'size' rather than
-     vars.data as we cannot perform binary arithmetic on pointers.  We assume
-     that vars.data was sufficiently aligned upon entry to this function.
-     The BFD_ASSERTs in this functions will warn us if we run out of room,
-     but we should already have enough padding built in to ILF_DATA_SIZE.  */
-  {
-    unsigned int alignment = __alignof__ (struct coff_section_tdata);
-
-    if (size & (alignment - 1))
-      vars->data += alignment - (size & (alignment - 1));
-  }
+     preserve host alignment requirements.  The BFD_ASSERTs in this
+     functions will warn us if we run out of room, but we should
+     already have enough padding built in to ILF_DATA_SIZE.  */
+#if GCC_VERSION >= 3000
+  alignment = __alignof__ (struct coff_section_tdata);
+#else
+  alignment = 8;
 #endif
+  vars->data
+    = (bfd_byte *) (((intptr_t) vars->data + alignment - 1) & -alignment);
+
   /* Create a coff_section_tdata structure for our use.  */
   sec->used_by_bfd = (struct coff_section_tdata *) vars->data;
   vars->data += sizeof (struct coff_section_tdata);
@@ -743,21 +763,22 @@ static jump_table jtab[] =
 /* Build a full BFD from the information supplied in a ILF object.  */
 
 static bfd_boolean
-pe_ILF_build_a_bfd (bfd *           abfd,
+pe_ILF_build_a_bfd (bfd *	    abfd,
 		    unsigned int    magic,
-		    char *          symbol_name,
-		    char *          source_dll,
+		    char *	    symbol_name,
+		    char *	    source_dll,
 		    unsigned int    ordinal,
 		    unsigned int    types)
 {
-  bfd_byte *               ptr;
-  pe_ILF_vars              vars;
+  bfd_byte *		   ptr;
+  pe_ILF_vars		   vars;
   struct internal_filehdr  internal_f;
-  unsigned int             import_type;
-  unsigned int             import_name_type;
-  asection_ptr             id4, id5, id6 = NULL, text = NULL;
-  coff_symbol_type **      imp_sym;
-  unsigned int             imp_index;
+  unsigned int		   import_type;
+  unsigned int		   import_name_type;
+  asection_ptr		   id4, id5, id6 = NULL, text = NULL;
+  coff_symbol_type **	   imp_sym;
+  unsigned int		   imp_index;
+  intptr_t alignment;
 
   /* Decode and verify the types field of the ILF structure.  */
   import_type = types & 0x3;
@@ -772,13 +793,13 @@ pe_ILF_build_a_bfd (bfd *           abfd,
     case IMPORT_CONST:
       /* XXX code yet to be written.  */
       /* xgettext:c-format */
-      _bfd_error_handler (_("%B: Unhandled import type; %x"),
+      _bfd_error_handler (_("%pB: unhandled import type; %x"),
 			  abfd, import_type);
       return FALSE;
 
     default:
       /* xgettext:c-format */
-      _bfd_error_handler (_("%B: Unrecognised import type; %x"),
+      _bfd_error_handler (_("%pB: unrecognized import type; %x"),
 			  abfd, import_type);
       return FALSE;
     }
@@ -793,7 +814,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
     default:
       /* xgettext:c-format */
-      _bfd_error_handler (_("%B: Unrecognised import name type; %x"),
+      _bfd_error_handler (_("%pB: unrecognized import name type; %x"),
 			  abfd, import_name_type);
       return FALSE;
     }
@@ -853,23 +874,17 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
   /* The remaining space in bim->buffer is used
      by the pe_ILF_make_a_section() function.  */
-# if (GCC_VERSION >= 3000)
+
   /* PR 18758: Make sure that the data area is sufficiently aligned for
-     pointers on the host.  __alignof__ is a gcc extension, hence the test
-     above.  For other compilers we will have to assume that the alignment is
-     unimportant, or else extra code can be added here and in
-     pe_ILF_make_a_section.
-
-     Note - we cannot test 'ptr' directly as it is illegal to perform binary
-     arithmetic on pointers, but we know that the strings section is the only
-     one that might end on an unaligned boundary.  */
-  {
-    unsigned int alignment = __alignof__ (char *);
-
-    if (SIZEOF_ILF_STRINGS & (alignment - 1))
-      ptr += alignment - (SIZEOF_ILF_STRINGS & (alignment - 1));
-  }
+     struct coff_section_tdata.  __alignof__ is a gcc extension, hence
+     the test of GCC_VERSION.  For other compilers we assume 8 byte
+     alignment.  */
+#if GCC_VERSION >= 3000
+  alignment = __alignof__ (struct coff_section_tdata);
+#else
+  alignment = 8;
 #endif
+  ptr = (bfd_byte *) (((intptr_t) ptr + alignment - 1) & -alignment);
 
   vars.data = ptr;
   vars.abfd = abfd;
@@ -974,7 +989,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
     case IMPORT_CODE:
       /* CODE functions are special, in that they get a trampoline that
-         jumps to the main import symbol.  Create a .text section to hold it.
+	 jumps to the main import symbol.  Create a .text section to hold it.
 	 First we need to look up its contents in the jump table.  */
       for (i = NUM_ENTRIES (jtab); i--;)
 	{
@@ -1093,7 +1108,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 
   /* Point the bfd at the symbol table.  */
   obj_symbols (abfd) = vars.sym_cache;
-  bfd_get_symcount (abfd) = vars.sym_index;
+  abfd->symcount = vars.sym_index;
 
   obj_raw_syments (abfd) = vars.native_syms;
   obj_raw_syment_count (abfd) = vars.sym_index;
@@ -1112,8 +1127,7 @@ pe_ILF_build_a_bfd (bfd *           abfd,
   return TRUE;
 
  error_return:
-  if (vars.bim->buffer != NULL)
-    free (vars.bim->buffer);
+  free (vars.bim->buffer);
   free (vars.bim);
   return FALSE;
 }
@@ -1121,18 +1135,18 @@ pe_ILF_build_a_bfd (bfd *           abfd,
 /* We have detected a Image Library Format archive element.
    Decode the element and return the appropriate target.  */
 
-static const bfd_target *
+static bfd_cleanup
 pe_ILF_object_p (bfd * abfd)
 {
-  bfd_byte        buffer[14];
-  bfd_byte *      ptr;
-  char *          symbol_name;
-  char *          source_dll;
-  unsigned int    machine;
-  bfd_size_type   size;
-  unsigned int    ordinal;
-  unsigned int    types;
-  unsigned int    magic;
+  bfd_byte	  buffer[14];
+  bfd_byte *	  ptr;
+  char *	  symbol_name;
+  char *	  source_dll;
+  unsigned int	  machine;
+  bfd_size_type	  size;
+  unsigned int	  ordinal;
+  unsigned int	  types;
+  unsigned int	  magic;
 
   /* Upon entry the first six bytes of the ILF header have
       already been read.  Now read the rest of the header.  */
@@ -1164,12 +1178,6 @@ pe_ILF_object_p (bfd * abfd)
     case IMAGE_FILE_MACHINE_AMD64:
 #ifdef AMD64MAGIC
       magic = AMD64MAGIC;
-#endif
-      break;
-
-    case IMAGE_FILE_MACHINE_M68K:
-#ifdef MC68AGIC
-      magic = MC68MAGIC;
 #endif
       break;
 
@@ -1214,7 +1222,7 @@ pe_ILF_object_p (bfd * abfd)
     default:
       _bfd_error_handler
 	/* xgettext:c-format */
-	(_("%B: Unrecognised machine type (0x%x)"
+	(_("%pB: unrecognised machine type (0x%x)"
 	   " in Import Library Format archive"),
 	 abfd, machine);
       bfd_set_error (bfd_error_malformed_archive);
@@ -1227,7 +1235,7 @@ pe_ILF_object_p (bfd * abfd)
     {
       _bfd_error_handler
 	/* xgettext:c-format */
-	(_("%B: Recognised but unhandled machine type (0x%x)"
+	(_("%pB: recognised but unhandled machine type (0x%x)"
 	   " in Import Library Format archive"),
 	 abfd, machine);
       bfd_set_error (bfd_error_wrong_format);
@@ -1245,7 +1253,7 @@ pe_ILF_object_p (bfd * abfd)
   if (size == 0)
     {
       _bfd_error_handler
-	(_("%B: size field is zero in Import Library Format header"), abfd);
+	(_("%pB: size field is zero in Import Library Format header"), abfd);
       bfd_set_error (bfd_error_malformed_archive);
 
       return NULL;
@@ -1258,15 +1266,9 @@ pe_ILF_object_p (bfd * abfd)
   /* ptr += 2; */
 
   /* Now read in the two strings that follow.  */
-  ptr = (bfd_byte *) bfd_alloc (abfd, size);
+  ptr = (bfd_byte *) _bfd_alloc_and_read (abfd, size, size);
   if (ptr == NULL)
     return NULL;
-
-  if (bfd_bread (ptr, size, abfd) != size)
-    {
-      bfd_release (abfd, ptr);
-      return NULL;
-    }
 
   symbol_name = (char *) ptr;
   /* See PR 20905 for an example of where the strnlen is necessary.  */
@@ -1277,7 +1279,7 @@ pe_ILF_object_p (bfd * abfd)
       || (bfd_size_type) ((bfd_byte *) source_dll - ptr) >= size)
     {
       _bfd_error_handler
-	(_("%B: string not null terminated in ILF object file."), abfd);
+	(_("%pB: string not null terminated in ILF object file"), abfd);
       bfd_set_error (bfd_error_malformed_archive);
       bfd_release (abfd, ptr);
       return NULL;
@@ -1291,7 +1293,7 @@ pe_ILF_object_p (bfd * abfd)
       return NULL;
     }
 
-  return abfd->xvec;
+  return _bfd_no_cleanup;
 }
 
 static void
@@ -1303,7 +1305,6 @@ pe_bfd_read_buildid (bfd *abfd)
   bfd_byte *data = 0;
   bfd_size_type dataoff;
   unsigned int i;
-
   bfd_vma addr = extra->DataDirectory[PE_DEBUG_DATA].VirtualAddress;
   bfd_size_type size = extra->DataDirectory[PE_DEBUG_DATA].Size;
 
@@ -1316,7 +1317,7 @@ pe_bfd_read_buildid (bfd *abfd)
   for (section = abfd->sections; section != NULL; section = section->next)
     {
       if ((addr >= section->vma) && (addr < (section->vma + section->size)))
-        break;
+	break;
     }
 
   if (section == NULL)
@@ -1327,19 +1328,22 @@ pe_bfd_read_buildid (bfd *abfd)
 
   dataoff = addr - section->vma;
 
-  /* PR 20605: Make sure that the data is really there.  */
-  if (dataoff + size > section->size)
+  /* PR 20605 and 22373: Make sure that the data is really there.
+     Note - since we are dealing with unsigned quantities we have
+     to be careful to check for potential overflows.  */
+  if (dataoff >= section->size
+      || size > section->size - dataoff)
     {
-      _bfd_error_handler (_("%B: Error: Debug Data ends beyond end of debug directory."),
-			  abfd);
+      _bfd_error_handler
+	(_("%pB: error: debug data ends beyond end of debug directory"),
+	 abfd);
       return;
     }
-  
+
   /* Read the whole section. */
   if (!bfd_malloc_and_get_section (abfd, section, &data))
     {
-      if (data != NULL)
-	free (data);
+      free (data);
       return;
     }
 
@@ -1353,44 +1357,46 @@ pe_bfd_read_buildid (bfd *abfd)
       _bfd_XXi_swap_debugdir_in (abfd, ext, &idd);
 
       if (idd.Type == PE_IMAGE_DEBUG_TYPE_CODEVIEW)
-        {
-          char buffer[256 + 1];
-          CODEVIEW_INFO *cvinfo = (CODEVIEW_INFO *) buffer;
+	{
+	  char buffer[256 + 1];
+	  CODEVIEW_INFO *cvinfo = (CODEVIEW_INFO *) buffer;
 
-          /*
-            The debug entry doesn't have to have to be in a section, in which
-            case AddressOfRawData is 0, so always use PointerToRawData.
-          */
-          if (_bfd_XXi_slurp_codeview_record (abfd,
-                                              (file_ptr) idd.PointerToRawData,
-                                              idd.SizeOfData, cvinfo))
-            {
-              struct bfd_build_id* build_id = bfd_alloc (abfd,
-                         sizeof (struct bfd_build_id) + cvinfo->SignatureLength);
-              if (build_id)
-                {
-                  build_id->size = cvinfo->SignatureLength;
-                  memcpy(build_id->data,  cvinfo->Signature,
-                         cvinfo->SignatureLength);
-                  abfd->build_id = build_id;
-                }
-            }
-          break;
-        }
+	  /*
+	    The debug entry doesn't have to have to be in a section, in which
+	    case AddressOfRawData is 0, so always use PointerToRawData.
+	  */
+	  if (_bfd_XXi_slurp_codeview_record (abfd,
+					      (file_ptr) idd.PointerToRawData,
+					      idd.SizeOfData, cvinfo))
+	    {
+	      struct bfd_build_id* build_id = bfd_alloc (abfd,
+			 sizeof (struct bfd_build_id) + cvinfo->SignatureLength);
+	      if (build_id)
+		{
+		  build_id->size = cvinfo->SignatureLength;
+		  memcpy(build_id->data,  cvinfo->Signature,
+			 cvinfo->SignatureLength);
+		  abfd->build_id = build_id;
+		}
+	    }
+	  break;
+	}
     }
+
+  free (data);
 }
 
-static const bfd_target *
+static bfd_cleanup
 pe_bfd_object_p (bfd * abfd)
 {
   bfd_byte buffer[6];
-  struct external_PEI_DOS_hdr dos_hdr;
+  struct external_DOS_hdr dos_hdr;
   struct external_PEI_IMAGE_hdr image_hdr;
   struct internal_filehdr internal_f;
   struct internal_aouthdr internal_a;
-  file_ptr opt_hdr_size;
+  bfd_size_type opt_hdr_size;
   file_ptr offset;
-  const bfd_target *result;
+  bfd_cleanup result;
 
   /* Detect if this a Microsoft Import Library Format element.  */
   /* First read the beginning of the header.  */
@@ -1418,7 +1424,7 @@ pe_bfd_object_p (bfd * abfd)
 
   /* There are really two magic numbers involved; the magic number
      that says this is a NT executable (PEI) and the magic number that
-     determines the architecture.  The former is DOSMAGIC, stored in
+     determines the architecture.  The former is IMAGE_DOS_SIGNATURE, stored in
      the e_magic field.  The latter is stored in the f_magic field.
      If the NT magic number isn't valid, the architecture magic number
      could be mimicked by some other field (specifically, the number
@@ -1426,7 +1432,7 @@ pe_bfd_object_p (bfd * abfd)
      correctly for a PEI file, check the e_magic number here, and, if
      it doesn't match, clobber the f_magic number so that we don't get
      a false match.  */
-  if (H_GET_16 (abfd, dos_hdr.e_magic) != DOSMAGIC)
+  if (H_GET_16 (abfd, dos_hdr.e_magic) != IMAGE_DOS_SIGNATURE)
     {
       bfd_set_error (bfd_error_wrong_format);
       return NULL;
@@ -1459,6 +1465,9 @@ pe_bfd_object_p (bfd * abfd)
       return NULL;
     }
 
+  memcpy (internal_f.pe.dos_message, dos_hdr.dos_message,
+	  sizeof (internal_f.pe.dos_message));
+
   /* Read the optional header, which has variable size.  */
   opt_hdr_size = internal_f.f_opthdr;
 
@@ -1471,12 +1480,11 @@ pe_bfd_object_p (bfd * abfd)
       if (amt < sizeof (PEAOUTHDR))
 	amt = sizeof (PEAOUTHDR);
 
-      opthdr = bfd_zalloc (abfd, amt);
+      opthdr = _bfd_alloc_and_read (abfd, amt, opt_hdr_size);
       if (opthdr == NULL)
 	return NULL;
-      if (bfd_bread (opthdr, opt_hdr_size, abfd)
-	  != (bfd_size_type) opt_hdr_size)
-	return NULL;
+      if (amt > opt_hdr_size)
+	memset (opthdr + opt_hdr_size, 0, amt - opt_hdr_size);
 
       bfd_set_error (bfd_error_no_error);
       bfd_coff_swap_aouthdr_in (abfd, opthdr, & internal_a);
@@ -1486,9 +1494,9 @@ pe_bfd_object_p (bfd * abfd)
 
 
   result = coff_real_object_p (abfd, internal_f.f_nscns, &internal_f,
-                               (opt_hdr_size != 0
-                                ? &internal_a
-                                : (struct internal_aouthdr *) NULL));
+			       (opt_hdr_size != 0
+				? &internal_a
+				: (struct internal_aouthdr *) NULL));
 
 
   if (result)

@@ -2,7 +2,7 @@
 
 # Architecture commands for GDB, the GNU debugger.
 #
-# Copyright (C) 1998-2017 Free Software Foundation, Inc.
+# Copyright (C) 1998-2020 Free Software Foundation, Inc.
 #
 # This file is part of GDB.
 #
@@ -24,22 +24,6 @@
 LANG=C ; export LANG
 LC_ALL=C ; export LC_ALL
 
-
-compare_new ()
-{
-    file=$1
-    if test ! -r ${file}
-    then
-	echo "${file} missing? cp new-${file} ${file}" 1>&2
-    elif diff -u ${file} new-${file}
-    then
-	echo "${file} unchanged" 1>&2
-    else
-	echo "${file} has changed? cp new-${file} ${file}" 1>&2
-    fi
-}
-
-
 # Format of the input table
 read="class returntype function formal actual staticdefault predefault postdefault invalid_p print garbage_at_eol"
 
@@ -50,6 +34,7 @@ do_read ()
     # On some SH's, 'read' trims leading and trailing whitespace by
     # default (e.g., bash), while on others (e.g., dash), it doesn't.
     # Set IFS to empty to disable the trimming everywhere.
+    # shellcheck disable=SC2162
     while IFS='' read line
     do
 	if test "${line}" = ""
@@ -67,15 +52,15 @@ ${line}"
 	    # The semantics of IFS varies between different SH's.  Some
 	    # treat ``;;' as three fields while some treat it as just two.
 	    # Work around this by eliminating ``;;'' ....
-	    line="`echo "${line}" | sed -e 's/;;/; ;/g' -e 's/;;/; ;/g'`"
+	    line="$(echo "${line}" | sed -e 's/;;/; ;/g' -e 's/;;/; ;/g')"
 
 	    OFS="${IFS}" ; IFS="[;]"
-	    eval read ${read} <<EOF
+	    eval read "${read}" <<EOF
 ${line}
 EOF
 	    IFS="${OFS}"
 
-	    if test -n "${garbage_at_eol}"
+	    if test -n "${garbage_at_eol:-}"
 	    then
 		echo "Garbage at end-of-line in ${line}" 1>&2
 		kill $$
@@ -86,26 +71,26 @@ EOF
 	    # that ended up with just that space character.
 	    for r in ${read}
 	    do
-		if eval test \"\${${r}}\" = \"\ \"
+		if eval test "\"\${${r}}\" = ' '"
 		then
-		    eval ${r}=""
+		    eval "${r}="
 		fi
 	    done
 
 	    case "${class}" in
-		m ) staticdefault="${predefault}" ;;
+		m ) staticdefault="${predefault:-}" ;;
 		M ) staticdefault="0" ;;
 		* ) test "${staticdefault}" || staticdefault=0 ;;
 	    esac
 
 	    case "${class}" in
 	    F | V | M )
-		case "${invalid_p}" in
+		case "${invalid_p:-}" in
 		"" )
 		    if test -n "${predefault}"
 		    then
 			#invalid_p="gdbarch->${function} == ${predefault}"
-			predicate="gdbarch->${function} != ${predefault}"
+			predicate="gdbarch->${function:-} != ${predefault}"
 		    elif class_is_variable_p
 		    then
 			predicate="gdbarch->${function} != 0"
@@ -121,23 +106,6 @@ EOF
 		    ;;
 		esac
 	    esac
-
-	    # PREDEFAULT is a valid fallback definition of MEMBER when
-	    # multi-arch is not enabled.  This ensures that the
-	    # default value, when multi-arch is the same as the
-	    # default value when not multi-arch.  POSTDEFAULT is
-	    # always a valid definition of MEMBER as this again
-	    # ensures consistency.
-
-	    if [ -n "${postdefault}" ]
-	    then
-		fallbackdefault="${postdefault}"
-	    elif [ -n "${predefault}" ]
-	    then
-		fallbackdefault="${predefault}"
-	    else
-		fallbackdefault="0"
-	    fi
 
 	    #NOT YET: See gdbarch.log for basic verification of
 	    # database
@@ -156,8 +124,8 @@ EOF
 
 fallback_default_p ()
 {
-    [ -n "${postdefault}" -a "x${invalid_p}" != "x0" ] \
-	|| [ -n "${predefault}" -a "x${invalid_p}" = "x0" ]
+    { [ -n "${postdefault:-}" ] && [ "x${invalid_p}" != "x0" ]; } \
+	|| { [ -n "${predefault}" ] && [ "x${invalid_p}" = "x0" ]; }
 }
 
 class_is_variable_p ()
@@ -347,10 +315,6 @@ i;enum gdb_osabi;osabi;;;GDB_OSABI_UNKNOWN
 #
 i;const struct target_desc *;target_desc;;;;;;;host_address_to_string (gdbarch->target_desc)
 
-# The bit byte-order has to do just with numbering of bits in debugging symbols
-# and such.  Conceptually, it's quite separate from byte/word byte order.
-v;int;bits_big_endian;;;1;(gdbarch->byte_order == BFD_ENDIAN_BIG);;0
-
 # Number of bits in a short or unsigned short for the target machine.
 v;int;short_bit;;;8 * sizeof (short);2*TARGET_CHAR_BIT;;0
 # Number of bits in an int or unsigned int for the target machine.
@@ -360,9 +324,6 @@ v;int;long_bit;;;8 * sizeof (long);4*TARGET_CHAR_BIT;;0
 # Number of bits in a long long or unsigned long long for the target
 # machine.
 v;int;long_long_bit;;;8 * sizeof (LONGEST);2*gdbarch->long_bit;;0
-# Alignment of a long long or unsigned long long for the target
-# machine.
-v;int;long_long_align_bit;;;8 * sizeof (LONGEST);2*gdbarch->long_bit;;0
 
 # The ABI default bit-size and format for "half", "float", "double", and
 # "long double".  These bit/format pairs should eventually be combined
@@ -422,19 +383,19 @@ v;int;dwarf2_addr_size;;;sizeof (void*);0;gdbarch_ptr_bit (gdbarch) / TARGET_CHA
 # One if \`char' acts like \`signed char', zero if \`unsigned char'.
 v;int;char_signed;;;1;-1;1
 #
-F;CORE_ADDR;read_pc;struct regcache *regcache;regcache
+F;CORE_ADDR;read_pc;readable_regcache *regcache;regcache
 F;void;write_pc;struct regcache *regcache, CORE_ADDR val;regcache, val
 # Function for getting target's idea of a frame pointer.  FIXME: GDB's
 # whole scheme for dealing with "frames" and "frame pointers" needs a
 # serious shakedown.
 m;void;virtual_frame_pointer;CORE_ADDR pc, int *frame_regnum, LONGEST *frame_offset;pc, frame_regnum, frame_offset;0;legacy_virtual_frame_pointer;;0
 #
-M;enum register_status;pseudo_register_read;struct regcache *regcache, int cookednum, gdb_byte *buf;regcache, cookednum, buf
+M;enum register_status;pseudo_register_read;readable_regcache *regcache, int cookednum, gdb_byte *buf;regcache, cookednum, buf
 # Read a register into a new struct value.  If the register is wholly
 # or partly unavailable, this should call mark_value_bytes_unavailable
 # as appropriate.  If this is defined, then pseudo_register_read will
 # never be called.
-M;struct value *;pseudo_register_read_value;struct regcache *regcache, int cookednum;regcache, cookednum
+M;struct value *;pseudo_register_read_value;readable_regcache *regcache, int cookednum;regcache, cookednum
 M;void;pseudo_register_write;struct regcache *regcache, int cookednum, const gdb_byte *buf;regcache, cookednum, buf
 #
 v;int;num_regs;;;0;-1
@@ -483,12 +444,20 @@ m;const char *;register_name;int regnr;regnr;;0
 # use "register_type".
 M;struct type *;register_type;int reg_nr;reg_nr
 
-M;struct frame_id;dummy_id;struct frame_info *this_frame;this_frame
+# Generate a dummy frame_id for THIS_FRAME assuming that the frame is
+# a dummy frame.  A dummy frame is created before an inferior call,
+# the frame_id returned here must match the frame_id that was built
+# for the inferior call.  Usually this means the returned frame_id's
+# stack address should match the address returned by
+# gdbarch_push_dummy_call, and the returned frame_id's code address
+# should match the address at which the breakpoint was set in the dummy
+# frame.
+m;struct frame_id;dummy_id;struct frame_info *this_frame;this_frame;;default_dummy_id;;0
 # Implement DUMMY_ID and PUSH_DUMMY_CALL, then delete
 # deprecated_fp_regnum.
 v;int;deprecated_fp_regnum;;;-1;-1;;0
 
-M;CORE_ADDR;push_dummy_call;struct value *function, struct regcache *regcache, CORE_ADDR bp_addr, int nargs, struct value **args, CORE_ADDR sp, int struct_return, CORE_ADDR struct_addr;function, regcache, bp_addr, nargs, args, sp, struct_return, struct_addr
+M;CORE_ADDR;push_dummy_call;struct value *function, struct regcache *regcache, CORE_ADDR bp_addr, int nargs, struct value **args, CORE_ADDR sp, function_call_return_method return_method, CORE_ADDR struct_addr;function, regcache, bp_addr, nargs, args, sp, return_method, struct_addr
 v;int;call_dummy_location;;;;AT_ENTRY_POINT;;0
 M;CORE_ADDR;push_dummy_code;CORE_ADDR sp, CORE_ADDR funaddr, struct value **args, int nargs, struct type *value_type, CORE_ADDR *real_pc, CORE_ADDR *bp_addr, struct regcache *regcache;sp, funaddr, args, nargs, value_type, real_pc, bp_addr, regcache
 
@@ -597,10 +566,18 @@ m;int;remote_register_number;int regno;regno;;default_remote_register_number;;0
 
 # Fetch the target specific address used to represent a load module.
 F;CORE_ADDR;fetch_tls_load_module_address;struct objfile *objfile;objfile
+
+# Return the thread-local address at OFFSET in the thread-local
+# storage for the thread PTID and the shared library or executable
+# file given by LM_ADDR.  If that block of thread-local storage hasn't
+# been allocated yet, this function may throw an error.  LM_ADDR may
+# be zero for statically linked multithreaded inferiors.
+
+M;CORE_ADDR;get_thread_local_address;ptid_t ptid, CORE_ADDR lm_addr, CORE_ADDR offset;ptid, lm_addr, offset
 #
 v;CORE_ADDR;frame_args_skip;;;0;;;0
-M;CORE_ADDR;unwind_pc;struct frame_info *next_frame;next_frame
-M;CORE_ADDR;unwind_sp;struct frame_info *next_frame;next_frame
+m;CORE_ADDR;unwind_pc;struct frame_info *next_frame;next_frame;;default_unwind_pc;;0
+m;CORE_ADDR;unwind_sp;struct frame_info *next_frame;next_frame;;default_unwind_sp;;0
 # DEPRECATED_FRAME_LOCALS_ADDRESS as been replaced by the per-frame
 # frame-base.  Enable frame-base before frame-unwind.
 F;int;frame_num_args;struct frame_info *frame;frame
@@ -620,6 +597,12 @@ m;CORE_ADDR;convert_from_func_ptr_addr;CORE_ADDR addr, struct target_ops *targ;a
 # sort of generic thing to handle alignment or segmentation (it's
 # possible it should be in TARGET_READ_PC instead).
 m;CORE_ADDR;addr_bits_remove;CORE_ADDR addr;addr;;core_addr_identity;;0
+
+# On some machines, not all bits of an address word are significant.
+# For example, on AArch64, the top bits of an address known as the "tag"
+# are ignored by the kernel, the hardware, etc. and can be regarded as
+# additional data associated with the address.
+v;int;significant_addr_bit;;;;;;0
 
 # FIXME/cagney/2001-01-18: This should be split in two.  A target method that
 # indicates if the target needs software single step.  An ISA method to
@@ -653,6 +636,9 @@ f;CORE_ADDR;skip_trampoline_code;struct frame_info *frame, CORE_ADDR pc;frame, p
 m;CORE_ADDR;skip_solib_resolver;CORE_ADDR pc;pc;;generic_skip_solib_resolver;;0
 # Some systems also have trampoline code for returning from shared libs.
 m;int;in_solib_return_trampoline;CORE_ADDR pc, const char *name;pc, name;;generic_in_solib_return_trampoline;;0
+
+# Return true if PC lies inside an indirect branch thunk.
+m;bool;in_indirect_branch_thunk;CORE_ADDR pc;pc;;default_in_indirect_branch_thunk;;0
 
 # A target might have problems with watchpoints as soon as the stack
 # frame of the current function has been destroyed.  This mostly happens
@@ -701,6 +687,8 @@ f;CORE_ADDR;adjust_dwarf2_addr;CORE_ADDR pc;pc;;default_adjust_dwarf2_addr;;0
 # stop PC.
 f;CORE_ADDR;adjust_dwarf2_line;CORE_ADDR addr, int rel;addr, rel;;default_adjust_dwarf2_line;;0
 v;int;cannot_step_breakpoint;;;0;0;;0
+# See comment in target.h about continuable, steppable and
+# non-steppable watchpoints.
 v;int;have_nonsteppable_watchpoint;;;0;0;;0
 F;int;address_class_type_flags;int byte_size, int dwarf2_addr_class;byte_size, dwarf2_addr_class
 M;const char *;address_class_type_flags_to_name;int type_flags;type_flags
@@ -728,13 +716,6 @@ M;void;iterate_over_regset_sections;iterate_over_regset_sections_cb *cb, void *c
 # Create core file notes
 M;char *;make_corefile_notes;bfd *obfd, int *note_size;obfd, note_size
 
-# The elfcore writer hook to use to write Linux prpsinfo notes to core
-# files.  Most Linux architectures use the same prpsinfo32 or
-# prpsinfo64 layouts, and so won't need to provide this hook, as we
-# call the Linux generic routines in bfd to write prpsinfo notes by
-# default.
-F;char *;elfcore_write_linux_prpsinfo;bfd *obfd, char *note_data, int *note_size, const struct elf_internal_linux_prpsinfo *info;obfd, note_data, note_size, info
-
 # Find core file memory regions
 M;int;find_memory_regions;find_memory_region_ftype func, void *data;func, data
 
@@ -750,10 +731,15 @@ M;ULONGEST;core_xfer_shared_libraries;gdb_byte *readbuf, ULONGEST offset, ULONGE
 M;ULONGEST;core_xfer_shared_libraries_aix;gdb_byte *readbuf, ULONGEST offset, ULONGEST len;readbuf, offset, len
 
 # How the core target converts a PTID from a core file to a string.
-M;const char *;core_pid_to_str;ptid_t ptid;ptid
+M;std::string;core_pid_to_str;ptid_t ptid;ptid
 
 # How the core target extracts the name of a thread from a core file.
 M;const char *;core_thread_name;struct thread_info *thr;thr
+
+# Read offset OFFSET of TARGET_OBJECT_SIGNAL_INFO signal information
+# from core file into buffer READBUF with length LEN.  Return the number
+# of bytes read (zero indicates EOF, a negative value indicates failure).
+M;LONGEST;core_xfer_siginfo;gdb_byte *readbuf, ULONGEST offset, ULONGEST len; readbuf, offset, len
 
 # BFD target to use when generating a core file.
 V;const char *;gcore_bfd_target;;;0;0;;;pstring (gdbarch->gcore_bfd_target)
@@ -781,9 +767,7 @@ V;ULONGEST;max_insn_length;;;0;0
 # not the copy at TO.  The caller should update it to point at TO later.
 #
 # Return a pointer to data of the architecture's choice to be passed
-# to gdbarch_displaced_step_fixup.  Or, return NULL to indicate that
-# the instruction's effects have been completely simulated, with the
-# resulting state written back to REGS.
+# to gdbarch_displaced_step_fixup.
 #
 # For a general explanation of displaced stepping and how GDB uses it,
 # see the comments in infrun.c.
@@ -795,14 +779,10 @@ V;ULONGEST;max_insn_length;;;0;0
 # If you do not provide this function, GDB assumes that the
 # architecture does not support displaced stepping.
 #
-# If your architecture doesn't need to adjust instructions before
-# single-stepping them, consider using simple_displaced_step_copy_insn
-# here.
-#
 # If the instruction cannot execute out of line, return NULL.  The
 # core falls back to stepping past the instruction in-line instead in
 # that case.
-M;struct displaced_step_closure *;displaced_step_copy_insn;CORE_ADDR from, CORE_ADDR to, struct regcache *regs;from, to, regs
+M;displaced_step_closure_up;displaced_step_copy_insn;CORE_ADDR from, CORE_ADDR to, struct regcache *regs;from, to, regs
 
 # Return true if GDB should use hardware single-stepping to execute
 # the displaced instruction identified by CLOSURE.  If false,
@@ -860,8 +840,6 @@ F;void;overlay_update;struct obj_section *osect;osect
 
 M;const struct target_desc *;core_read_description;struct target_ops *target, bfd *abfd;target, abfd
 
-# Handle special encoding of static variables in stabs debug info.
-F;const char *;static_transform_name;const char *name;name
 # Set if the address in N_SO or N_FUN stabs may be zero.
 v;int;sofun_address_maybe_missing;;;0;0;;0
 
@@ -904,7 +882,7 @@ M;void;record_special_symbol;struct objfile *objfile, asymbol *sym;objfile, sym
 # Function for the 'catch syscall' feature.
 
 # Get architecture-specific system calls information from registers.
-M;LONGEST;get_syscall_number;ptid_t ptid;ptid
+M;LONGEST;get_syscall_number;thread_info *thread;thread
 
 # The filename of the XML syscall for this architecture.
 v;const char *;xml_syscall_file;;;0;0;;0;pstring (gdbarch->xml_syscall_file)
@@ -1012,11 +990,36 @@ M;int;stap_is_single_operand;const char *s;s
 # parser), and should advance the buffer pointer (p->arg).
 M;int;stap_parse_special_token;struct stap_parse_info *p;p
 
+# Perform arch-dependent adjustments to a register name.
+#
+# In very specific situations, it may be necessary for the register
+# name present in a SystemTap probe's argument to be handled in a
+# special way.  For example, on i386, GCC may over-optimize the
+# register allocation and use smaller registers than necessary.  In
+# such cases, the client that is reading and evaluating the SystemTap
+# probe (ourselves) will need to actually fetch values from the wider
+# version of the register in question.
+#
+# To illustrate the example, consider the following probe argument
+# (i386):
+#
+#    4@%ax
+#
+# This argument says that its value can be found at the %ax register,
+# which is a 16-bit register.  However, the argument's prefix says
+# that its type is "uint32_t", which is 32-bit in size.  Therefore, in
+# this case, GDB should actually fetch the probe's value from register
+# %eax, not %ax.  In this scenario, this function would actually
+# replace the register name from %ax to %eax.
+#
+# The rationale for this can be found at PR breakpoints/24541.
+M;std::string;stap_adjust_register;struct stap_parse_info *p, const std::string \&regname, int regnum;p, regname, regnum
+
 # DTrace related functions.
 
 # The expression to compute the NARTGth+1 argument to a DTrace USDT probe.
 # NARG must be >= 0.
-M;void;dtrace_parse_probe_argument;struct parser_state *pstate, int narg;pstate, narg
+M;void;dtrace_parse_probe_argument;struct expr_builder *builder, int narg;builder, narg
 
 # True if the given ADDR does not contain the instruction sequence
 # corresponding to a disabled DTrace is-enabled probe.
@@ -1045,7 +1048,7 @@ v;int;has_global_breakpoints;;;0;0;;0
 m;int;has_shared_address_space;void;;;default_has_shared_address_space;;0
 
 # True if a fast tracepoint can be set at an address.
-m;int;fast_tracepoint_valid_at;CORE_ADDR addr, char **msg;addr, msg;;default_fast_tracepoint_valid_at;;0
+m;int;fast_tracepoint_valid_at;CORE_ADDR addr, std::string *msg;addr, msg;;default_fast_tracepoint_valid_at;;0
 
 # Guess register state based on tracepoint location.  Used for tracepoints
 # where no registers have been collected, but there's only one location,
@@ -1113,6 +1116,10 @@ m;int;insn_is_ret;CORE_ADDR addr;addr;;default_insn_is_ret;;0
 # Return non-zero if the instruction at ADDR is a jump; zero otherwise.
 m;int;insn_is_jump;CORE_ADDR addr;addr;;default_insn_is_jump;;0
 
+# Return true if there's a program/permanent breakpoint planted in
+# memory at ADDRESS, return false otherwise.
+m;bool;program_breakpoint_here_p;CORE_ADDR address;address;;default_program_breakpoint_here_p;;0
+
 # Read one auxv entry from *READPTR, not reading locations >= ENDPTR.
 # Return 0 if *READPTR is already at the end of the buffer.
 # Return -1 if there is insufficient buffer for a whole entry.
@@ -1141,8 +1148,8 @@ f;void;infcall_munmap;CORE_ADDR addr, CORE_ADDR size;addr, size;;default_infcall
 # Return string (caller has to use xfree for it) with options for GCC
 # to produce code for this target, typically "-m64", "-m32" or "-m31".
 # These options are put before CU's DW_AT_producer compilation options so that
-# they can override it.  Method may also return NULL.
-m;char *;gcc_target_options;void;;;default_gcc_target_options;;0
+# they can override it.
+m;std::string;gcc_target_options;void;;;default_gcc_target_options;;0
 
 # Return a regular expression that matches names used by this
 # architecture in GNU configury triplets.  The result is statically
@@ -1157,8 +1164,18 @@ m;const char *;gnu_triplet_regexp;void;;;default_gnu_triplet_regexp;;0
 m;int;addressable_memory_unit_size;void;;;default_addressable_memory_unit_size;;0
 
 # Functions for allowing a target to modify its disassembler options.
+v;const char *;disassembler_options_implicit;;;0;0;;0;pstring (gdbarch->disassembler_options_implicit)
 v;char **;disassembler_options;;;0;0;;0;pstring_ptr (gdbarch->disassembler_options)
-v;const disasm_options_t *;valid_disassembler_options;;;0;0;;0;host_address_to_string (gdbarch->valid_disassembler_options)
+v;const disasm_options_and_args_t *;valid_disassembler_options;;;0;0;;0;host_address_to_string (gdbarch->valid_disassembler_options)
+
+# Type alignment override method.  Return the architecture specific
+# alignment required for TYPE.  If there is no special handling
+# required for TYPE then return the value 0, GDB will then apply the
+# default rules as laid out in gdbtypes.c:type_align.
+m;ULONGEST;type_align;struct type *type;type;;default_type_align;;0
+
+# Return a string containing any flags for the given PC in the given FRAME.
+f;std::string;get_pc_address_flags;frame_info *frame, CORE_ADDR pc;frame, pc;;default_get_pc_address_flags;;0
 
 EOF
 }
@@ -1166,15 +1183,15 @@ EOF
 #
 # The .log file
 #
-exec > new-gdbarch.log
+exec > gdbarch.log
 function_list | while do_read
 do
     cat <<EOF
-${class} ${returntype} ${function} ($formal)
+${class} ${returntype:-} ${function} (${formal:-})
 EOF
     for r in ${read}
     do
-	eval echo \"\ \ \ \ ${r}=\${${r}}\"
+	eval echo "\"    ${r}=\${${r}}\""
     done
     if class_is_predicate_p && fallback_default_p
     then
@@ -1182,7 +1199,7 @@ EOF
 	kill $$
 	exit 1
     fi
-    if [ "x${invalid_p}" = "x0" -a -n "${postdefault}" ]
+    if [ "x${invalid_p}" = "x0" ] && [ -n "${postdefault}" ]
     then
 	echo "Error: postdefault is useless when invalid_p=0" 1>&2
 	kill $$
@@ -1202,7 +1219,6 @@ EOF
 done
 
 exec 1>&2
-compare_new gdbarch.log
 
 
 copyright ()
@@ -1213,7 +1229,7 @@ cat <<EOF
 
 /* Dynamic architecture support for GDB, the GNU debugger.
 
-   Copyright (C) 1998-2017 Free Software Foundation, Inc.
+   Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -1230,17 +1246,7 @@ cat <<EOF
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* This file was created with the aid of \`\`gdbarch.sh''.
-
-   The Bourne shell script \`\`gdbarch.sh'' creates the files
-   \`\`new-gdbarch.c'' and \`\`new-gdbarch.h and then compares them
-   against the existing \`\`gdbarch.[hc]''.  Any differences found
-   being reported.
-
-   If editing this file, please also run gdbarch.sh and merge any
-   changes into that script. Conversely, when making sweeping changes
-   to this file, modifying gdbarch.sh and using its output may prove
-   easier.  */
+/* This file was created with the aid of \`\`gdbarch.sh''.  */
 
 EOF
 }
@@ -1258,6 +1264,9 @@ cat <<EOF
 #include <vector>
 #include "frame.h"
 #include "dis-asm.h"
+#include "gdb_obstack.h"
+#include "infrun.h"
+#include "osabi.h"
 
 struct floatformat;
 struct ui_file;
@@ -1273,16 +1282,13 @@ struct target_ops;
 struct obstack;
 struct bp_target_info;
 struct target_desc;
-struct objfile;
 struct symbol;
-struct displaced_step_closure;
 struct syscall;
 struct agent_expr;
 struct axs_value;
 struct stap_parse_info;
-struct parser_state;
+struct expr_builder;
 struct ravenscar_arch_ops;
-struct elf_internal_linux_prpsinfo;
 struct mem_range;
 struct syscalls_info;
 struct thread_info;
@@ -1313,13 +1319,38 @@ typedef int (iterate_over_objfiles_in_search_order_cb_ftype)
 
 /* Callback type for regset section iterators.  The callback usually
    invokes the REGSET's supply or collect method, to which it must
-   pass a buffer with at least the given SIZE.  SECT_NAME is a BFD
-   section name, and HUMAN_NAME is used for diagnostic messages.
-   CB_DATA should have been passed unchanged through the iterator.  */
+   pass a buffer - for collects this buffer will need to be created using
+   COLLECT_SIZE, for supply the existing buffer being read from should
+   be at least SUPPLY_SIZE.  SECT_NAME is a BFD section name, and HUMAN_NAME
+   is used for diagnostic messages.  CB_DATA should have been passed
+   unchanged through the iterator.  */
 
 typedef void (iterate_over_regset_sections_cb)
-  (const char *sect_name, int size, const struct regset *regset,
-   const char *human_name, void *cb_data);
+  (const char *sect_name, int supply_size, int collect_size,
+   const struct regset *regset, const char *human_name, void *cb_data);
+
+/* For a function call, does the function return a value using a
+   normal value return or a structure return - passing a hidden
+   argument pointing to storage.  For the latter, there are two
+   cases: language-mandated structure return and target ABI
+   structure return.  */
+
+enum function_call_return_method
+{
+  /* Standard value return.  */
+  return_method_normal = 0,
+
+  /* Language ABI structure return.  This is handled
+     by passing the return location as the first parameter to
+     the function, even preceding "this".  */
+  return_method_hidden_param,
+
+  /* Target ABI struct return.  This is target-specific; for instance,
+     on ia64 the first argument is passed in out0 but the hidden
+     structure return pointer would normally be passed in r8.  */
+  return_method_struct,
+};
+
 EOF
 
 # function typedef's
@@ -1331,8 +1362,8 @@ do
     if class_is_info_p
     then
 	printf "\n"
-	printf "extern ${returntype} gdbarch_${function} (struct gdbarch *gdbarch);\n"
-	printf "/* set_gdbarch_${function}() - not applicable - pre-initialized.  */\n"
+	printf "extern %s gdbarch_%s (struct gdbarch *gdbarch);\n" "$returntype" "$function"
+	printf "/* set_gdbarch_%s() - not applicable - pre-initialized.  */\n" "$function"
     fi
 done
 
@@ -1353,41 +1384,38 @@ do
     if class_is_predicate_p
     then
 	printf "\n"
-	printf "extern int gdbarch_${function}_p (struct gdbarch *gdbarch);\n"
+	printf "extern int gdbarch_%s_p (struct gdbarch *gdbarch);\n" "$function"
     fi
     if class_is_variable_p
     then
 	printf "\n"
-	printf "extern ${returntype} gdbarch_${function} (struct gdbarch *gdbarch);\n"
-	printf "extern void set_gdbarch_${function} (struct gdbarch *gdbarch, ${returntype} ${function});\n"
+	printf "extern %s gdbarch_%s (struct gdbarch *gdbarch);\n" "$returntype" "$function"
+	printf "extern void set_gdbarch_%s (struct gdbarch *gdbarch, %s %s);\n" "$function" "$returntype" "$function"
     fi
     if class_is_function_p
     then
 	printf "\n"
 	if [ "x${formal}" = "xvoid" ] && class_is_multiarch_p
 	then
-	    printf "typedef ${returntype} (gdbarch_${function}_ftype) (struct gdbarch *gdbarch);\n"
+	    printf "typedef %s (gdbarch_%s_ftype) (struct gdbarch *gdbarch);\n" "$returntype" "$function"
 	elif class_is_multiarch_p
 	then
-	    printf "typedef ${returntype} (gdbarch_${function}_ftype) (struct gdbarch *gdbarch, ${formal});\n"
+	    printf "typedef %s (gdbarch_%s_ftype) (struct gdbarch *gdbarch, %s);\n" "$returntype" "$function" "$formal"
 	else
-	    printf "typedef ${returntype} (gdbarch_${function}_ftype) (${formal});\n"
+	    printf "typedef %s (gdbarch_%s_ftype) (%s);\n" "$returntype" "$function" "$formal"
 	fi
 	if [ "x${formal}" = "xvoid" ]
 	then
-	  printf "extern ${returntype} gdbarch_${function} (struct gdbarch *gdbarch);\n"
+	  printf "extern %s gdbarch_%s (struct gdbarch *gdbarch);\n" "$returntype" "$function"
 	else
-	  printf "extern ${returntype} gdbarch_${function} (struct gdbarch *gdbarch, ${formal});\n"
+	  printf "extern %s gdbarch_%s (struct gdbarch *gdbarch, %s);\n" "$returntype" "$function" "$formal"
 	fi
-	printf "extern void set_gdbarch_${function} (struct gdbarch *gdbarch, gdbarch_${function}_ftype *${function});\n"
+	printf "extern void set_gdbarch_%s (struct gdbarch *gdbarch, gdbarch_%s_ftype *%s);\n" "$function" "$function" "$function"
     fi
 done
 
 # close it off
 cat <<EOF
-
-/* Definition for an unknown syscall, used basically in error-cases.  */
-#define UNKNOWN_SYSCALL (-1)
 
 extern struct gdbarch_tdep *gdbarch_tdep (struct gdbarch *gdbarch);
 
@@ -1469,7 +1497,21 @@ struct gdbarch_info
   bfd *abfd;
 
   /* Use default: NULL (ZERO).  */
-  void *tdep_info;
+  union
+    {
+      /* Architecture-specific information.  The generic form for targets
+	 that have extra requirements.  */
+      struct gdbarch_tdep_info *tdep_info;
+
+      /* Architecture-specific target description data.  Numerous targets
+	 need only this, so give them an easy way to hold it.  */
+      struct tdesc_arch_data *tdesc_data;
+
+      /* SPU file system ID.  This is a single integer, so using the
+	 generic form would only complicate code.  Other targets may
+	 reuse this member if suitable.  */
+      int *id;
+    };
 
   /* Use default: GDB_OSABI_UNINITIALIZED (-1).  */
   enum gdb_osabi osabi;
@@ -1517,14 +1559,19 @@ extern struct gdbarch *gdbarch_alloc (const struct gdbarch_info *info, struct gd
 
 extern void gdbarch_free (struct gdbarch *);
 
+/* Get the obstack owned by ARCH.  */
+
+extern obstack *gdbarch_obstack (gdbarch *arch);
 
 /* Helper function.  Allocate memory from the \`\`struct gdbarch''
    obstack.  The memory is freed when the corresponding architecture
    is also freed.  */
 
-extern void *gdbarch_obstack_zalloc (struct gdbarch *gdbarch, long size);
-#define GDBARCH_OBSTACK_CALLOC(GDBARCH, NR, TYPE) ((TYPE *) gdbarch_obstack_zalloc ((GDBARCH), (NR) * sizeof (TYPE)))
-#define GDBARCH_OBSTACK_ZALLOC(GDBARCH, TYPE) ((TYPE *) gdbarch_obstack_zalloc ((GDBARCH), sizeof (TYPE)))
+#define GDBARCH_OBSTACK_CALLOC(GDBARCH, NR, TYPE) \
+  obstack_calloc<TYPE> (gdbarch_obstack ((GDBARCH)), (NR))
+
+#define GDBARCH_OBSTACK_ZALLOC(GDBARCH, TYPE) \
+  obstack_zalloc<TYPE> (gdbarch_obstack ((GDBARCH)))
 
 /* Duplicate STRING, returning an equivalent string that's allocated on the
    obstack associated with GDBARCH.  The string is freed when the corresponding
@@ -1606,11 +1653,19 @@ extern unsigned int gdbarch_debug;
 
 extern void gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file);
 
+/* Return the number of cooked registers (raw + pseudo) for ARCH.  */
+
+static inline int
+gdbarch_num_cooked_regs (gdbarch *arch)
+{
+  return gdbarch_num_regs (arch) + gdbarch_num_pseudo_regs (arch);
+}
+
 #endif
 EOF
 exec 1>&2
-#../move-if-change new-gdbarch.h gdbarch.h
-compare_new gdbarch.h
+../move-if-change new-gdbarch.h gdbarch.h
+rm -f new-gdbarch.h
 
 
 #
@@ -1632,10 +1687,12 @@ cat <<EOF
 #include "reggroups.h"
 #include "osabi.h"
 #include "gdb_obstack.h"
-#include "observer.h"
+#include "observable.h"
 #include "regcache.h"
 #include "objfiles.h"
 #include "auxv.h"
+#include "frame-unwind.h"
+#include "dummy-frame.h"
 
 /* Static function declarations */
 
@@ -1728,7 +1785,7 @@ function_list | while do_read
 do
     if class_is_info_p
     then
-	printf "  ${returntype} ${function};\n"
+	printf "  %s %s;\n" "$returntype" "$function"
     fi
 done
 printf "\n"
@@ -1769,10 +1826,10 @@ function_list | while do_read
 do
     if class_is_variable_p
     then
-	printf "  ${returntype} ${function};\n"
+	printf "  %s %s;\n" "$returntype" "$function"
     elif class_is_function_p
     then
-	printf "  gdbarch_${function}_ftype *${function};\n"
+	printf "  gdbarch_%s_ftype *%s;\n" "$function" "$function"
     fi
 done
 printf "};\n"
@@ -1808,7 +1865,7 @@ function_list | while do_read
 do
     if class_is_info_p
     then
-	printf "  gdbarch->${function} = info->${function};\n"
+	printf "  gdbarch->%s = info->%s;\n" "$function" "$function"
     fi
 done
 printf "\n"
@@ -1817,9 +1874,9 @@ function_list | while do_read
 do
     if class_is_function_p || class_is_variable_p
     then
-	if [ -n "${predefault}" -a "x${predefault}" != "x0" ]
+	if [ -n "${predefault}" ] && [ "x${predefault}" != "x0" ]
 	then
-	  printf "  gdbarch->${function} = ${predefault};\n"
+	  printf "  gdbarch->%s = %s;\n" "$function" "$predefault"
 	fi
     fi
 done
@@ -1834,15 +1891,10 @@ EOF
 printf "\n"
 printf "\n"
 cat <<EOF
-/* Allocate extra space using the per-architecture obstack.  */
 
-void *
-gdbarch_obstack_zalloc (struct gdbarch *arch, long size)
+obstack *gdbarch_obstack (gdbarch *arch)
 {
-  void *data = obstack_alloc (arch->obstack, size);
-
-  memset (data, 0, size);
-  return data;
+  return arch->obstack;
 }
 
 /* See gdbarch.h.  */
@@ -1897,31 +1949,31 @@ do
     then
 	if [ "x${invalid_p}" = "x0" ]
 	then
-	    printf "  /* Skip verify of ${function}, invalid_p == 0 */\n"
+	    printf "  /* Skip verify of %s, invalid_p == 0 */\n" "$function"
 	elif class_is_predicate_p
 	then
-	    printf "  /* Skip verify of ${function}, has predicate.  */\n"
+	    printf "  /* Skip verify of %s, has predicate.  */\n" "$function"
 	# FIXME: See do_read for potential simplification
- 	elif [ -n "${invalid_p}" -a -n "${postdefault}" ]
+	elif [ -n "${invalid_p}" ] && [ -n "${postdefault}" ]
 	then
-	    printf "  if (${invalid_p})\n"
-	    printf "    gdbarch->${function} = ${postdefault};\n"
-	elif [ -n "${predefault}" -a -n "${postdefault}" ]
+	    printf "  if (%s)\n" "$invalid_p"
+	    printf "    gdbarch->%s = %s;\n" "$function" "$postdefault"
+	elif [ -n "${predefault}" ] && [ -n "${postdefault}" ]
 	then
-	    printf "  if (gdbarch->${function} == ${predefault})\n"
-	    printf "    gdbarch->${function} = ${postdefault};\n"
+	    printf "  if (gdbarch->%s == %s)\n" "$function" "$predefault"
+	    printf "    gdbarch->%s = %s;\n" "$function" "$postdefault"
 	elif [ -n "${postdefault}" ]
 	then
-	    printf "  if (gdbarch->${function} == 0)\n"
-	    printf "    gdbarch->${function} = ${postdefault};\n"
+	    printf "  if (gdbarch->%s == 0)\n" "$function"
+	    printf "    gdbarch->%s = %s;\n" "$function" "$postdefault"
 	elif [ -n "${invalid_p}" ]
 	then
-	    printf "  if (${invalid_p})\n"
-	    printf "    log.puts (\"\\\\n\\\\t${function}\");\n"
+	    printf "  if (%s)\n" "$invalid_p"
+	    printf "    log.puts (\"\\\\n\\\\t%s\");\n" "$function"
 	elif [ -n "${predefault}" ]
 	then
-	    printf "  if (gdbarch->${function} == ${predefault})\n"
-	    printf "    log.puts (\"\\\\n\\\\t${function}\");\n"
+	    printf "  if (gdbarch->%s == %s)\n" "$function" "$predefault"
+	    printf "    log.puts (\"\\\\n\\\\t%s\");\n" "$function"
 	fi
     fi
 done
@@ -1957,15 +2009,15 @@ do
     if class_is_predicate_p
     then
 	printf "  fprintf_unfiltered (file,\n"
-	printf "                      \"gdbarch_dump: gdbarch_${function}_p() = %%d\\\\n\",\n"
-	printf "                      gdbarch_${function}_p (gdbarch));\n"
+	printf "                      \"gdbarch_dump: gdbarch_%s_p() = %%d\\\\n\",\n" "$function"
+	printf "                      gdbarch_%s_p (gdbarch));\n" "$function"
     fi
     # Print the corresponding value.
     if class_is_function_p
     then
 	printf "  fprintf_unfiltered (file,\n"
-	printf "                      \"gdbarch_dump: ${function} = <%%s>\\\\n\",\n"
-	printf "                      host_address_to_string (gdbarch->${function}));\n"
+	printf "                      \"gdbarch_dump: %s = <%%s>\\\\n\",\n" "$function"
+	printf "                      host_address_to_string (gdbarch->%s));\n" "$function"
     else
 	# It is a variable
 	case "${print}:${returntype}" in
@@ -1982,8 +2034,8 @@ do
 		;;
         esac
 	printf "  fprintf_unfiltered (file,\n"
-	printf "                      \"gdbarch_dump: ${function} = %s\\\\n\",\n" "${fmt}"
-	printf "                      ${print});\n"
+	printf "                      \"gdbarch_dump: %s = %s\\\\n\",\n" "$function" "$fmt"
+	printf "                      %s);\n" "$print"
     fi
 done
 cat <<EOF
@@ -2011,33 +2063,33 @@ do
     then
 	printf "\n"
 	printf "int\n"
-	printf "gdbarch_${function}_p (struct gdbarch *gdbarch)\n"
+	printf "gdbarch_%s_p (struct gdbarch *gdbarch)\n" "$function"
 	printf "{\n"
         printf "  gdb_assert (gdbarch != NULL);\n"
-	printf "  return ${predicate};\n"
+	printf "  return %s;\n" "$predicate"
 	printf "}\n"
     fi
     if class_is_function_p
     then
 	printf "\n"
-	printf "${returntype}\n"
+	printf "%s\n" "$returntype"
 	if [ "x${formal}" = "xvoid" ]
 	then
-	  printf "gdbarch_${function} (struct gdbarch *gdbarch)\n"
+	  printf "gdbarch_%s (struct gdbarch *gdbarch)\n" "$function"
 	else
-	  printf "gdbarch_${function} (struct gdbarch *gdbarch, ${formal})\n"
+	  printf "gdbarch_%s (struct gdbarch *gdbarch, %s)\n" "$function" "$formal"
 	fi
 	printf "{\n"
         printf "  gdb_assert (gdbarch != NULL);\n"
-	printf "  gdb_assert (gdbarch->${function} != NULL);\n"
+	printf "  gdb_assert (gdbarch->%s != NULL);\n" "$function"
 	if class_is_predicate_p && test -n "${predefault}"
 	then
 	    # Allow a call to a function with a predicate.
-	    printf "  /* Do not check predicate: ${predicate}, allow call.  */\n"
+	    printf "  /* Do not check predicate: %s, allow call.  */\n" "$predicate"
 	fi
 	printf "  if (gdbarch_debug >= 2)\n"
-	printf "    fprintf_unfiltered (gdb_stdlog, \"gdbarch_${function} called\\\\n\");\n"
-	if [ "x${actual}" = "x-" -o "x${actual}" = "x" ]
+	printf "    fprintf_unfiltered (gdb_stdlog, \"gdbarch_%s called\\\\n\");\n" "$function"
+	if [ "x${actual:-}" = "x-" ] || [ "x${actual:-}" = "x" ]
 	then
 	    if class_is_multiarch_p
 	    then
@@ -2055,58 +2107,58 @@ do
         fi
        	if [ "x${returntype}" = "xvoid" ]
 	then
-	  printf "  gdbarch->${function} (${params});\n"
+	  printf "  gdbarch->%s (%s);\n" "$function" "$params"
 	else
-	  printf "  return gdbarch->${function} (${params});\n"
+	  printf "  return gdbarch->%s (%s);\n" "$function" "$params"
 	fi
 	printf "}\n"
 	printf "\n"
 	printf "void\n"
-	printf "set_gdbarch_${function} (struct gdbarch *gdbarch,\n"
-        printf "            `echo ${function} | sed -e 's/./ /g'`  gdbarch_${function}_ftype ${function})\n"
+	printf "set_gdbarch_%s (struct gdbarch *gdbarch,\n" "$function"
+	printf "            %s  gdbarch_%s_ftype %s)\n" "$(echo "$function" | sed -e 's/./ /g')" "$function" "$function"
 	printf "{\n"
-	printf "  gdbarch->${function} = ${function};\n"
+	printf "  gdbarch->%s = %s;\n" "$function" "$function"
 	printf "}\n"
     elif class_is_variable_p
     then
 	printf "\n"
-	printf "${returntype}\n"
-	printf "gdbarch_${function} (struct gdbarch *gdbarch)\n"
+	printf "%s\n" "$returntype"
+	printf "gdbarch_%s (struct gdbarch *gdbarch)\n" "$function"
 	printf "{\n"
         printf "  gdb_assert (gdbarch != NULL);\n"
 	if [ "x${invalid_p}" = "x0" ]
 	then
-	    printf "  /* Skip verify of ${function}, invalid_p == 0 */\n"
+	    printf "  /* Skip verify of %s, invalid_p == 0 */\n" "$function"
 	elif [ -n "${invalid_p}" ]
 	then
 	    printf "  /* Check variable is valid.  */\n"
-	    printf "  gdb_assert (!(${invalid_p}));\n"
+	    printf "  gdb_assert (!(%s));\n" "$invalid_p"
 	elif [ -n "${predefault}" ]
 	then
 	    printf "  /* Check variable changed from pre-default.  */\n"
-	    printf "  gdb_assert (gdbarch->${function} != ${predefault});\n"
+	    printf "  gdb_assert (gdbarch->%s != %s);\n" "$function" "$predefault"
 	fi
 	printf "  if (gdbarch_debug >= 2)\n"
-	printf "    fprintf_unfiltered (gdb_stdlog, \"gdbarch_${function} called\\\\n\");\n"
-	printf "  return gdbarch->${function};\n"
+	printf "    fprintf_unfiltered (gdb_stdlog, \"gdbarch_%s called\\\\n\");\n" "$function"
+	printf "  return gdbarch->%s;\n" "$function"
 	printf "}\n"
 	printf "\n"
 	printf "void\n"
-	printf "set_gdbarch_${function} (struct gdbarch *gdbarch,\n"
-        printf "            `echo ${function} | sed -e 's/./ /g'`  ${returntype} ${function})\n"
+	printf "set_gdbarch_%s (struct gdbarch *gdbarch,\n" "$function"
+	printf "            %s  %s %s)\n" "$(echo "$function" | sed -e 's/./ /g')" "$returntype" "$function"
 	printf "{\n"
-	printf "  gdbarch->${function} = ${function};\n"
+	printf "  gdbarch->%s = %s;\n" "$function" "$function"
 	printf "}\n"
     elif class_is_info_p
     then
 	printf "\n"
-	printf "${returntype}\n"
-	printf "gdbarch_${function} (struct gdbarch *gdbarch)\n"
+	printf "%s\n" "$returntype"
+	printf "gdbarch_%s (struct gdbarch *gdbarch)\n" "$function"
 	printf "{\n"
         printf "  gdb_assert (gdbarch != NULL);\n"
 	printf "  if (gdbarch_debug >= 2)\n"
-	printf "    fprintf_unfiltered (gdb_stdlog, \"gdbarch_${function} called\\\\n\");\n"
-	printf "  return gdbarch->${function};\n"
+	printf "    fprintf_unfiltered (gdb_stdlog, \"gdbarch_%s called\\\\n\");\n" "$function"
+	printf "  return gdbarch->%s;\n" "$function"
 	printf "}\n"
     fi
 done
@@ -2494,7 +2546,7 @@ set_target_gdbarch (struct gdbarch *new_gdbarch)
   gdb_assert (new_gdbarch != NULL);
   gdb_assert (new_gdbarch->initialized_p);
   current_inferior ()->gdbarch = new_gdbarch;
-  observer_notify_architecture_changed (new_gdbarch);
+  gdb::observers::architecture_changed.notify (new_gdbarch);
   registers_changed ();
 }
 
@@ -2506,10 +2558,9 @@ target_gdbarch (void)
   return current_inferior ()->gdbarch;
 }
 
-extern void _initialize_gdbarch (void);
-
+void _initialize_gdbarch ();
 void
-_initialize_gdbarch (void)
+_initialize_gdbarch ()
 {
   add_setshow_zuinteger_cmd ("arch", class_maintenance, &gdbarch_debug, _("\\
 Set architecture debugging."), _("\\
@@ -2523,5 +2574,5 @@ EOF
 
 # close things off
 exec 1>&2
-#../move-if-change new-gdbarch.c gdbarch.c
-compare_new gdbarch.c
+../move-if-change new-gdbarch.c gdbarch.c
+rm -f new-gdbarch.c

@@ -1,6 +1,6 @@
 /* Remote File-I/O communications
 
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,16 +22,16 @@
 #include "defs.h"
 #include "gdbcmd.h"
 #include "remote.h"
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #include <sys/stat.h>
 #include "remote-fileio.h"
-#include "event-loop.h"
+#include "gdbsupport/event-loop.h"
 #include "target.h"
 #include "filenames.h"
-#include "filestuff.h"
+#include "gdbsupport/filestuff.h"
 
 #include <fcntl.h>
-#include "gdb_sys_time.h"
+#include "gdbsupport/gdb_sys_time.h"
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>		/* For cygwin_conv_path.  */
 #endif
@@ -313,7 +313,7 @@ remote_fileio_quit_handler (void)
 }
 
 static void
-remote_fileio_reply (int retcode, int error)
+remote_fileio_reply (remote_target *remote, int retcode, int error)
 {
   char buf[32];
   int ctrl_c = check_quit_flag ();
@@ -339,36 +339,36 @@ remote_fileio_reply (int retcode, int error)
         strcat (buf, ",C");
     }
   quit_handler = remote_fileio_o_quit_handler;
-  putpkt (buf);
+  putpkt (remote, buf);
 }
 
 static void
-remote_fileio_ioerror (void)
+remote_fileio_ioerror (remote_target *remote)
 {
-  remote_fileio_reply (-1, FILEIO_EIO);
+  remote_fileio_reply (remote, -1, FILEIO_EIO);
 }
 
 static void
-remote_fileio_badfd (void)
+remote_fileio_badfd (remote_target *remote)
 {
-  remote_fileio_reply (-1, FILEIO_EBADF);
+  remote_fileio_reply (remote, -1, FILEIO_EBADF);
 }
 
 static void
-remote_fileio_return_errno (int retcode)
+remote_fileio_return_errno (remote_target *remote, int retcode)
 {
-  remote_fileio_reply (retcode, retcode < 0
+  remote_fileio_reply (remote, retcode, retcode < 0
 		       ? host_to_fileio_error (errno) : 0);
 }
 
 static void
-remote_fileio_return_success (int retcode)
+remote_fileio_return_success (remote_target *remote, int retcode)
 {
-  remote_fileio_reply (retcode, 0);
+  remote_fileio_reply (remote, retcode, 0);
 }
 
 static void
-remote_fileio_func_open (char *buf)
+remote_fileio_func_open (remote_target *remote, char *buf)
 {
   CORE_ADDR ptrval;
   int length;
@@ -381,20 +381,20 @@ remote_fileio_func_open (char *buf)
   /* 1. Parameter: Ptr to pathname / length incl. trailing zero.  */
   if (remote_fileio_extract_ptr_w_len (&buf, &ptrval, &length))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   /* 2. Parameter: open flags */
   if (remote_fileio_extract_int (&buf, &num))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   flags = remote_fileio_oflags_to_host (num);
   /* 3. Parameter: open mode */
   if (remote_fileio_extract_int (&buf, &num))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   mode = remote_fileio_mode_to_host (num, 1);
@@ -403,7 +403,7 @@ remote_fileio_func_open (char *buf)
   pathname = (char *) alloca (length);
   if (target_read_memory (ptrval, (gdb_byte *) pathname, length) != 0)
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
 
@@ -414,13 +414,13 @@ remote_fileio_func_open (char *buf)
     {
       if (!S_ISREG (st.st_mode) && !S_ISDIR (st.st_mode))
 	{
-	  remote_fileio_reply (-1, FILEIO_ENODEV);
+	  remote_fileio_reply (remote, -1, FILEIO_ENODEV);
 	  return;
 	}
       if (S_ISDIR (st.st_mode)
 	  && ((flags & O_WRONLY) == O_WRONLY || (flags & O_RDWR) == O_RDWR))
 	{
-	  remote_fileio_reply (-1, FILEIO_EISDIR);
+	  remote_fileio_reply (remote, -1, FILEIO_EISDIR);
 	  return;
 	}
     }
@@ -428,16 +428,16 @@ remote_fileio_func_open (char *buf)
   fd = gdb_open_cloexec (pathname, flags, mode);
   if (fd < 0)
     {
-      remote_fileio_return_errno (-1);
+      remote_fileio_return_errno (remote, -1);
       return;
     }
 
   fd = remote_fileio_fd_to_targetfd (fd);
-  remote_fileio_return_success (fd);
+  remote_fileio_return_success (remote, fd);
 }
 
 static void
-remote_fileio_func_close (char *buf)
+remote_fileio_func_close (remote_target *remote, char *buf)
 {
   long num;
   int fd;
@@ -445,24 +445,24 @@ remote_fileio_func_close (char *buf)
   /* Parameter: file descriptor */
   if (remote_fileio_extract_int (&buf, &num))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   fd = remote_fileio_map_fd ((int) num);
   if (fd == FIO_FD_INVALID)
     {
-      remote_fileio_badfd ();
+      remote_fileio_badfd (remote);
       return;
     }
 
   if (fd != FIO_FD_CONSOLE_IN && fd != FIO_FD_CONSOLE_OUT && close (fd))
-    remote_fileio_return_errno (-1);
+    remote_fileio_return_errno (remote, -1);
   remote_fileio_close_target_fd ((int) num);
-  remote_fileio_return_success (0);
+  remote_fileio_return_success (remote, 0);
 }
 
 static void
-remote_fileio_func_read (char *buf)
+remote_fileio_func_read (remote_target *remote, char *buf)
 {
   long target_fd, num;
   LONGEST lnum;
@@ -475,26 +475,26 @@ remote_fileio_func_read (char *buf)
   /* 1. Parameter: file descriptor */
   if (remote_fileio_extract_int (&buf, &target_fd))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   fd = remote_fileio_map_fd ((int) target_fd);
   if (fd == FIO_FD_INVALID)
     {
-      remote_fileio_badfd ();
+      remote_fileio_badfd (remote);
       return;
     }
   /* 2. Parameter: buffer pointer */
   if (remote_fileio_extract_long (&buf, &lnum))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   ptrval = (CORE_ADDR) lnum;
   /* 3. Parameter: buffer length */
   if (remote_fileio_extract_int (&buf, &num))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   length = (size_t) num;
@@ -502,7 +502,7 @@ remote_fileio_func_read (char *buf)
   switch (fd)
     {
       case FIO_FD_CONSOLE_OUT:
-	remote_fileio_badfd ();
+	remote_fileio_badfd (remote);
 	return;
       case FIO_FD_CONSOLE_IN:
 	{
@@ -541,7 +541,7 @@ remote_fileio_func_read (char *buf)
 		 limit this read to something smaller than that - by a
 		 safe margin, in case the limit depends on system
 		 resources or version.  */
-	      ret = ui_file_read (gdb_stdtargin, (char *) buffer, 16383);
+	      ret = gdb_stdtargin->read ((char *) buffer, 16383);
 	      if (ret > 0 && (size_t)ret > length)
 		{
 		  remaining_buf = (char *) xmalloc (ret - length);
@@ -580,15 +580,15 @@ remote_fileio_func_read (char *buf)
     }
 
   if (ret < 0)
-    remote_fileio_return_errno (-1);
+    remote_fileio_return_errno (remote, -1);
   else
-    remote_fileio_return_success (ret);
+    remote_fileio_return_success (remote, ret);
 
   xfree (buffer);
 }
 
 static void
-remote_fileio_func_write (char *buf)
+remote_fileio_func_write (remote_target *remote, char *buf)
 {
   long target_fd, num;
   LONGEST lnum;
@@ -600,26 +600,26 @@ remote_fileio_func_write (char *buf)
   /* 1. Parameter: file descriptor */
   if (remote_fileio_extract_int (&buf, &target_fd))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   fd = remote_fileio_map_fd ((int) target_fd);
   if (fd == FIO_FD_INVALID)
     {
-      remote_fileio_badfd ();
+      remote_fileio_badfd (remote);
       return;
     }
   /* 2. Parameter: buffer pointer */
   if (remote_fileio_extract_long (&buf, &lnum))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   ptrval = (CORE_ADDR) lnum;
   /* 3. Parameter: buffer length */
   if (remote_fileio_extract_int (&buf, &num))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   length = (size_t) num;
@@ -628,21 +628,23 @@ remote_fileio_func_write (char *buf)
   if (target_read_memory (ptrval, buffer, length) != 0)
     {
       xfree (buffer);
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
 
   switch (fd)
     {
       case FIO_FD_CONSOLE_IN:
-	remote_fileio_badfd ();
+	remote_fileio_badfd (remote);
 	xfree (buffer);
 	return;
       case FIO_FD_CONSOLE_OUT:
-	ui_file_write (target_fd == 1 ? gdb_stdtarg : gdb_stdtargerr,
-		       (char *) buffer, length);
-	gdb_flush (target_fd == 1 ? gdb_stdtarg : gdb_stdtargerr);
-	ret = length;
+	{
+	  ui_file *file = target_fd == 1 ? gdb_stdtarg : gdb_stdtargerr;
+	  file->write ((char *) buffer, length);
+	  file->flush ();
+	  ret = length;
+	}
 	break;
       default:
 	ret = write (fd, buffer, length);
@@ -653,15 +655,15 @@ remote_fileio_func_write (char *buf)
     }
 
   if (ret < 0)
-    remote_fileio_return_errno (-1);
+    remote_fileio_return_errno (remote, -1);
   else
-    remote_fileio_return_success (ret);
+    remote_fileio_return_success (remote, ret);
 
   xfree (buffer);
 }
 
 static void
-remote_fileio_func_lseek (char *buf)
+remote_fileio_func_lseek (remote_target *remote, char *buf)
 {
   long num;
   LONGEST lnum;
@@ -671,50 +673,50 @@ remote_fileio_func_lseek (char *buf)
   /* 1. Parameter: file descriptor */
   if (remote_fileio_extract_int (&buf, &num))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   fd = remote_fileio_map_fd ((int) num);
   if (fd == FIO_FD_INVALID)
     {
-      remote_fileio_badfd ();
+      remote_fileio_badfd (remote);
       return;
     }
   else if (fd == FIO_FD_CONSOLE_IN || fd == FIO_FD_CONSOLE_OUT)
     {
-      remote_fileio_reply (-1, FILEIO_ESPIPE);
+      remote_fileio_reply (remote, -1, FILEIO_ESPIPE);
       return;
     }
 
   /* 2. Parameter: offset */
   if (remote_fileio_extract_long (&buf, &lnum))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   offset = (off_t) lnum;
   /* 3. Parameter: flag */
   if (remote_fileio_extract_int (&buf, &num))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   if (remote_fileio_seek_flag_to_host (num, &flag))
     {
-      remote_fileio_reply (-1, FILEIO_EINVAL);
+      remote_fileio_reply (remote, -1, FILEIO_EINVAL);
       return;
     }
   
   ret = lseek (fd, offset, flag);
 
   if (ret == (off_t) -1)
-    remote_fileio_return_errno (-1);
+    remote_fileio_return_errno (remote, -1);
   else
-    remote_fileio_return_success (ret);
+    remote_fileio_return_success (remote, ret);
 }
 
 static void
-remote_fileio_func_rename (char *buf)
+remote_fileio_func_rename (remote_target *remote, char *buf)
 {
   CORE_ADDR old_ptr, new_ptr;
   int old_len, new_len;
@@ -725,14 +727,14 @@ remote_fileio_func_rename (char *buf)
   /* 1. Parameter: Ptr to oldpath / length incl. trailing zero */
   if (remote_fileio_extract_ptr_w_len (&buf, &old_ptr, &old_len))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   
   /* 2. Parameter: Ptr to newpath / length incl. trailing zero */
   if (remote_fileio_extract_ptr_w_len (&buf, &new_ptr, &new_len))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   
@@ -740,7 +742,7 @@ remote_fileio_func_rename (char *buf)
   oldpath = (char *) alloca (old_len);
   if (target_read_memory (old_ptr, (gdb_byte *) oldpath, old_len) != 0)
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   
@@ -748,7 +750,7 @@ remote_fileio_func_rename (char *buf)
   newpath = (char *) alloca (new_len);
   if (target_read_memory (new_ptr, (gdb_byte *) newpath, new_len) != 0)
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   
@@ -758,7 +760,7 @@ remote_fileio_func_rename (char *buf)
   if ((!of && !S_ISREG (ost.st_mode) && !S_ISDIR (ost.st_mode))
       || (!nf && !S_ISREG (nst.st_mode) && !S_ISDIR (nst.st_mode)))
     {
-      remote_fileio_reply (-1, FILEIO_EACCES);
+      remote_fileio_reply (remote, -1, FILEIO_EACCES);
       return;
     }
 
@@ -800,14 +802,14 @@ remote_fileio_func_rename (char *buf)
 	}
 #endif
 
-      remote_fileio_return_errno (-1);
+      remote_fileio_return_errno (remote, -1);
     }
   else
-    remote_fileio_return_success (ret);
+    remote_fileio_return_success (remote, ret);
 }
 
 static void
-remote_fileio_func_unlink (char *buf)
+remote_fileio_func_unlink (remote_target *remote, char *buf)
 {
   CORE_ADDR ptrval;
   int length;
@@ -818,14 +820,14 @@ remote_fileio_func_unlink (char *buf)
   /* Parameter: Ptr to pathname / length incl. trailing zero */
   if (remote_fileio_extract_ptr_w_len (&buf, &ptrval, &length))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   /* Request pathname using 'm' packet */
   pathname = (char *) alloca (length);
   if (target_read_memory (ptrval, (gdb_byte *) pathname, length) != 0)
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
 
@@ -833,20 +835,20 @@ remote_fileio_func_unlink (char *buf)
      the correct return code).  */
   if (!stat (pathname, &st) && !S_ISREG (st.st_mode) && !S_ISDIR (st.st_mode))
     {
-      remote_fileio_reply (-1, FILEIO_ENODEV);
+      remote_fileio_reply (remote, -1, FILEIO_ENODEV);
       return;
     }
 
   ret = unlink (pathname);
 
   if (ret == -1)
-    remote_fileio_return_errno (-1);
+    remote_fileio_return_errno (remote, -1);
   else
-    remote_fileio_return_success (ret);
+    remote_fileio_return_success (remote, ret);
 }
 
 static void
-remote_fileio_func_stat (char *buf)
+remote_fileio_func_stat (remote_target *remote, char *buf)
 {
   CORE_ADDR statptr, nameptr;
   int ret, namelength;
@@ -858,14 +860,14 @@ remote_fileio_func_stat (char *buf)
   /* 1. Parameter: Ptr to pathname / length incl. trailing zero */
   if (remote_fileio_extract_ptr_w_len (&buf, &nameptr, &namelength))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
 
   /* 2. Parameter: Ptr to struct stat */
   if (remote_fileio_extract_long (&buf, &lnum))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   statptr = (CORE_ADDR) lnum;
@@ -874,7 +876,7 @@ remote_fileio_func_stat (char *buf)
   pathname = (char *) alloca (namelength);
   if (target_read_memory (nameptr, (gdb_byte *) pathname, namelength) != 0)
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
 
@@ -882,13 +884,13 @@ remote_fileio_func_stat (char *buf)
 
   if (ret == -1)
     {
-      remote_fileio_return_errno (-1);
+      remote_fileio_return_errno (remote, -1);
       return;
     }
   /* Only operate on regular files and directories.  */
   if (!ret && !S_ISREG (st.st_mode) && !S_ISDIR (st.st_mode))
     {
-      remote_fileio_reply (-1, FILEIO_EACCES);
+      remote_fileio_reply (remote, -1, FILEIO_EACCES);
       return;
     }
   if (statptr)
@@ -899,15 +901,15 @@ remote_fileio_func_stat (char *buf)
       errno = target_write_memory (statptr, (gdb_byte *) &fst, sizeof fst);
       if (errno != 0)
 	{
-	  remote_fileio_return_errno (-1);
+	  remote_fileio_return_errno (remote, -1);
 	  return;
 	}
     }
-  remote_fileio_return_success (ret);
+  remote_fileio_return_success (remote, ret);
 }
 
 static void
-remote_fileio_func_fstat (char *buf)
+remote_fileio_func_fstat (remote_target *remote, char *buf)
 {
   CORE_ADDR ptrval;
   int fd, ret;
@@ -920,19 +922,19 @@ remote_fileio_func_fstat (char *buf)
   /* 1. Parameter: file descriptor */
   if (remote_fileio_extract_int (&buf, &target_fd))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   fd = remote_fileio_map_fd ((int) target_fd);
   if (fd == FIO_FD_INVALID)
     {
-      remote_fileio_badfd ();
+      remote_fileio_badfd (remote);
       return;
     }
   /* 2. Parameter: Ptr to struct stat */
   if (remote_fileio_extract_long (&buf, &lnum))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   ptrval = (CORE_ADDR) lnum;
@@ -966,7 +968,7 @@ remote_fileio_func_fstat (char *buf)
 
   if (ret == -1)
     {
-      remote_fileio_return_errno (-1);
+      remote_fileio_return_errno (remote, -1);
       return;
     }
   if (ptrval)
@@ -976,15 +978,15 @@ remote_fileio_func_fstat (char *buf)
       errno = target_write_memory (ptrval, (gdb_byte *) &fst, sizeof fst);
       if (errno != 0)
 	{
-	  remote_fileio_return_errno (-1);
+	  remote_fileio_return_errno (remote, -1);
 	  return;
 	}
     }
-  remote_fileio_return_success (ret);
+  remote_fileio_return_success (remote, ret);
 }
 
 static void
-remote_fileio_func_gettimeofday (char *buf)
+remote_fileio_func_gettimeofday (remote_target *remote, char *buf)
 {
   LONGEST lnum;
   CORE_ADDR ptrval;
@@ -995,20 +997,20 @@ remote_fileio_func_gettimeofday (char *buf)
   /* 1. Parameter: struct timeval pointer */
   if (remote_fileio_extract_long (&buf, &lnum))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   ptrval = (CORE_ADDR) lnum;
   /* 2. Parameter: some pointer value...  */
   if (remote_fileio_extract_long (&buf, &lnum))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   /* ...which has to be NULL.  */
   if (lnum)
     {
-      remote_fileio_reply (-1, FILEIO_EINVAL);
+      remote_fileio_reply (remote, -1, FILEIO_EINVAL);
       return;
     }
 
@@ -1016,7 +1018,7 @@ remote_fileio_func_gettimeofday (char *buf)
 
   if (ret == -1)
     {
-      remote_fileio_return_errno (-1);
+      remote_fileio_return_errno (remote, -1);
       return;
     }
 
@@ -1027,15 +1029,15 @@ remote_fileio_func_gettimeofday (char *buf)
       errno = target_write_memory (ptrval, (gdb_byte *) &ftv, sizeof ftv);
       if (errno != 0)
 	{
-	  remote_fileio_return_errno (-1);
+	  remote_fileio_return_errno (remote, -1);
 	  return;
 	}
     }
-  remote_fileio_return_success (ret);
+  remote_fileio_return_success (remote, ret);
 }
 
 static void
-remote_fileio_func_isatty (char *buf)
+remote_fileio_func_isatty (remote_target *remote, char *buf)
 {
   long target_fd;
   int fd;
@@ -1043,16 +1045,16 @@ remote_fileio_func_isatty (char *buf)
   /* Parameter: file descriptor */
   if (remote_fileio_extract_int (&buf, &target_fd))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
   fd = remote_fileio_map_fd ((int) target_fd);
-  remote_fileio_return_success (fd == FIO_FD_CONSOLE_IN ||
-  				fd == FIO_FD_CONSOLE_OUT ? 1 : 0);
+  int ret = fd == FIO_FD_CONSOLE_IN || fd == FIO_FD_CONSOLE_OUT ? 1 : 0;
+  remote_fileio_return_success (remote, ret);
 }
 
 static void
-remote_fileio_func_system (char *buf)
+remote_fileio_func_system (remote_target *remote, char *buf)
 {
   CORE_ADDR ptrval;
   int ret, length;
@@ -1061,7 +1063,7 @@ remote_fileio_func_system (char *buf)
   /* Parameter: Ptr to commandline / length incl. trailing zero */
   if (remote_fileio_extract_ptr_w_len (&buf, &ptrval, &length))
     {
-      remote_fileio_ioerror ();
+      remote_fileio_ioerror (remote);
       return;
     }
 
@@ -1071,37 +1073,37 @@ remote_fileio_func_system (char *buf)
       cmdline = (char *) alloca (length);
       if (target_read_memory (ptrval, (gdb_byte *) cmdline, length) != 0)
 	{
-	  remote_fileio_ioerror ();
+	  remote_fileio_ioerror (remote);
 	  return;
 	}
     }
   
-  /* Check if system(3) has been explicitely allowed using the
+  /* Check if system(3) has been explicitly allowed using the
      `set remote system-call-allowed 1' command.  If length is 0,
      indicating a NULL parameter to the system call, return zero to
      indicate a shell is not available.  Otherwise fail with EPERM.  */
   if (!remote_fio_system_call_allowed)
     {
       if (!length)
-	remote_fileio_return_success (0);
+	remote_fileio_return_success (remote, 0);
       else
-	remote_fileio_reply (-1, FILEIO_EPERM);
+	remote_fileio_reply (remote, -1, FILEIO_EPERM);
       return;
     }
 
   ret = system (cmdline);
 
   if (!length)
-    remote_fileio_return_success (ret);
+    remote_fileio_return_success (remote, ret);
   else if (ret == -1)
-    remote_fileio_return_errno (-1);
+    remote_fileio_return_errno (remote, -1);
   else
-    remote_fileio_return_success (WEXITSTATUS (ret));
+    remote_fileio_return_success (remote, WEXITSTATUS (ret));
 }
 
 static struct {
   const char *name;
-  void (*func)(char *);
+  void (*func)(remote_target *remote, char *);
 } remote_fio_func_map[] = {
   { "open", remote_fileio_func_open },
   { "close", remote_fileio_func_close },
@@ -1118,10 +1120,9 @@ static struct {
   { NULL, NULL }
 };
 
-static int
-do_remote_fileio_request (struct ui_out *uiout, void *buf_arg)
+static void
+do_remote_fileio_request (remote_target *remote, char *buf)
 {
-  char *buf = (char *) buf_arg;
   char *c;
   int idx;
 
@@ -1135,10 +1136,10 @@ do_remote_fileio_request (struct ui_out *uiout, void *buf_arg)
   for (idx = 0; remote_fio_func_map[idx].name; ++idx)
     if (!strcmp (remote_fio_func_map[idx].name, buf))
       break;
-  if (!remote_fio_func_map[idx].name)	/* ERROR: No such function.  */
-    return RETURN_ERROR;
-  remote_fio_func_map[idx].func (c);
-  return 0;
+  if (!remote_fio_func_map[idx].name)
+    remote_fileio_reply (remote, -1, FILEIO_ENOSYS);
+  else
+    remote_fio_func_map[idx].func (remote, c);
 }
 
 /* Close any open descriptors, and reinitialize the file mapping.  */
@@ -1168,10 +1169,8 @@ remote_fileio_reset (void)
    acknowledged the Ctrl-C sent asynchronously earlier.  */
 
 void
-remote_fileio_request (char *buf, int ctrlc_pending_p)
+remote_fileio_request (remote_target *remote, char *buf, int ctrlc_pending_p)
 {
-  int ex;
-
   /* Save the previous quit handler, so we can restore it.  No need
      for a cleanup since we catch all exceptions below.  Note that the
      quit handler is also restored by remote_fileio_reply just before
@@ -1184,23 +1183,20 @@ remote_fileio_request (char *buf, int ctrlc_pending_p)
 	 asynchronously earlier, take this opportunity to send the
 	 Ctrl-C synchronously.  */
       set_quit_flag ();
-      remote_fileio_reply (-1, FILEIO_EINTR);
+      remote_fileio_reply (remote, -1, FILEIO_EINTR);
     }
   else
     {
-      ex = catch_exceptions (current_uiout,
-			     do_remote_fileio_request, (void *)buf,
-			     RETURN_MASK_ALL);
-      switch (ex)
+      try
 	{
-	case RETURN_ERROR:
-	  remote_fileio_reply (-1, FILEIO_ENOSYS);
-	  break;
-	case RETURN_QUIT:
-	  remote_fileio_reply (-1, FILEIO_EINTR);
-	  break;
-	default:
-	  break;
+	  do_remote_fileio_request (remote, buf);
+	}
+      catch (const gdb_exception &ex)
+	{
+	  if (ex.reason == RETURN_QUIT)
+	    remote_fileio_reply (remote, -1, FILEIO_EINTR);
+	  else
+	    remote_fileio_reply (remote, -1, FILEIO_EIO);
 	}
     }
 
@@ -1272,7 +1268,7 @@ remote_fileio_to_host_stat (struct fio_stat *fst, struct stat *st)
 
 
 static void
-set_system_call_allowed (char *args, int from_tty)
+set_system_call_allowed (const char *args, int from_tty)
 {
   if (args)
     {
@@ -1289,7 +1285,7 @@ set_system_call_allowed (char *args, int from_tty)
 }
 
 static void
-show_system_call_allowed (char *args, int from_tty)
+show_system_call_allowed (const char *args, int from_tty)
 {
   if (args)
     error (_("Garbage after \"show remote "
@@ -1299,15 +1295,15 @@ show_system_call_allowed (char *args, int from_tty)
 }
 
 void
-initialize_remote_fileio (struct cmd_list_element *remote_set_cmdlist,
-			  struct cmd_list_element *remote_show_cmdlist)
+initialize_remote_fileio (struct cmd_list_element **remote_set_cmdlist,
+			  struct cmd_list_element **remote_show_cmdlist)
 {
   add_cmd ("system-call-allowed", no_class,
 	   set_system_call_allowed,
 	   _("Set if the host system(3) call is allowed for the target."),
-	   &remote_set_cmdlist);
+	   remote_set_cmdlist);
   add_cmd ("system-call-allowed", no_class,
 	   show_system_call_allowed,
 	   _("Show if the host system(3) call is allowed for the target."),
-	   &remote_show_cmdlist);
+	   remote_show_cmdlist);
 }

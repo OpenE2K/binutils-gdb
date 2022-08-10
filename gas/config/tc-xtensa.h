@@ -1,5 +1,5 @@
 /* tc-xtensa.h -- Header file for tc-xtensa.c.
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -236,6 +236,10 @@ struct xtensa_frag_type
      align branch targets as if it were a normal narrow instruction.  */
   unsigned int is_aligning_branch : 1;
 
+  /* A trampoline frag that is located in the middle of code and thus
+     needs a jump around.  */
+  unsigned int needs_jump_around : 1;
+
   /* For text fragments that can generate literals at relax time, this
      variable points to the frag where the literal will be stored.  For
      literal frags, this variable points to the nearest literal pool
@@ -268,6 +272,9 @@ struct xtensa_frag_type
   enum xtensa_relax_statesE slot_subtypes[MAX_SLOTS];
   symbolS *slot_symbols[MAX_SLOTS];
   offsetT slot_offsets[MAX_SLOTS];
+
+  /* For trampoline fragments.  */
+  struct fix *jump_around_fix;
 
   /* When marking frags after this one in the chain as no transform,
      cache the last one in the chain, so that we can skip to the
@@ -349,7 +356,7 @@ extern void xtensa_init (int, char **);
 #define TC_FIX_TYPE			xtensa_fix_data
 #define TC_INIT_FIX_DATA(x)		xtensa_init_fix_data (x)
 #define TC_FRAG_TYPE			struct xtensa_frag_type
-#define TC_FRAG_INIT(frag)		xtensa_frag_init (frag)
+#define TC_FRAG_INIT(frag, max_bytes)	xtensa_frag_init (frag)
 #define TC_FORCE_RELOCATION(fix)	xtensa_force_relocation (fix)
 #define TC_FORCE_RELOCATION_SUB_SAME(fix, seg) \
   (GENERIC_FORCE_RELOCATION_SUB_SAME (fix, seg)	\

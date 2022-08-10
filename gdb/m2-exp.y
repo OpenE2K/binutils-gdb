@@ -1,5 +1,5 @@
 /* YACC grammar for Modula-2 expressions, for GDB.
-   Copyright (C) 1986-2017 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
    Generated from expread.y (now c-exp.y) and contributed by the Department
    of Computer Science at the State University of New York at Buffalo, 1991.
 
@@ -48,8 +48,8 @@
 #include "objfiles.h" /* For have_full_symbols and have_partial_symbols */
 #include "block.h"
 
-#define parse_type(ps) builtin_type (parse_gdbarch (ps))
-#define parse_m2_type(ps) builtin_m2_type (parse_gdbarch (ps))
+#define parse_type(ps) builtin_type (ps->gdbarch ())
+#define parse_m2_type(ps) builtin_m2_type (ps->gdbarch ())
 
 /* Remap normal yacc parser interface names (yyparse, yylex, yyerror,
    etc).  */
@@ -65,7 +65,7 @@ int yyparse (void);
 
 static int yylex (void);
 
-void yyerror (const char *);
+static void yyerror (const char *);
 
 static int parse_number (int);
 
@@ -82,7 +82,7 @@ static int number_sign = 1;
   {
     LONGEST lval;
     ULONGEST ulval;
-    DOUBLEST dval;
+    gdb_byte val[16];
     struct symbol *sym;
     struct type *tval;
     struct stoken sval;
@@ -103,7 +103,7 @@ static int number_sign = 1;
 
 %token <lval> INT HEX ERROR
 %token <ulval> UINT M2_TRUE M2_FALSE CHAR
-%token <dval> FLOAT
+%token <val> FLOAT
 
 /* Both NAME and TYPENAME tokens represent symbols in the input,
    and both convey their data as strings.
@@ -125,7 +125,7 @@ static int number_sign = 1;
 /* The GDB scope operator */
 %token COLONCOLON
 
-%token <voidval> INTERNAL_VAR
+%token <voidval> DOLLAR_VARIABLE
 
 /* M2 tokens */
 %left ','
@@ -298,11 +298,11 @@ exp     :       exp '['
                         /* This function just saves the number of arguments
 			   that follow in the list.  It is *not* specific to
 			   function types */
-                        { start_arglist(); }
+                        { pstate->start_arglist(); }
                 non_empty_arglist ']'  %prec DOT
                         { write_exp_elt_opcode (pstate, MULTI_SUBSCRIPT);
 			  write_exp_elt_longcst (pstate,
-						 (LONGEST) end_arglist());
+						 pstate->end_arglist());
 			  write_exp_elt_opcode (pstate, MULTI_SUBSCRIPT); }
         ;
 
@@ -313,11 +313,11 @@ exp	:	exp '[' exp ']'
 exp	:	exp '('
 			/* This is to save the value of arglist_len
 			   being accumulated by an outer function call.  */
-			{ start_arglist (); }
+			{ pstate->start_arglist (); }
 		arglist ')'	%prec DOT
 			{ write_exp_elt_opcode (pstate, OP_FUNCALL);
 			  write_exp_elt_longcst (pstate,
-						 (LONGEST) end_arglist ());
+						 pstate->end_arglist ());
 			  write_exp_elt_opcode (pstate, OP_FUNCALL); }
 	;
 
@@ -325,21 +325,21 @@ arglist	:
 	;
 
 arglist	:	exp
-			{ arglist_len = 1; }
+			{ pstate->arglist_len = 1; }
 	;
 
 arglist	:	arglist ',' exp   %prec ABOVE_COMMA
-			{ arglist_len++; }
+			{ pstate->arglist_len++; }
 	;
 
 non_empty_arglist
         :       exp
-                        { arglist_len = 1; }
+                        { pstate->arglist_len = 1; }
 	;
 
 non_empty_arglist
         :       non_empty_arglist ',' exp %prec ABOVE_COMMA
-     	       	    	{ arglist_len++; }
+     	       	    	{ pstate->arglist_len++; }
      	;
 
 /* GDB construct */
@@ -474,12 +474,12 @@ exp	:	CHAR
 
 
 exp	:	FLOAT
-			{ write_exp_elt_opcode (pstate, OP_DOUBLE);
+			{ write_exp_elt_opcode (pstate, OP_FLOAT);
 			  write_exp_elt_type (pstate,
 					      parse_m2_type (pstate)
 					      ->builtin_real);
-			  write_exp_elt_dblcst (pstate, $1);
-			  write_exp_elt_opcode (pstate, OP_DOUBLE); }
+			  write_exp_elt_floatcst (pstate, $1);
+			  write_exp_elt_opcode (pstate, OP_FLOAT); }
 	;
 
 exp	:	variable
@@ -507,8 +507,8 @@ block	:	fblock
 
 fblock	:	BLOCKNAME
 			{ struct symbol *sym
-			    = lookup_symbol (copy_name ($1),
-					     expression_context_block,
+			    = lookup_symbol (copy_name ($1).c_str (),
+					     pstate->expression_context_block,
 					     VAR_DOMAIN, 0).symbol;
 			  $$ = sym;}
 	;
@@ -517,11 +517,11 @@ fblock	:	BLOCKNAME
 /* GDB scope operator */
 fblock	:	block COLONCOLON BLOCKNAME
 			{ struct symbol *tem
-			    = lookup_symbol (copy_name ($3), $1,
+			    = lookup_symbol (copy_name ($3).c_str (), $1,
 					     VAR_DOMAIN, 0).symbol;
 			  if (!tem || SYMBOL_CLASS (tem) != LOC_BLOCK)
 			    error (_("No function \"%s\" in specified context."),
-				   copy_name ($3));
+				   copy_name ($3).c_str ());
 			  $$ = tem;
 			}
 	;
@@ -535,25 +535,20 @@ variable:	fblock
 	;
 
 /* GDB internal ($foo) variable */
-variable:	INTERNAL_VAR
+variable:	DOLLAR_VARIABLE
 	;
 
 /* GDB scope operator */
 variable:	block COLONCOLON NAME
 			{ struct block_symbol sym
-			    = lookup_symbol (copy_name ($3), $1,
+			    = lookup_symbol (copy_name ($3).c_str (), $1,
 					     VAR_DOMAIN, 0);
 
 			  if (sym.symbol == 0)
 			    error (_("No symbol \"%s\" in specified context."),
-				   copy_name ($3));
+				   copy_name ($3).c_str ());
 			  if (symbol_read_needs_frame (sym.symbol))
-			    {
-			      if (innermost_block == 0
-				  || contained_in (sym.block,
-						   innermost_block))
-				innermost_block = sym.block;
-			    }
+			    pstate->block_tracker->update (sym);
 
 			  write_exp_elt_opcode (pstate, OP_VAR_VALUE);
 			  write_exp_elt_block (pstate, sym.block);
@@ -566,20 +561,16 @@ variable:	NAME
 			{ struct block_symbol sym;
 			  struct field_of_this_result is_a_field_of_this;
 
-			  sym = lookup_symbol (copy_name ($1),
-					       expression_context_block,
-					       VAR_DOMAIN,
-					       &is_a_field_of_this);
+			  sym
+			    = lookup_symbol (copy_name ($1).c_str (),
+					     pstate->expression_context_block,
+					     VAR_DOMAIN,
+					     &is_a_field_of_this);
 
 			  if (sym.symbol)
 			    {
 			      if (symbol_read_needs_frame (sym.symbol))
-				{
-				  if (innermost_block == 0 ||
-				      contained_in (sym.block,
-						    innermost_block))
-				    innermost_block = sym.block;
-				}
+				pstate->block_tracker->update (sym);
 
 			      write_exp_elt_opcode (pstate, OP_VAR_VALUE);
 			      write_exp_elt_block (pstate, sym.block);
@@ -589,27 +580,29 @@ variable:	NAME
 			  else
 			    {
 			      struct bound_minimal_symbol msymbol;
-			      char *arg = copy_name ($1);
+			      std::string arg = copy_name ($1);
 
 			      msymbol =
-				lookup_bound_minimal_symbol (arg);
+				lookup_bound_minimal_symbol (arg.c_str ());
 			      if (msymbol.minsym != NULL)
 				write_exp_msymbol (pstate, msymbol);
 			      else if (!have_full_symbols () && !have_partial_symbols ())
 				error (_("No symbol table is loaded.  Use the \"symbol-file\" command."));
 			      else
 				error (_("No symbol \"%s\" in current context."),
-				       copy_name ($1));
+				       arg.c_str ());
 			    }
 			}
 	;
 
 type
 	:	TYPENAME
-			{ $$ = lookup_typename (parse_language (pstate),
-						parse_gdbarch (pstate),
-						copy_name ($1),
-						expression_context_block, 0); }
+			{ $$
+			    = lookup_typename (pstate->language (),
+					       copy_name ($1).c_str (),
+					       pstate->expression_context_block,
+					       0);
+			}
 
 	;
 
@@ -624,7 +617,7 @@ type
 static int
 parse_number (int olen)
 {
-  const char *p = lexptr;
+  const char *p = pstate->lexptr;
   LONGEST n = 0;
   LONGEST prevn = 0;
   int c,i,ischar=0;
@@ -650,8 +643,12 @@ parse_number (int olen)
     if (p[c] == '.' && base == 10)
       {
 	/* It's a float since it contains a point.  */
-	yylval.dval = atof (p);
-	lexptr += len;
+	if (!parse_float (p, len,
+			  parse_m2_type (pstate)->builtin_real,
+			  yylval.val))
+	  return ERROR;
+
+	pstate->lexptr += len;
 	return FLOAT;
       }
     if (p[c] == '.' && base != 10)
@@ -691,9 +688,9 @@ parse_number (int olen)
 	 prevn=n;
     }
 
-  lexptr = p;
+  pstate->lexptr = p;
   if(*p == 'B' || *p == 'C' || *p == 'H')
-     lexptr++;			/* Advance past B,C or H */
+     pstate->lexptr++;			/* Advance past B,C or H */
 
   if (ischar)
   {
@@ -765,6 +762,9 @@ static struct keyword keytab[] =
 };
 
 
+/* Depth of parentheses.  */
+static int paren_depth;
+
 /* Read one token, getting characters through lexptr.  */
 
 /* This is where we will check to make sure that the language and the
@@ -781,16 +781,16 @@ yylex (void)
 
  retry:
 
-  prev_lexptr = lexptr;
+  pstate->prev_lexptr = pstate->lexptr;
 
-  tokstart = lexptr;
+  tokstart = pstate->lexptr;
 
 
   /* See if it is a special token of length 2 */
   for( i = 0 ; i < (int) (sizeof tokentab2 / sizeof tokentab2[0]) ; i++)
      if (strncmp (tokentab2[i].name, tokstart, 2) == 0)
      {
-	lexptr += 2;
+	pstate->lexptr += 2;
 	return tokentab2[i].token;
      }
 
@@ -802,34 +802,34 @@ yylex (void)
     case ' ':
     case '\t':
     case '\n':
-      lexptr++;
+      pstate->lexptr++;
       goto retry;
 
     case '(':
       paren_depth++;
-      lexptr++;
+      pstate->lexptr++;
       return c;
 
     case ')':
       if (paren_depth == 0)
 	return 0;
       paren_depth--;
-      lexptr++;
+      pstate->lexptr++;
       return c;
 
     case ',':
-      if (comma_terminates && paren_depth == 0)
+      if (pstate->comma_terminates && paren_depth == 0)
 	return 0;
-      lexptr++;
+      pstate->lexptr++;
       return c;
 
     case '.':
       /* Might be a floating point number.  */
-      if (lexptr[1] >= '0' && lexptr[1] <= '9')
+      if (pstate->lexptr[1] >= '0' && pstate->lexptr[1] <= '9')
 	break;			/* Falls into number code.  */
       else
       {
-	 lexptr++;
+	 pstate->lexptr++;
 	 return DOT;
       }
 
@@ -850,7 +850,7 @@ yylex (void)
     case '@':
     case '~':
     case '&':
-      lexptr++;
+      pstate->lexptr++;
       return c;
 
     case '\'' :
@@ -871,7 +871,7 @@ yylex (void)
 	 error (_("Unterminated string or character constant."));
       yylval.sval.ptr = tokstart + 1;
       yylval.sval.length = namelen - 1;
-      lexptr += namelen + 1;
+      pstate->lexptr += namelen + 1;
 
       if(namelen == 2)  	/* Single character */
       {
@@ -917,7 +917,7 @@ yylex (void)
 	    err_copy[p - tokstart] = 0;
 	    error (_("Invalid number \"%s\"."), err_copy);
 	  }
-	lexptr = p;
+	pstate->lexptr = p;
 	return toktype;
     }
 
@@ -941,7 +941,7 @@ yylex (void)
       return 0;
     }
 
-  lexptr += namelen;
+  pstate->lexptr += namelen;
 
   /*  Lookup special keywords */
   for(i = 0 ; i < (int) (sizeof(keytab) / sizeof(keytab[0])) ; i++)
@@ -955,7 +955,7 @@ yylex (void)
   if (*tokstart == '$')
     {
       write_dollar_variable (pstate, yylval.sval);
-      return INTERNAL_VAR;
+      return DOLLAR_VARIABLE;
     }
 
   /* Use token-type BLOCKNAME for symbols that happen to be defined as
@@ -964,19 +964,17 @@ yylex (void)
      currently as names of types; NAME for other symbols.
      The caller is not constrained to care about the distinction.  */
  {
-
-
-    char *tmp = copy_name (yylval.sval);
+    std::string tmp = copy_name (yylval.sval);
     struct symbol *sym;
 
-    if (lookup_symtab (tmp))
+    if (lookup_symtab (tmp.c_str ()))
       return BLOCKNAME;
-    sym = lookup_symbol (tmp, expression_context_block, VAR_DOMAIN, 0).symbol;
+    sym = lookup_symbol (tmp.c_str (), pstate->expression_context_block,
+			 VAR_DOMAIN, 0).symbol;
     if (sym && SYMBOL_CLASS (sym) == LOC_BLOCK)
       return BLOCKNAME;
-    if (lookup_typename (parse_language (pstate), parse_gdbarch (pstate),
-			 copy_name (yylval.sval),
-			 expression_context_block, 1))
+    if (lookup_typename (pstate->language (),
+			 tmp.c_str (), pstate->expression_context_block, 1))
       return TYPENAME;
 
     if(sym)
@@ -1036,24 +1034,20 @@ yylex (void)
 int
 m2_parse (struct parser_state *par_state)
 {
-  int result;
-  struct cleanup *c = make_cleanup_clear_parser_state (&pstate);
-
   /* Setting up the parser state.  */
+  scoped_restore pstate_restore = make_scoped_restore (&pstate);
   gdb_assert (par_state != NULL);
   pstate = par_state;
+  paren_depth = 0;
 
-  result = yyparse ();
-  do_cleanups (c);
-
-  return result;
+  return yyparse ();
 }
 
-void
+static void
 yyerror (const char *msg)
 {
-  if (prev_lexptr)
-    lexptr = prev_lexptr;
+  if (pstate->prev_lexptr)
+    pstate->lexptr = pstate->prev_lexptr;
 
-  error (_("A %s in expression, near `%s'."), (msg ? msg : "error"), lexptr);
+  error (_("A %s in expression, near `%s'."), msg, pstate->lexptr);
 }

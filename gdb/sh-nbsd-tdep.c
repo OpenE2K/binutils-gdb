@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/sh.
 
-   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    Contributed by Wasabi Systems, Inc.
 
@@ -26,7 +26,9 @@
 #include "osabi.h"
 
 #include "sh-tdep.h"
+#include "nbsd-tdep.h"
 #include "solib-svr4.h"
+#include "gdbarch.h"
 
 /* Convert a register number into an offset into a ptrace
    register structure.  */
@@ -62,6 +64,7 @@ shnbsd_init_abi (struct gdbarch_info info,
                   struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  nbsd_init_abi (info, gdbarch);
 
   tdep->core_gregmap = (struct sh_corefile_regmap *)regmap;
   tdep->sizeof_gregset = 84;
@@ -69,13 +72,10 @@ shnbsd_init_abi (struct gdbarch_info info,
   set_solib_svr4_fetch_link_map_offsets
     (gdbarch, svr4_ilp32_fetch_link_map_offsets);
 }
-
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_shnbsd_tdep;
-
+void _initialize_shnbsd_tdep ();
 void
-_initialize_shnbsd_tdep (void)
+_initialize_shnbsd_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_sh, 0, GDB_OSABI_NETBSD,
 			  shnbsd_init_abi);

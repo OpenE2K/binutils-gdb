@@ -1,6 +1,6 @@
 /* Work with executable files, for GDB, the GNU debugger.
 
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,6 +43,13 @@ extern int build_section_table (struct bfd *, struct target_section **,
 /* Remove all entries from TABLE.  */
 
 extern void clear_section_table (struct target_section_table *table);
+
+/* The current inferior is a child vforked and its program space is
+   shared with its parent.  This pushes the exec target on the
+   current/child inferior's target stack if there are sections in the
+   program space's section table.  */
+
+extern void exec_on_vfork ();
 
 /* Read from mappable read-only sections of BFD executable files.
    Return TARGET_XFER_OK, if read is successful.  Return

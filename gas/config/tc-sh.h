@@ -1,5 +1,5 @@
 /* This file is tc-sh.h
-   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -87,7 +87,6 @@ extern int sh_force_relocation (struct fix *);
    && sh_relax && SWITCH_TABLE (FIX))
 
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
-extern long md_pcrel_from_section (struct fix *, segT);
 
 /* SH_COUNT relocs are allowed outside of frag.
    The target is also buggy and sets fix size too large for other relocs.  */
@@ -160,8 +159,6 @@ extern int target_big_endian;
 #define TARGET_FORMAT (!target_big_endian ? "elf32-sh-linux" : "elf32-shbig-linux")
 #elif defined(TE_NetBSD)
 #define TARGET_FORMAT (!target_big_endian ? "elf32-shl-nbsd" : "elf32-sh-nbsd")
-#elif defined TARGET_SYMBIAN
-#define TARGET_FORMAT (!target_big_endian ? "elf32-shl-symbian" : "elf32-sh-symbian")
 #elif defined (TE_VXWORKS)
 #define TARGET_FORMAT (!target_big_endian ? "elf32-shl-vxworks" : "elf32-sh-vxworks")
 #elif defined (TE_UCLINUX)

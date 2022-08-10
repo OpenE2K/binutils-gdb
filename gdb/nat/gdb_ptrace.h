@@ -1,6 +1,6 @@
 /* Portable <sys/ptrace.h>
 
-   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+   Copyright (C) 2004-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -16,9 +16,9 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-   
-#ifndef GDB_PTRACE_H
-#define GDB_PTRACE_H
+
+#ifndef NAT_GDB_PTRACE_H
+#define NAT_GDB_PTRACE_H
 
 /* The <sys/ptrace.h> header was introduced with 4.4BSD, and provided
    the PT_* symbolic constants for the ptrace(2) request numbers.  The
@@ -121,14 +121,6 @@
 # endif
 #endif
 
-/* Some systems, in particular DEC OSF/1, Digital Unix, Compaq Tru64
-   or whatever it's called these days, don't provide a prototype for
-   ptrace.  Provide one to silence compiler warnings.  */
-
-#ifndef HAVE_DECL_PTRACE
-extern PTRACE_TYPE_RET ptrace();
-#endif
-
 /* Some systems, at least AIX and HP-UX have a ptrace with five
    arguments.  Since we never use the fifth argument, define a ptrace
    macro that calls the real ptrace with the last argument set to
@@ -150,4 +142,4 @@ extern PTRACE_TYPE_RET ptrace();
          ptrace ((PTRACE_TYPE_ARG1) request, pid, addr, data)
 #endif
 
-#endif /* gdb_ptrace.h */
+#endif /* NAT_GDB_PTRACE_H */

@@ -1,6 +1,6 @@
 /* corefile.c
 
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -51,7 +51,6 @@ static bfd_boolean get_src_info
 extern void i386_find_call  (Sym *, bfd_vma, bfd_vma);
 extern void alpha_find_call (Sym *, bfd_vma, bfd_vma);
 extern void vax_find_call   (Sym *, bfd_vma, bfd_vma);
-extern void tahoe_find_call (Sym *, bfd_vma, bfd_vma);
 extern void sparc_find_call (Sym *, bfd_vma, bfd_vma);
 extern void mips_find_call  (Sym *, bfd_vma, bfd_vma);
 extern void aarch64_find_call (Sym *, bfd_vma, bfd_vma);
@@ -187,6 +186,8 @@ core_init (const char * aout_name)
       done (1);
     }
 
+  core_bfd->flags |= BFD_DECOMPRESS;
+
   if (!bfd_check_format (core_bfd, bfd_object))
     {
       fprintf (stderr, _("%s: %s: not in executable format\n"), whoami, aout_name);
@@ -250,7 +251,6 @@ core_init (const char * aout_name)
   switch (bfd_get_arch (core_bfd))
     {
     case bfd_arch_vax:
-    case bfd_arch_tahoe:
       offset_to_code = 2;
       break;
 
@@ -271,17 +271,17 @@ core_init (const char * aout_name)
 void
 core_get_text_space (bfd *cbfd)
 {
-  core_text_space = malloc (bfd_get_section_size (core_text_sect));
+  core_text_space = malloc (bfd_section_size (core_text_sect));
 
   if (!core_text_space)
     {
       fprintf (stderr, _("%s: ran out room for %lu bytes of text space\n"),
-	       whoami, (unsigned long) bfd_get_section_size (core_text_sect));
+	       whoami, (unsigned long) bfd_section_size (core_text_sect));
       done (1);
     }
 
   if (!bfd_get_section_contents (cbfd, core_text_sect, core_text_space,
-				 0, bfd_get_section_size (core_text_sect)))
+				 0, bfd_section_size (core_text_sect)))
     {
       bfd_perror ("bfd_get_section_contents");
       free (core_text_space);
@@ -317,10 +317,6 @@ find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
 
     case bfd_arch_sparc:
       sparc_find_call (parent, p_lowpc, p_highpc);
-      break;
-
-    case bfd_arch_tahoe:
-      tahoe_find_call (parent, p_lowpc, p_highpc);
       break;
 
     case bfd_arch_mips:
@@ -609,7 +605,6 @@ core_create_function_syms (void)
     case bfd_target_ecoff_flavour:
     case bfd_target_xcoff_flavour:
     case bfd_target_elf_flavour:
-    case bfd_target_nlm_flavour:
     case bfd_target_som_flavour:
       core_has_func_syms = 1;
     }
@@ -680,7 +675,7 @@ core_create_function_syms (void)
       sym_sec = core_syms[i]->section;
       symtab.limit->addr = core_syms[i]->value;
       if (sym_sec)
-	symtab.limit->addr += bfd_get_section_vma (sym_sec->owner, sym_sec);
+	symtab.limit->addr += bfd_section_vma (sym_sec);
 
       if (found)
 	{
@@ -739,8 +734,8 @@ core_create_function_syms (void)
 	 section containing the symbol, if available.  */
       min_vma = MIN (symtab.limit->addr, min_vma);
       if (sym_sec)
-	max_vma = MAX (bfd_get_section_vma (sym_sec->owner, sym_sec)
-		       + bfd_section_size (sym_sec->owner, sym_sec) - 1,
+	max_vma = MAX (bfd_section_vma (sym_sec)
+		       + bfd_section_size (sym_sec) - 1,
 		       max_vma);
       else
 	max_vma = MAX (symtab.limit->addr, max_vma);
@@ -792,7 +787,7 @@ core_create_line_syms (void)
   ltab.len = 0;
   prev_line_num = 0;
 
-  vma_high = core_text_sect->vma + bfd_get_section_size (core_text_sect);
+  vma_high = core_text_sect->vma + bfd_section_size (core_text_sect);
   for (vma = core_text_sect->vma; vma < vma_high; vma += min_insn_size)
     {
       unsigned int len;

@@ -1,4 +1,4 @@
-# Copyright 2010-2017 Free Software Foundation, Inc.
+# Copyright 2010-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -114,12 +114,12 @@ proc build_executable_from_fission_assembler { testname executable sources optio
 # static void func (void) {}
 #
 
-proc function_range { func src } {
+proc function_range { func src {options {debug}} } {
     global decimal gdb_prompt
 
     set exe [standard_temp_file func_addr[pid].x]
 
-    gdb_compile $src $exe executable {debug}
+    gdb_compile $src $exe executable $options
 
     gdb_exit
     gdb_start
@@ -162,6 +162,22 @@ proc function_range { func src } {
     }
 
     return [list "${func}_label - $func_label_offset" $func_length]
+}
+
+# Extract the start, length, and end for function called NAME and
+# create suitable variables in the callers scope.
+proc get_func_info { name {options {debug}} } {
+    global srcdir subdir srcfile
+
+    upvar 1 "${name}_start" func_start
+    upvar 1 "${name}_len" func_len
+    upvar 1 "${name}_end" func_end
+
+    lassign [function_range ${name} \
+		 [list ${srcdir}/${subdir}/$srcfile] \
+		 ${options}]  \
+	func_start func_len
+    set func_end "$func_start + $func_len"
 }
 
 # A DWARF assembler.
@@ -527,6 +543,12 @@ namespace eval Dwarf {
 	    DW_FORM_indirect -
 	    DW_FORM_exprloc -
 
+	    DW_FORM_strx -
+	    DW_FORM_strx1 -
+	    DW_FORM_strx2 -
+	    DW_FORM_strx3 -
+	    DW_FORM_strx4 -
+
 	    DW_FORM_GNU_addr_index -
 	    DW_FORM_GNU_str_index -
 	    DW_FORM_GNU_ref_alt -
@@ -561,10 +583,8 @@ namespace eval Dwarf {
 	    }
 
 	    % {
-		# Label reference, an offset from .debug_info.  Assuming
-		# .Lcu1_begin is on .debug_info.
-		set cu1_label [_compute_label "cu1_begin"]
-		set new_value "[string range $value 1 end] - $cu1_label"
+		# Label reference, an offset from .debug_info.
+		set new_value "[string range $value 1 end]"
 
 		return DW_FORM_ref_addr
 	    }
@@ -962,6 +982,20 @@ namespace eval Dwarf {
 		    _op .sleb128 [lindex $line 2]
 		}
 
+		DW_OP_GNU_variable_value {
+		    if {[llength $line] != 2} {
+			error "usage: $opcode LABEL"
+		    }
+
+		    # Here label is a section offset.
+		    set label [lindex $line 1]
+		    if { $_cu_version == 2 } {
+			_op .${_cu_addr_size}byte $label
+		    } else {
+			_op .${_cu_offset_size}byte $label
+		    }
+		}
+
 		DW_OP_deref_size {
 		    if {[llength $line] != 2} {
 			error "usage: DW_OP_deref_size SIZE"
@@ -1291,12 +1325,16 @@ namespace eval Dwarf {
 	set is_64 0
 	set _unit_version 4
 	set _unit_addr_size default
+	set _line_saw_program 0
+	set _line_saw_file 0
+	set _default_is_stmt 1
 
 	foreach { name value } $options {
 	    switch -exact -- $name {
 		is_64 { set is_64 $value }
 		version { set _unit_version $value }
 		addr_size { set _unit_addr_size $value }
+		default_is_stmt { set _default_is_stmt $value }
 		default { error "unknown option $name" }
 	    }
 	}
@@ -1343,7 +1381,7 @@ namespace eval Dwarf {
 	define_label $header_len_label
 
 	_op .byte 1 "minimum_instruction_length"
-	_op .byte 1 "default_is_stmt"
+	_op .byte $_default_is_stmt "default_is_stmt"
 	_op .byte 1 "line_base"
 	_op .byte 1 "line_range"
 	_op .byte 10 "opcode_base"
@@ -1418,6 +1456,10 @@ namespace eval Dwarf {
 		_op .byte 1
 	    }
 
+	    proc DW_LNS_negate_stmt {} {
+		_op .byte 6
+	    }
+
 	    proc DW_LNS_advance_pc {offset} {
 		_op .byte 2
 		_op .uleb128 ${offset}
@@ -1426,6 +1468,11 @@ namespace eval Dwarf {
 	    proc DW_LNS_advance_line {offset} {
 		_op .byte 3
 		_op .sleb128 ${offset}
+	    }
+
+	    proc DW_LNS_set_file {num} {
+		_op .byte 4
+		_op .sleb128 ${num}
 	    }
 
 	    foreach statement $statements {

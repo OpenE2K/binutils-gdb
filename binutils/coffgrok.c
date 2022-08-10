@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+   Copyright (C) 1994-2020 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -145,7 +145,7 @@ do_sections_p1 (struct coff_ofile *head)
       if (strcmp (section->name, ".bss") == 0)
 	head->sections[i].data = 1;
       head->sections[i].address = section->lma;
-      head->sections[i].size = bfd_get_section_size (section);
+      head->sections[i].size = bfd_section_size (section);
       head->sections[i].number = idx;
       head->sections[i].nrelocs = section->reloc_count;
       head->sections[i].relocs =
@@ -846,13 +846,13 @@ doit (void)
 	case C_UNTAG:
 	  /* Various definition.  */
 	  if (top_scope == NULL)
-	    fatal (_("Aggregate defintion encountered without a scope"));
+	    fatal (_("Aggregate definition encountered without a scope"));
 	  i = do_define (i, top_scope);
 	  break;
 	case C_EXT:
 	case C_LABEL:
 	  if (file_scope == NULL)
-	    fatal (_("Label defintion encountered without a file scope"));
+	    fatal (_("Label definition encountered without a file scope"));
 	  i = do_define (i, file_scope);
 	  break;
 	case C_STAT:
@@ -860,7 +860,7 @@ doit (void)
 	case C_AUTO:
 	case C_REG:
 	  if (top_scope == NULL)
-	    fatal (_("Variable defintion encountered without a scope"));
+	    fatal (_("Variable definition encountered without a scope"));
 	  i = do_define (i, top_scope);
 	  break;
 	case C_EOS:
@@ -890,12 +890,12 @@ coff_grok (bfd *inabfd)
   storage = bfd_get_symtab_upper_bound (abfd);
 
   if (storage < 0)
-    bfd_fatal (abfd->filename);
+    bfd_fatal (bfd_get_filename (abfd));
 
   syms = (asymbol **) xmalloc (storage);
   symcount = bfd_canonicalize_symtab (abfd, syms);
   if (symcount < 0)
-    bfd_fatal (abfd->filename);
+    bfd_fatal (bfd_get_filename (abfd));
   rawsyms = obj_raw_syments (abfd);
   rawcount = obj_raw_syment_count (abfd);
   tindex = (struct coff_symbol **) (xcalloc (sizeof (struct coff_symbol *), rawcount));

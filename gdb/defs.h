@@ -1,7 +1,7 @@
 /* *INDENT-OFF* */ /* ATTRIBUTE_PRINTF confuses indent, avoid running it
 		      for now.  */
 /* Basic, host-specific, and target-specific definitions for GDB.
-   Copyright (C) 1986-2017 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,7 +25,16 @@
 #  error gdbserver should not include gdb/defs.h
 #endif
 
-#include "common-defs.h"
+#include "gdbsupport/common-defs.h"
+
+#undef PACKAGE
+#undef PACKAGE_NAME
+#undef PACKAGE_VERSION
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+
+#include <config.h>
+#include "bfd.h"
 
 #include <sys/types.h>
 #include <limits.h>
@@ -52,8 +61,8 @@
 
 #include "ui-file.h"
 
-#include "host-defs.h"
-#include "common/enum-flags.h"
+#include "gdbsupport/host-defs.h"
+#include "gdbsupport/enum-flags.h"
 
 /* Scope types enumerator.  List the types of scopes the compiler will
    accept.  */
@@ -115,11 +124,11 @@ extern int dbx_commands;
 extern char *gdb_sysroot;
 
 /* * GDB datadir, used to store data files.  */
-extern char *gdb_datadir;
+extern std::string gdb_datadir;
 
-/* * If non-NULL, the possibly relocated path to python's "lib" directory
+/* * If not empty, the possibly relocated path to python's "lib" directory
    specified with --with-python.  */
-extern char *python_libdir;
+extern std::string python_libdir;
 
 /* * Search path for separate debug files.  */
 extern char *debug_file_directory;
@@ -154,12 +163,6 @@ extern void set_quit_flag (void);
    waiting for the wedged remote stub.  */
 typedef void (quit_handler_ftype) (void);
 extern quit_handler_ftype *quit_handler;
-
-/* Override the current quit handler.  Sets NEW_QUIT_HANDLER as
-   current quit handler, and installs a cleanup that when run restores
-   the previous quit handler.  */
-struct cleanup *
-  make_cleanup_override_quit_handler (quit_handler_ftype *new_quit_handler);
 
 /* The default quit handler.  Checks whether Ctrl-C was pressed, and
    if so:
@@ -203,7 +206,8 @@ extern void quit_serial_event_clear (void);
    several languages.  For that reason, the constants here are sorted
    in the order we'll attempt demangling them.  For example: Rust uses
    C++ mangling, so must come after C++; Ada must come last (see
-   ada_sniff_from_mangled_name).  */
+   ada_sniff_from_mangled_name).  (Keep this order in sync with the
+   'languages' array in language.c.)  */
 
 enum language
   {
@@ -287,7 +291,7 @@ struct value;
 
 /* This really belong in utils.c (path-utils.c?), but it references some
    globals that are currently only available to main.c.  */
-extern char *relocate_gdb_directory (const char *initial, int flag);
+extern std::string relocate_gdb_directory (const char *initial, bool relocatable);
 
 
 /* Annotation stuff.  */
@@ -303,10 +307,7 @@ EXTERN_C char *re_comp (const char *);
 
 /* From symfile.c */
 
-extern void symbol_file_command (char *, int);
-
-/* * Remote targets may wish to use this as their load function.  */
-extern void generic_load (const char *name, int from_tty);
+extern void symbol_file_command (const char *, int);
 
 /* From top.c */
 
@@ -314,7 +315,7 @@ typedef void initialize_file_ftype (void);
 
 extern char *gdb_readline_wrapper (const char *);
 
-extern char *command_line_input (const char *, int, const char *);
+extern const char *command_line_input (const char *, const char *);
 
 extern void print_prompt (void);
 
@@ -322,7 +323,7 @@ struct ui;
 
 extern int input_interactive_p (struct ui *);
 
-extern int info_verbose;
+extern bool info_verbose;
 
 /* From printcmd.c */
 
@@ -332,38 +333,8 @@ extern int print_address_symbolic (struct gdbarch *, CORE_ADDR,
 				   struct ui_file *, int,
 				   const char *);
 
-extern int build_address_symbolic (struct gdbarch *,
-				   CORE_ADDR addr,
-				   int do_demangle, 
-				   char **name, 
-				   int *offset, 
-				   char **filename, 
-				   int *line, 	
-				   int *unmapped);
-
 extern void print_address (struct gdbarch *, CORE_ADDR, struct ui_file *);
 extern const char *pc_prefix (CORE_ADDR);
-
-/* From source.c */
-
-/* See openp function definition for their description.  */
-#define OPF_TRY_CWD_FIRST     0x01
-#define OPF_SEARCH_IN_PATH    0x02
-#define OPF_RETURN_REALPATH   0x04
-
-extern int openp (const char *, int, const char *, int, char **);
-
-extern int source_full_path_of (const char *, char **);
-
-extern void mod_path (char *, char **);
-
-extern void add_path (char *, char **, int);
-
-extern void directory_switch (char *, int);
-
-extern char *source_path;
-
-extern void init_source_path (void);
 
 /* From exec.c */
 
@@ -399,80 +370,6 @@ enum lval_type
     lval_computed
   };
 
-/* * Control types for commands.  */
-
-enum misc_command_type
-  {
-    ok_command,
-    end_command,
-    else_command,
-    nop_command
-  };
-
-enum command_control_type
-  {
-    simple_control,
-    break_control,
-    continue_control,
-    while_control,
-    if_control,
-    commands_control,
-    python_control,
-    compile_control,
-    guile_control,
-    while_stepping_control,
-    invalid_control
-  };
-
-/* * Structure for saved commands lines (for breakpoints, defined
-   commands, etc).  */
-
-struct command_line
-  {
-    struct command_line *next;
-    char *line;
-    enum command_control_type control_type;
-    union
-      {
-	struct
-	  {
-	    enum compile_i_scope_types scope;
-	    void *scope_data;
-	  }
-	compile;
-      }
-    control_u;
-    /* * The number of elements in body_list.  */
-    int body_count;
-    /* * For composite commands, the nested lists of commands.  For
-       example, for "if" command this will contain the then branch and
-       the else branch, if that is available.  */
-    struct command_line **body_list;
-  };
-
-extern void free_command_lines (struct command_line **);
-
-/* A deleter for command_line that calls free_command_lines.  */
-
-struct command_lines_deleter
-{
-  void operator() (command_line *lines) const
-  {
-    free_command_lines (&lines);
-  }
-};
-
-/* A unique pointer to a command_line.  */
-
-typedef std::unique_ptr<command_line, command_lines_deleter> command_line_up;
-
-extern command_line_up read_command_lines (char *, int, int,
-					   void (*)(char *, void *),
-					   void *);
-extern command_line_up read_command_lines_1 (char * (*) (void), int,
-					     void (*)(char *, void *),
-					     void *);
-
 /* * Parameters of the "info proc" command.  */
 
 enum info_proc_what
@@ -498,13 +395,12 @@ enum info_proc_what
     /* * Display `info proc cwd'.  */
     IP_CWD,
 
+    /* * Display `info proc files'.  */
+    IP_FILES,
+
     /* * Display all of the above.  */
     IP_ALL
   };
-
-/* * String containing the current directory (what getwd would return).  */
-
-extern char *current_directory;
 
 /* * Default radixes for input and output.  Only some values supported.  */
 extern unsigned input_radix;
@@ -582,37 +478,6 @@ enum val_prettyformat
 
 extern int longest_to_int (LONGEST);
 
-/* * List of known OS ABIs.  If you change this, make sure to update the
-   table in osabi.c.  */
-enum gdb_osabi
-{
-  GDB_OSABI_UNINITIALIZED = -1, /* For struct gdbarch_info.  */
-
-  GDB_OSABI_UNKNOWN = 0,	/* keep this zero */
-
-  GDB_OSABI_SVR4,
-  GDB_OSABI_HURD,
-  GDB_OSABI_SOLARIS,
-  GDB_OSABI_LINUX,
-  GDB_OSABI_FREEBSD,
-  GDB_OSABI_NETBSD,
-  GDB_OSABI_OPENBSD,
-  GDB_OSABI_WINCE,
-  GDB_OSABI_GO32,
-  GDB_OSABI_QNXNTO,
-  GDB_OSABI_CYGWIN,
-  GDB_OSABI_AIX,
-  GDB_OSABI_DICOS,
-  GDB_OSABI_DARWIN,
-  GDB_OSABI_SYMBIAN,
-  GDB_OSABI_OPENVMS,
-  GDB_OSABI_LYNXOS178,
-  GDB_OSABI_NEWLIB,
-  GDB_OSABI_SDE,
-
-  GDB_OSABI_INVALID		/* keep this last */
-};
-
 /* Enumerate the requirements a symbol has in order to be evaluated.
    These are listed in order of "strength" -- a later entry subsumes
    earlier ones.  This fine-grained distinction is important because
@@ -631,14 +496,6 @@ enum symbol_needs_kind
   /* The symbol needs a frame.  */
   SYMBOL_NEEDS_FRAME
 };
-
-/* Dynamic target-system-dependent parameters for GDB.  */
-#include "gdbarch.h"
-
-/* * Maximum size of a register.  Something small, but large enough for
-   all known ISAs.  If it turns out to be too small, make it bigger.  */
-
-enum { MAX_REGISTER_SIZE = 64 };
 
 /* In findvar.c.  */
 
@@ -693,18 +550,7 @@ extern void copy_integer_to_size (gdb_byte *dest, int dest_size,
 				  const gdb_byte *source, int source_size,
 				  bool is_signed, enum bfd_endian byte_order);
 
-/* From valops.c */
-
-extern int watchdog;
-
-/* From dwarf2read.c */
-
-ULONGEST read_unsigned_leb128 (bfd *, const gdb_byte *, unsigned int *);
-
 /* Hooks for alternate command interfaces.  */
-
-/* * The name of the interpreter if specified on the command line.  */
-extern char *interpreter_p;
 
 struct target_waitstatus;
 struct cmd_list_element;
@@ -726,7 +572,6 @@ extern int (*deprecated_query_hook) (const char *, va_list)
      ATTRIBUTE_FPTR_PRINTF(1,0);
 extern void (*deprecated_warning_hook) (const char *, va_list)
      ATTRIBUTE_FPTR_PRINTF(1,0);
-extern void (*deprecated_interactive_hook) (void);
 extern void (*deprecated_readline_begin_hook) (const char *, ...)
      ATTRIBUTE_FPTR_PRINTF_1;
 extern char *(*deprecated_readline_hook) (const char *);
@@ -739,7 +584,7 @@ extern ptid_t (*deprecated_target_wait_hook) (ptid_t ptid,
 extern void (*deprecated_attach_hook) (void);
 extern void (*deprecated_detach_hook) (void);
 extern void (*deprecated_call_command_hook) (struct cmd_list_element * c,
-					     char *cmd, int from_tty);
+					     const char *cmd, int from_tty);
 
 extern int (*deprecated_ui_load_progress_hook) (const char *section,
 						unsigned long num);
@@ -767,7 +612,7 @@ enum block_enum
   FIRST_LOCAL_BLOCK = 2
 };
 
-/* User selection used in observer.h and multiple print functions.  */
+/* User selection used in observable.h and multiple print functions.  */
 
 enum user_selected_what_flag
   {

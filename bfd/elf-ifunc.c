@@ -1,5 +1,5 @@
 /* ELF STT_GNU_IFUNC support.
-   Copyright (C) 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -62,8 +62,7 @@ _bfd_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
       s = bfd_make_section_with_flags (abfd, rel_sec,
 				       flags | SEC_READONLY);
       if (s == NULL
-	  || ! bfd_set_section_alignment (abfd, s,
-					  bed->s->log_file_align))
+	  || !bfd_set_section_alignment (s, bed->s->log_file_align))
 	return FALSE;
       htab->irelifunc = s;
     }
@@ -73,7 +72,7 @@ _bfd_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
 	 for static executables.   */
       s = bfd_make_section_with_flags (abfd, ".iplt", pltflags);
       if (s == NULL
-	  || ! bfd_set_section_alignment (abfd, s, bed->plt_alignment))
+	  || !bfd_set_section_alignment (s, bed->plt_alignment))
 	return FALSE;
       htab->iplt = s;
 
@@ -82,8 +81,7 @@ _bfd_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
 					? ".rela.iplt" : ".rel.iplt"),
 				       flags | SEC_READONLY);
       if (s == NULL
-	  || ! bfd_set_section_alignment (abfd, s,
-					  bed->s->log_file_align))
+	  || !bfd_set_section_alignment (s, bed->s->log_file_align))
 	return FALSE;
       htab->irelplt = s;
 
@@ -94,8 +92,7 @@ _bfd_elf_create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
       else
 	s = bfd_make_section_with_flags (abfd, ".igot", flags);
       if (s == NULL
-	  || !bfd_set_section_alignment (abfd, s,
-					 bed->s->log_file_align))
+	  || !bfd_set_section_alignment (s, bed->s->log_file_align))
 	return FALSE;
       htab->igotplt = s;
     }
@@ -110,7 +107,6 @@ bfd_boolean
 _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
 				    struct elf_link_hash_entry *h,
 				    struct elf_dyn_relocs **head,
-				    bfd_boolean *readonly_dynrelocs_against_ifunc_p,
 				    unsigned int plt_entry_size,
 				    unsigned int plt_header_size,
 				    unsigned int got_entry_size,
@@ -121,7 +117,6 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
   unsigned int sizeof_reloc;
   const struct elf_backend_data *bed;
   struct elf_link_hash_table *htab;
-  bfd_boolean readonly_dynrelocs_against_ifunc;
   /* If AVOID_PLT is TRUE, don't use PLT if possible.  */
   bfd_boolean use_plt = !avoid_plt || h->plt.refcount > 0;
   bfd_boolean need_dynreloc = !use_plt || bfd_link_pic (info);
@@ -131,8 +126,15 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
      the resolved function may be used.  But in non-PIC executable,
      the address of its .plt slot may be used.  Pointer equality may
      not work correctly.  PIE or non-PLT reference should be used if
-     pointer equality is required here.  */
+     pointer equality is required here.
+
+     If STT_GNU_IFUNC symbol is defined in position-dependent executable,
+     backend should change it to the normal function and set its address
+     to its PLT entry which should be resolved by R_*_IRELATIVE at
+     run-time.  All external references should be resolved to its PLT in
+     executable.  */
   if (!need_dynreloc
+      && !(bfd_link_pde (info) && h->def_regular)
       && (h->dynindx != -1
 	  || info->export_dynamic)
       && h->pointer_equality_needed)
@@ -140,7 +142,7 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
       info->callbacks->einfo
 	/* xgettext:c-format */
 	(_("%F%P: dynamic STT_GNU_IFUNC symbol `%s' with pointer "
-	   "equality in `%B' can not be used when making an "
+	   "equality in `%pB' can not be used when making an "
 	   "executable; recompile with -fPIE and relink with -pie\n"),
 	 h->root.root.string,
 	 h->root.u.def.section->owner);
@@ -197,7 +199,7 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
       return TRUE;
     }
 
-keep:
+ keep:
   bed = get_elf_backend_data (info->output_bfd);
   if (bed->rela_plts_and_copies_p)
     sizeof_reloc = bed->s->sizeof_rela;
@@ -251,8 +253,6 @@ keep:
   if (!need_dynreloc || !h->non_got_ref)
     *head = NULL;
 
-  readonly_dynrelocs_against_ifunc = FALSE;
-
   /* Finally, allocate space.  */
   p = *head;
   if (p != NULL)
@@ -260,16 +260,12 @@ keep:
       bfd_size_type count = 0;
       do
 	{
-	  if (!readonly_dynrelocs_against_ifunc)
-	    {
-	      asection *s = p->sec->output_section;
-	      if (s != NULL && (s->flags & SEC_READONLY) != 0)
-		readonly_dynrelocs_against_ifunc = TRUE;
-	    }
 	  count += p->count;
 	  p = p->next;
 	}
       while (p != NULL);
+
+      htab->ifunc_resolvers = count != 0;
 
       /* Dynamic relocations are stored in
 	 1. .rel[a].ifunc section in PIC object.
@@ -285,9 +281,6 @@ keep:
 	  relplt->reloc_count += count;
 	}
     }
-
-  if (readonly_dynrelocs_against_ifunc_p)
-    *readonly_dynrelocs_against_ifunc_p = readonly_dynrelocs_against_ifunc;
 
   /* For STT_GNU_IFUNC symbol, .got.plt has the real function address
      and .got has the PLT entry adddress.  We will load the GOT entry
@@ -354,173 +347,4 @@ keep:
     }
 
   return TRUE;
-}
-
-/* Leave the underlying function in place since E2K needs it.  */
-
-/* Similar to _bfd_elf_get_synthetic_symtab, optimized for unsorted PLT
-   entries.  PLT is the PLT section.  PLT_SYM_VAL is a function pointer
-   which returns an array of PLT entry symbol values.  */
-
-long
-_bfd_elf_ifunc_get_synthetic_symtab
-  (bfd *abfd, long symcount ATTRIBUTE_UNUSED,
-   asymbol **syms ATTRIBUTE_UNUSED, long dynsymcount, asymbol **dynsyms,
-   asymbol **ret, asection *plt,
-   int kind,
-   bfd_vma *(*get_plt_sym_val) (bfd *, asymbol **, asection *, asection *,
-                                int))
-{
-  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
-  asection *relplt;
-  asymbol *s;
-  const char *relplt_name;
-  bfd_boolean (*slurp_relocs) (bfd *, asection *, asymbol **, bfd_boolean);
-  arelent *p;
-  long count, i, n;
-  size_t size;
-  Elf_Internal_Shdr *hdr;
-  char *names;
-  bfd_vma *plt_sym_val;
-  const char *plt_sfx;
-  size_t plt_sfx_sz;
-
-  switch (kind)
-    {
-    case 0:
-      plt_sfx = "@plt";
-      plt_sfx_sz = sizeof ("@plt");
-      break;
-    case 1:
-      plt_sfx = "@secondary_plt";
-      plt_sfx_sz = sizeof ("@secondary_plt");
-      break;
-    case 2:
-      plt_sfx = "@plt.got";
-      plt_sfx_sz = sizeof ("@plt.got");
-      break;
-    default:
-      return -1;
-    }
-
-  *ret = NULL;
-
-  if (plt == NULL)
-    return 0;
-
-  if ((abfd->flags & (DYNAMIC | EXEC_P)) == 0)
-    return 0;
-
-  if (dynsymcount <= 0)
-    return 0;
-
-  /* When looking for primary and secondary PLT entries one should iterate
-     over `.rela.plt', whereas for `.plt.got' entries (recall that they are
-     created for functions a pointer to which should be resolved in a non-lazy
-     way (in a shared library?)) - over `.rela.dyn'.  */
-  if (kind == 0 || kind == 1)
-    {
-      relplt_name = bed->relplt_name;
-      if (relplt_name == NULL)
-        relplt_name = bed->rela_plts_and_copies_p ? ".rela.plt" : ".rel.plt";
-      relplt = bfd_get_section_by_name (abfd, relplt_name);
-    }
-  else
-    {
-      /* FIXME: currently this function is called with `kind == 2' for E2K
-         only. How should I properly choose between `.rel{,a}.dyn' on other
-         platforms?  */
-      relplt_name = ".rela.dyn";
-
-      /* FIXME: is it worthwhile to iterate over a potentially huge `.rela.dyn'
-         for just a few relocations related to `.plt.got' entries? There are a
-         couple of such entries in libc.so . . .  */
-      relplt = bfd_get_section_by_name (abfd, relplt_name);
-    }
-
-  if (relplt == NULL)
-    return 0;
-
-  hdr = &elf_section_data (relplt)->this_hdr;
-  if (hdr->sh_link != elf_dynsymtab (abfd)
-      || (hdr->sh_type != SHT_REL && hdr->sh_type != SHT_RELA))
-    return 0;
-
-  slurp_relocs = get_elf_backend_data (abfd)->s->slurp_reloc_table;
-  if (! (*slurp_relocs) (abfd, relplt, dynsyms, TRUE))
-    return -1;
-
-  count = relplt->size / hdr->sh_entsize;
-  size = count * sizeof (asymbol);
-  p = relplt->relocation;
-  for (i = 0; i < count; i++, p += bed->s->int_rels_per_ext_rel)
-    {
-      size += strlen ((*p->sym_ptr_ptr)->name) + plt_sfx_sz;
-      if (p->addend != 0)
-	{
-#ifdef BFD64
-	  size += sizeof ("+0x") - 1 + 8 + 8 * (bed->s->elfclass == ELFCLASS64);
-#else
-	  size += sizeof ("+0x") - 1 + 8;
-#endif
-	}
-    }
-
-  plt_sym_val = get_plt_sym_val (abfd, dynsyms, plt, relplt, kind);
-  if (plt_sym_val == NULL)
-    return -1;
-
-  s = *ret = (asymbol *) bfd_malloc (size);
-  if (s == NULL)
-    {
-      free (plt_sym_val);
-      return -1;
-    }
-
-  names = (char *) (s + count);
-  p = relplt->relocation;
-  n = 0;
-  for (i = 0; i < count; i++, p += bed->s->int_rels_per_ext_rel)
-    {
-      size_t len;
-      bfd_vma addr;
-
-      addr = plt_sym_val[i];
-      if (addr == (bfd_vma) -1)
-	continue;
-
-      *s = **p->sym_ptr_ptr;
-      /* Undefined syms won't have BSF_LOCAL or BSF_GLOBAL set.  Since
-	 we are defining a symbol, ensure one of them is set.  */
-      if ((s->flags & BSF_LOCAL) == 0)
-	s->flags |= BSF_GLOBAL;
-      s->flags |= BSF_SYNTHETIC;
-      s->section = plt;
-      s->value = addr - plt->vma;
-      s->name = names;
-      s->udata.p = NULL;
-      len = strlen ((*p->sym_ptr_ptr)->name);
-      memcpy (names, (*p->sym_ptr_ptr)->name, len);
-      names += len;
-      if (p->addend != 0)
-	{
-	  char buf[30], *a;
-
-	  memcpy (names, "+0x", sizeof ("+0x") - 1);
-	  names += sizeof ("+0x") - 1;
-	  bfd_sprintf_vma (abfd, buf, p->addend);
-	  for (a = buf; *a == '0'; ++a)
-	    ;
-	  len = strlen (a);
-	  memcpy (names, a, len);
-	  names += len;
-	}
-      memcpy (names, plt_sfx, plt_sfx_sz);
-      names += plt_sfx_sz;
-      ++s, ++n;
-    }
-
-  free (plt_sym_val);
-
-  return n;
 }

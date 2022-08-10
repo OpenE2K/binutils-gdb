@@ -1,6 +1,6 @@
 /* Machine independent variables that describe the core file under GDB.
 
-   Copyright (C) 1986-2017 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -37,11 +37,11 @@ extern int have_core_file_p (void);
 
 extern void memory_error (enum target_xfer_status status, CORE_ADDR memaddr);
 
-/* The string 'memory_error' would use as exception message.  Space
-   for the result is malloc'd, caller must free.  */
+/* The string 'memory_error' would use as exception message.  */
 
-extern char *memory_error_message (enum target_xfer_status err,
-				   struct gdbarch *gdbarch, CORE_ADDR memaddr);
+extern std::string memory_error_message (enum target_xfer_status err,
+					 struct gdbarch *gdbarch,
+					 CORE_ADDR memaddr);
 
 /* Like target_read_memory, but report an error if can't read.  */
 
@@ -87,12 +87,6 @@ extern ULONGEST read_code_unsigned_integer (CORE_ADDR memaddr,
 					    int len,
 					    enum bfd_endian byte_order);
 
-/* Read a null-terminated string from the debuggee's memory, given
-   address, a buffer into which to place the string, and the maximum
-   available space.  */
-
-extern void read_memory_string (CORE_ADDR, char *, int);
-
 /* Read the pointer of type TYPE at ADDR, and return the address it
    represents.  */
 
@@ -127,21 +121,23 @@ extern void (*deprecated_exec_file_display_hook) (const char *filename);
 /* Hook for "file_command", which is more useful than above
    (because it is invoked AFTER symbols are read, not before).  */
 
-extern void (*deprecated_file_changed_hook) (char *filename);
+extern void (*deprecated_file_changed_hook) (const char *filename);
 
 extern void specify_exec_file_hook (void (*hook) (const char *filename));
 
 /* Binary File Diddler for the core file.  */
 
-extern bfd *core_bfd;
-
-extern struct target_ops *core_target;
+#define core_bfd (current_program_space->cbfd.get ())
 
 /* Whether to open exec and core files read-only or read-write.  */
 
-extern int write_files;
+extern bool write_files;
 
-extern void core_file_command (char *filename, int from_tty);
+/* Open and set up the core file bfd.  */
+
+extern void core_target_open (const char *arg, int from_tty);
+
+extern void core_file_command (const char *filename, int from_tty);
 
 extern void exec_file_attach (const char *filename, int from_tty);
 
@@ -153,83 +149,60 @@ extern void exec_file_attach (const char *filename, int from_tty);
 
 extern void exec_file_locate_attach (int pid, int defer_bp_reset, int from_tty);
 
-extern void exec_file_clear (int from_tty);
-
 extern void validate_files (void);
+
+/* Give the user a message if the current exec file does not match the exec
+   file determined from the target.  In case of mismatch, ask the user
+   if the exec file determined from target must be loaded.  */
+extern void validate_exec_file (int from_tty);
 
 /* The current default bfd target.  */
 
-extern char *gnutarget;
+extern const char *gnutarget;
 
 extern void set_gnutarget (const char *);
 
-/* Structure to keep track of core register reading functions for
-   various core file types.  */
+/* Build either a single-thread or multi-threaded section name for
+   PTID.
 
-struct core_fns
+   If ptid's lwp member is zero, we want to do the single-threaded
+   thing: look for a section named NAME (as passed to the
+   constructor).  If ptid's lwp member is non-zero, we'll want do the
+   multi-threaded thing: look for a section named "NAME/LWP", where
+   LWP is the shortest ASCII decimal representation of ptid's lwp
+   member.  */
+
+class thread_section_name
+{
+public:
+  /* NAME is the single-threaded section name.  If PTID represents an
+     LWP, then the build section name is "NAME/LWP", otherwise it's
+     just "NAME" unmodified.  */
+  thread_section_name (const char *name, ptid_t ptid)
   {
+    if (ptid.lwp_p ())
+      {
+	m_storage = string_printf ("%s/%ld", name, ptid.lwp ());
+	m_section_name = m_storage.c_str ();
+      }
+    else
+      m_section_name = name;
+  }
 
-    /* BFD flavour that a core file handler is prepared to read.  This
-       can be used by the handler's core tasting function as a first
-       level filter to reject BFD's that don't have the right
-       flavour.  */
+  /* Return the computed section name.  The result is valid as long as
+     this thread_section_name object is live.  */
+  const char *c_str () const
+  { return m_section_name; }
 
-    enum bfd_flavour core_flavour;
+  DISABLE_COPY_AND_ASSIGN (thread_section_name);
 
-    /* Core file handler function to call to recognize corefile
-       formats that BFD rejects.  Some core file format just don't fit
-       into the BFD model, or may require other resources to identify
-       them, that simply aren't available to BFD (such as symbols from
-       another file).  Returns nonzero if the handler recognizes the
-       format, zero otherwise.  */
-
-    int (*check_format) (bfd *);
-
-    /* Core file handler function to call to ask if it can handle a
-       given core file format or not.  Returns zero if it can't,
-       nonzero otherwise.  */
-
-    int (*core_sniffer) (struct core_fns *, bfd *);
-
-    /* Extract the register values out of the core file and supply them
-       into REGCACHE.
-
-       CORE_REG_SECT points to the register values themselves, read into
-       memory.
-
-       CORE_REG_SIZE is the size of that area.
-
-       WHICH says which set of registers we are handling:
-         0 --- integer registers
-         2 --- floating-point registers, on machines where they are
-               discontiguous
-         3 --- extended floating-point registers, on machines where
-               these are present in yet a third area.  (GNU/Linux uses
-               this to get at the SSE registers.)
-
-       REG_ADDR is the offset from u.u_ar0 to the register values relative to
-       core_reg_sect.  This is used with old-fashioned core files to locate the
-       registers in a large upage-plus-stack ".reg" section.  Original upage
-       address X is at location core_reg_sect+x+reg_addr.  */
-
-    void (*core_read_registers) (struct regcache *regcache,
-				 char *core_reg_sect,
-				 unsigned core_reg_size,
-				 int which, CORE_ADDR reg_addr);
-
-    /* Finds the next struct core_fns.  They are allocated and
-       initialized in whatever module implements the functions pointed
-       to; an initializer calls deprecated_add_core_fns to add them to
-       the global chain.  */
-
-    struct core_fns *next;
-
-  };
-
-/* NOTE: cagney/2004-04-05: Replaced by "regset.h" and
-   regset_from_core_section().  */
-extern void deprecated_add_core_fns (struct core_fns *cf);
-extern int default_core_sniffer (struct core_fns *cf, bfd * abfd);
-extern int default_check_format (bfd * abfd);
+private:
+  /* Either a pointer into M_STORAGE, or a pointer to the name passed
+     as parameter to the constructor.  */
+  const char *m_section_name;
+  /* If we need to build a new section name, this is where we store
+     it.  */
+  std::string m_storage;
+};
 
 #endif /* !defined (GDBCORE_H) */

@@ -1,5 +1,5 @@
 /* PowerPC64-specific support for 64-bit ELF.
-   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -36,6 +36,9 @@ struct ppc64_elf_params
   /* Whether to use a special call stub for __tls_get_addr.  */
   int tls_get_addr_opt;
 
+  /* Whether the special call stub should save r4..r12.  */
+  int no_tls_get_addr_regsave;
+
   /* Whether to allow multiple toc sections.  */
   int no_multi_toc;
 
@@ -50,6 +53,9 @@ struct ppc64_elf_params
 
   /* Set if PLT call stubs for localentry:0 functions should omit r2 save.  */
   int plt_localentry0;
+
+  /* Whether to use power10 instructions in linkage stubs.  */
+  int power10_stubs;
 
   /* Whether to canonicalize .opd so that there are no overlapping
      .opd entries.  */
@@ -68,6 +74,8 @@ struct ppc64_elf_params
 bfd_boolean ppc64_elf_init_stub_bfd
   (struct bfd_link_info *, struct ppc64_elf_params *);
 bfd_boolean ppc64_elf_edit_opd
+  (struct bfd_link_info *);
+bfd_boolean ppc64_elf_inline_plt
   (struct bfd_link_info *);
 asection *ppc64_elf_tls_setup
   (struct bfd_link_info *);

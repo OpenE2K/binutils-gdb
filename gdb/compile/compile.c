@@ -1,6 +1,6 @@
 /* General Compile and inject code
 
-   Copyright (C) 2014-2017 Free Software Foundation, Inc.
+   Copyright (C) 2014-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,6 +23,7 @@
 #include "command.h"
 #include "cli/cli-script.h"
 #include "cli/cli-utils.h"
+#include "cli/cli-option.h"
 #include "completer.h"
 #include "gdbcmd.h"
 #include "compile.h"
@@ -34,11 +35,14 @@
 #include "source.h"
 #include "block.h"
 #include "arch-utils.h"
-#include "filestuff.h"
+#include "gdbsupport/filestuff.h"
 #include "target.h"
 #include "osabi.h"
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #include "valprint.h"
+#include "gdbsupport/gdb_optional.h"
+#include "gdbsupport/gdb_unlinker.h"
+#include "gdbsupport/pathstuff.h"
 
 
 
@@ -52,7 +56,174 @@ static struct cmd_list_element *compile_command_list;
 
 /* Debug flag for "compile" commands.  */
 
-int compile_debug;
+bool compile_debug;
+
+/* Object of this type are stored in the compiler's symbol_err_map.  */
+
+struct symbol_error
+{
+  /* The symbol.  */
+
+  const struct symbol *sym;
+
+  /* The error message to emit.  This is malloc'd and owned by the
+     hash table.  */
+
+  char *message;
+};
+
+/* Hash a type_map_instance.  */
+
+static hashval_t
+hash_type_map_instance (const void *p)
+{
+  const struct type_map_instance *inst = (const struct type_map_instance *) p;
+
+  return htab_hash_pointer (inst->type);
+}
+
+/* Check two type_map_instance objects for equality.  */
+
+static int
+eq_type_map_instance (const void *a, const void *b)
+{
+  const struct type_map_instance *insta = (const struct type_map_instance *) a;
+  const struct type_map_instance *instb = (const struct type_map_instance *) b;
+
+  return insta->type == instb->type;
+}
+
+/* Hash function for struct symbol_error.  */
+
+static hashval_t
+hash_symbol_error (const void *a)
+{
+  const struct symbol_error *se = (const struct symbol_error *) a;
+
+  return htab_hash_pointer (se->sym);
+}
+
+/* Equality function for struct symbol_error.  */
+
+static int
+eq_symbol_error (const void *a, const void *b)
+{
+  const struct symbol_error *sea = (const struct symbol_error *) a;
+  const struct symbol_error *seb = (const struct symbol_error *) b;
+
+  return sea->sym == seb->sym;
+}
+
+/* Deletion function for struct symbol_error.  */
+
+static void
+del_symbol_error (void *a)
+{
+  struct symbol_error *se = (struct symbol_error *) a;
+
+  xfree (se->message);
+  xfree (se);
+}
+
+/* Constructor for compile_instance.  */
+
+compile_instance::compile_instance (struct gcc_base_context *gcc_fe,
+				    const char *options)
+  : m_gcc_fe (gcc_fe), m_gcc_target_options (options),
+    m_type_map (htab_create_alloc (10, hash_type_map_instance,
+				   eq_type_map_instance,
+				   xfree, xcalloc, xfree)),
+    m_symbol_err_map (htab_create_alloc (10, hash_symbol_error,
+					 eq_symbol_error, del_symbol_error,
+					 xcalloc, xfree))
+{
+}
+
+/* See compile-internal.h.  */
+
+bool
+compile_instance::get_cached_type (struct type *type, gcc_type *ret) const
+{
+  struct type_map_instance inst, *found;
+
+  inst.type = type;
+  found = (struct type_map_instance *) htab_find (m_type_map.get (), &inst);
+  if (found != NULL)
+    {
+      *ret = found->gcc_type_handle;
+      return true;
+    }
+
+  return false;
+}
+
+/* See compile-internal.h.  */
+
+void
+compile_instance::insert_type (struct type *type, gcc_type gcc_type)
+{
+  struct type_map_instance inst, *add;
+  void **slot;
+
+  inst.type = type;
+  inst.gcc_type_handle = gcc_type;
+  slot = htab_find_slot (m_type_map.get (), &inst, INSERT);
+
+  add = (struct type_map_instance *) *slot;
+  /* The type might have already been inserted in order to handle
+     recursive types.  */
+  if (add != NULL && add->gcc_type_handle != gcc_type)
+    error (_("Unexpected type id from GCC, check you use recent enough GCC."));
+
+  if (add == NULL)
+    {
+      add = XNEW (struct type_map_instance);
+      *add = inst;
+      *slot = add;
+    }
+}
+
+/* See compile-internal.h.  */
+
+void
+compile_instance::insert_symbol_error (const struct symbol *sym,
+				       const char *text)
+{
+  struct symbol_error e;
+  void **slot;
+
+  e.sym = sym;
+  slot = htab_find_slot (m_symbol_err_map.get (), &e, INSERT);
+  if (*slot == NULL)
+    {
+      struct symbol_error *ep = XNEW (struct symbol_error);
+
+      ep->sym = sym;
+      ep->message = xstrdup (text);
+      *slot = ep;
+    }
+}
+
+/* See compile-internal.h.  */
+
+void
+compile_instance::error_symbol_once (const struct symbol *sym)
+{
+  struct symbol_error search;
+  struct symbol_error *err;
+
+  if (m_symbol_err_map == NULL)
+    return;
+
+  search.sym = sym;
+  err = (struct symbol_error *) htab_find (m_symbol_err_map.get (), &search);
+  if (err == NULL || err->message == NULL)
+    return;
+
+  gdb::unique_xmalloc_ptr<char> message (err->message);
+  err->message = NULL;
+  error (_("%s"), message.get ());
+}
 
 /* Implement "show debug compile".  */
 
@@ -65,19 +236,34 @@ show_compile_debug (struct ui_file *file, int from_tty,
 
 
 
-/* Check *ARG for a "-raw" or "-r" argument.  Return 0 if not seen.
-   Return 1 if seen and update *ARG.  */
+/* Options for the compile command.  */
 
-static int
-check_raw_argument (char **arg)
+struct compile_options
 {
-  *arg = skip_spaces (*arg);
+  /* For -raw.  */
+  bool raw = false;
+};
 
-  if (arg != NULL
-      && (check_for_argument (arg, "-raw", sizeof ("-raw") - 1)
-	  || check_for_argument (arg, "-r", sizeof ("-r") - 1)))
-      return 1;
-  return 0;
+using compile_flag_option_def
+  = gdb::option::flag_option_def<compile_options>;
+
+static const gdb::option::option_def compile_command_option_defs[] = {
+
+  compile_flag_option_def {
+    "raw",
+    [] (compile_options *opts) { return &opts->raw; },
+    N_("Suppress automatic 'void _gdb_expr () { CODE }' wrapping."),
+  },
+
+};
+
+/* Create an option_def_group for the "compile" command's options,
+   with OPTS as context.  */
+
+static gdb::option::option_def_group
+make_compile_options_def_group (compile_options *opts)
+{
+  return {{compile_command_option_defs}, opts};
 }
 
 /* Handle the input from the 'compile file' command.  The "compile
@@ -85,40 +271,50 @@ check_raw_argument (char **arg)
    that may contain calls to the GCC compiler.  */
 
 static void
-compile_file_command (char *arg, int from_tty)
+compile_file_command (const char *args, int from_tty)
 {
-  enum compile_i_scope_types scope = COMPILE_I_SIMPLE_SCOPE;
-  char *buffer;
-  struct cleanup *cleanup;
-
   scoped_restore save_async = make_scoped_restore (&current_ui->async, 0);
 
-  /* Check the user did not just <enter> after command.  */
-  if (arg == NULL)
+  /* Check if a -raw option is provided.  */
+
+  compile_options options;
+
+  const gdb::option::option_def_group group
+    = make_compile_options_def_group (&options);
+  gdb::option::process_options
+    (&args, gdb::option::PROCESS_OPTIONS_UNKNOWN_IS_ERROR,
+     group);
+
+  enum compile_i_scope_types scope
+    = options.raw ? COMPILE_I_RAW_SCOPE : COMPILE_I_SIMPLE_SCOPE;
+
+  args = skip_spaces (args);
+
+  /* After processing options, check whether we have a filename.  */
+  if (args == nullptr || args[0] == '\0')
     error (_("You must provide a filename for this command."));
 
-  /* Check if a raw (-r|-raw) argument is provided.  */
-  if (arg != NULL && check_raw_argument (&arg))
-    {
-      scope = COMPILE_I_RAW_SCOPE;
-      arg = skip_spaces (arg);
-    }
+  args = skip_spaces (args);
+  gdb::unique_xmalloc_ptr<char> abspath = gdb_abspath (args);
+  std::string buffer = string_printf ("#include \"%s\"\n", abspath.get ());
+  eval_compile_command (NULL, buffer.c_str (), scope, NULL);
+}
 
-  /* After processing arguments, check there is a filename at the end
-     of the command.  */
-  if (arg[0] == '\0')
-    error (_("You must provide a filename with the raw option set."));
+/* Completer for the "compile file" command.  */
 
-  if (arg[0] == '-')
-    error (_("Unknown argument specified."));
+static void
+compile_file_command_completer (struct cmd_list_element *ignore,
+				completion_tracker &tracker,
+				const char *text, const char *word)
+{
+  const gdb::option::option_def_group group
+    = make_compile_options_def_group (nullptr);
+  if (gdb::option::complete_options
+      (tracker, &text, gdb::option::PROCESS_OPTIONS_UNKNOWN_IS_ERROR, group))
+    return;
 
-  arg = skip_spaces (arg);
-  arg = gdb_abspath (arg);
-  cleanup = make_cleanup (xfree, arg);
-  buffer = xstrprintf ("#include \"%s\"\n", arg);
-  make_cleanup (xfree, buffer);
-  eval_compile_command (NULL, buffer, scope, NULL);
-  do_cleanups (cleanup);
+  word = advance_to_filename_complete_word_point (tracker, text);
+  filename_completer (ignore, tracker, text, word);
 }
 
 /* Handle the input from the 'compile code' command.  The
@@ -127,35 +323,46 @@ compile_file_command (char *arg, int from_tty)
    compile command is the language currently set in GDB.  */
 
 static void
-compile_code_command (char *arg, int from_tty)
+compile_code_command (const char *args, int from_tty)
 {
-  enum compile_i_scope_types scope = COMPILE_I_SIMPLE_SCOPE;
-
   scoped_restore save_async = make_scoped_restore (&current_ui->async, 0);
 
-  if (arg != NULL && check_raw_argument (&arg))
-    {
-      scope = COMPILE_I_RAW_SCOPE;
-      arg = skip_spaces (arg);
-    }
+  compile_options options;
 
-  arg = skip_spaces (arg);
+  const gdb::option::option_def_group group
+    = make_compile_options_def_group (&options);
+  gdb::option::process_options
+    (&args, gdb::option::PROCESS_OPTIONS_UNKNOWN_IS_ERROR, group);
 
-  if (arg != NULL && !check_for_argument (&arg, "--", sizeof ("--") - 1))
-    {
-      if (arg[0] == '-')
-	error (_("Unknown argument specified."));
-    }
+  enum compile_i_scope_types scope
+    = options.raw ? COMPILE_I_RAW_SCOPE : COMPILE_I_SIMPLE_SCOPE;
 
-  if (arg && *arg)
-    eval_compile_command (NULL, arg, scope, NULL);
+  if (args && *args)
+    eval_compile_command (NULL, args, scope, NULL);
   else
     {
-      command_line_up l = get_command_line (compile_control, "");
+      counted_command_line l = get_command_line (compile_control, "");
 
       l->control_u.compile.scope = scope;
       execute_control_command_untraced (l.get ());
     }
+}
+
+/* Completer for the "compile code" command.  */
+
+static void
+compile_code_command_completer (struct cmd_list_element *ignore,
+				completion_tracker &tracker,
+				const char *text, const char *word)
+{
+  const gdb::option::option_def_group group
+    = make_compile_options_def_group (nullptr);
+  if (gdb::option::complete_options
+      (tracker, &text, gdb::option::PROCESS_OPTIONS_UNKNOWN_IS_ERROR, group))
+    return;
+
+  word = advance_to_expression_complete_word_point (tracker, text);
+  symbol_completer (ignore, tracker, text, word);
 }
 
 /* Callback for compile_print_command.  */
@@ -163,9 +370,9 @@ compile_code_command (char *arg, int from_tty)
 void
 compile_print_value (struct value *val, void *data_voidp)
 {
-  const struct format_data *fmtp = (const struct format_data *) data_voidp;
+  const value_print_options *print_opts = (value_print_options *) data_voidp;
 
-  print_value (val, fmtp);
+  print_value (val, *print_opts);
 }
 
 /* Handle the input from the 'compile print' command.  The "compile
@@ -174,26 +381,33 @@ compile_print_value (struct value *val, void *data_voidp)
    compile command is the language currently set in GDB.  */
 
 static void
-compile_print_command (char *arg_param, int from_tty)
+compile_print_command (const char *arg, int from_tty)
 {
-  const char *arg = arg_param;
   enum compile_i_scope_types scope = COMPILE_I_PRINT_ADDRESS_SCOPE;
-  struct format_data fmt;
+  value_print_options print_opts;
 
   scoped_restore save_async = make_scoped_restore (&current_ui->async, 0);
 
-  /* Passing &FMT as SCOPE_DATA is safe as do_module_cleanup will not
-     touch the stale pointer if compile_object_run has already quit.  */
-  print_command_parse_format (&arg, "compile print", &fmt);
+  get_user_print_options (&print_opts);
+  /* Override global settings with explicit options, if any.  */
+  auto group = make_value_print_options_def_group (&print_opts);
+  gdb::option::process_options
+    (&arg, gdb::option::PROCESS_OPTIONS_REQUIRE_DELIMITER, group);
+
+  print_command_parse_format (&arg, "compile print", &print_opts);
+
+  /* Passing &PRINT_OPTS as SCOPE_DATA is safe as do_module_cleanup
+     will not touch the stale pointer if compile_object_run has
+     already quit.  */
 
   if (arg && *arg)
-    eval_compile_command (NULL, arg, scope, &fmt);
+    eval_compile_command (NULL, arg, scope, &print_opts);
   else
     {
-      command_line_up l = get_command_line (compile_control, "");
+      counted_command_line l = get_command_line (compile_control, "");
 
       l->control_u.compile.scope = scope;
-      l->control_u.compile.scope_data = &fmt;
+      l->control_u.compile.scope_data = &print_opts;
       execute_control_command_untraced (l.get ());
     }
 }
@@ -231,11 +445,7 @@ get_compile_file_tempdir (void)
 
   strcpy (tname, TEMPLATE);
 #undef TEMPLATE
-#ifdef HAVE_MKDTEMP
   tempdir_name = mkdtemp (tname);
-#else
-  error (_("Command not supported on this host."));
-#endif
   if (tempdir_name == NULL)
     perror_with_name (_("Could not make temporary directory"));
 
@@ -275,23 +485,25 @@ get_expr_block_and_pc (CORE_ADDR *pc)
 	block = BLOCKVECTOR_BLOCK (SYMTAB_BLOCKVECTOR (cursal.symtab),
 				   STATIC_BLOCK);
       if (block != NULL)
-	*pc = BLOCK_START (block);
+	*pc = BLOCK_ENTRY_PC (block);
     }
   else
-    *pc = BLOCK_START (block);
+    *pc = BLOCK_ENTRY_PC (block);
 
   return block;
 }
 
-/* Call gdb_buildargv, set its result for S into *ARGVP but calculate also the
-   number of parsed arguments into *ARGCP.  If gdb_buildargv has returned NULL
-   then *ARGCP is set to zero.  */
+/* Call buildargv (via gdb_argv), set its result for S into *ARGVP but
+   calculate also the number of parsed arguments into *ARGCP.  If
+   buildargv has returned NULL then *ARGCP is set to zero.  */
 
 static void
 build_argc_argv (const char *s, int *argcp, char ***argvp)
 {
-  *argvp = gdb_buildargv (s);
-  *argcp = countargv (*argvp);
+  gdb_argv args (s);
+
+  *argcp = args.count ();
+  *argvp = args.release ();
 }
 
 /* String for 'set compile-args' and 'show compile-args'.  */
@@ -304,7 +516,7 @@ static char **compile_args_argv;
 /* Implement 'set compile-args'.  */
 
 static void
-set_compile_args (char *args, int from_tty, struct cmd_list_element *c)
+set_compile_args (const char *args, int from_tty, struct cmd_list_element *c)
 {
   freeargv (compile_args_argv);
   build_argc_argv (compile_args, &compile_args_argc, &compile_args_argv);
@@ -336,6 +548,19 @@ append_args (int *argcp, char ***argvp, int argc, char **argv)
   (*argvp)[(*argcp)] = NULL;
 }
 
+/* String for 'set compile-gcc' and 'show compile-gcc'.  */
+static char *compile_gcc;
+
+/* Implement 'show compile-gcc'.  */
+
+static void
+show_compile_gcc (struct ui_file *file, int from_tty,
+		  struct cmd_list_element *c, const char *value)
+{
+  fprintf_filtered (file, _("Compile command GCC driver filename is \"%s\".\n"),
+		    value);
+}
+
 /* Return DW_AT_producer parsed for get_selected_frame () (if any).
    Return NULL otherwise.
 
@@ -355,7 +580,7 @@ get_selected_pc_producer_options (void)
 
   cs = symtab->producer;
   while (*cs != 0 && *cs != '-')
-    cs = skip_spaces_const (skip_to_space_const (cs));
+    cs = skip_spaces (skip_to_space (cs));
   if (*cs != '-')
     return NULL;
   return cs;
@@ -382,19 +607,35 @@ filter_args (int *argcp, char **argv)
   *destv = NULL;
 }
 
-/* Produce final vector of GCC compilation options.  First element is target
-   size ("-m64", "-m32" etc.), optionally followed by DW_AT_producer options
-   and then compile-args string GDB variable.  */
+/* Produce final vector of GCC compilation options.
+
+   The first element of the combined argument vector are arguments
+   relating to the target size ("-m64", "-m32" etc.).  These are
+   sourced from the inferior's architecture.
+
+   The second element of the combined argument vector are arguments
+   stored in the inferior DW_AT_producer section.  If these are stored
+   in the inferior (there is no guarantee that they are), they are
+   added to the vector.
+
+   The third element of the combined argument vector are argument
+   supplied by the language implementation provided by
+   compile-{lang}-support.  These contain language specific arguments.
+
+   The final element of the combined argument vector are arguments
+   supplied by the "set compile-args" command.  These are always
+   appended last so as to override any of the arguments automatically
+   generated above.  */
 
 static void
-get_args (const struct compile_instance *compiler, struct gdbarch *gdbarch,
+get_args (const compile_instance *compiler, struct gdbarch *gdbarch,
 	  int *argcp, char ***argvp)
 {
   const char *cs_producer_options;
   int argc_compiler;
   char **argv_compiler;
 
-  build_argc_argv (gdbarch_gcc_target_options (gdbarch),
+  build_argc_argv (gdbarch_gcc_target_options (gdbarch).c_str (),
 		   argcp, argvp);
 
   cs_producer_options = get_selected_pc_producer_options ();
@@ -409,32 +650,12 @@ get_args (const struct compile_instance *compiler, struct gdbarch *gdbarch,
       freeargv (argv_producer);
     }
 
-  build_argc_argv (compiler->gcc_target_options,
+  build_argc_argv (compiler->gcc_target_options ().c_str (),
 		   &argc_compiler, &argv_compiler);
   append_args (argcp, argvp, argc_compiler, argv_compiler);
   freeargv (argv_compiler);
 
   append_args (argcp, argvp, compile_args_argc, compile_args_argv);
-}
-
-/* A cleanup function to destroy a gdb_gcc_instance.  */
-
-static void
-cleanup_compile_instance (void *arg)
-{
-  struct compile_instance *inst = (struct compile_instance *) arg;
-
-  inst->destroy (inst);
-}
-
-/* A cleanup function to unlink a file.  */
-
-static void
-cleanup_unlink_file (void *arg)
-{
-  const char *filename = (const char *) arg;
-
-  unlink (filename);
 }
 
 /* A helper function suitable for use as the "print_callback" in the
@@ -454,19 +675,13 @@ static compile_file_names
 compile_to_object (struct command_line *cmd, const char *cmd_string,
 		   enum compile_i_scope_types scope)
 {
-  struct compile_instance *compiler;
-  struct cleanup *cleanup, *inner_cleanup;
   const struct block *expr_block;
   CORE_ADDR trash_pc, expr_pc;
   int argc;
   char **argv;
   int ok;
-  FILE *src;
   struct gdbarch *gdbarch = get_current_arch ();
-  const char *os_rx;
-  const char *arch_rx;
-  char *triplet_rx;
-  char *error_message;
+  std::string triplet_rx;
 
   if (!target_has_execution)
     error (_("The program must be running for the compile command to "\
@@ -476,16 +691,14 @@ compile_to_object (struct command_line *cmd, const char *cmd_string,
   expr_pc = get_frame_address_in_block (get_selected_frame (NULL));
 
   /* Set up instance and context for the compiler.  */
-  if (current_language->la_get_compile_instance == NULL)
+  std::unique_ptr <compile_instance> compiler
+			(current_language->get_compile_instance ());
+  if (compiler == nullptr)
     error (_("No compiler support for language %s."),
 	   current_language->la_name);
-  compiler = current_language->la_get_compile_instance ();
-  cleanup = make_cleanup (cleanup_compile_instance, compiler);
-
-  compiler->fe->ops->set_print_callback (compiler->fe, print_callback, NULL);
-
-  compiler->scope = scope;
-  compiler->block = expr_block;
+  compiler->set_print_callback (print_callback, NULL);
+  compiler->set_scope (scope);
+  compiler->set_block (expr_block);
 
   /* From the provided expression, build a scope to pass to the
      compiler.  */
@@ -497,7 +710,7 @@ compile_to_object (struct command_line *cmd, const char *cmd_string,
     {
       struct command_line *iter;
 
-      for (iter = cmd->body_list[0]; iter; iter = iter->next)
+      for (iter = cmd->body_list_0.get (); iter; iter = iter->next)
 	{
 	  input_buf.puts (iter->line);
 	  input_buf.puts ("\n");
@@ -511,29 +724,41 @@ compile_to_object (struct command_line *cmd, const char *cmd_string,
     error (_("Neither a simple expression, or a multi-line specified."));
 
   std::string code
-    = current_language->la_compute_program (compiler, input, gdbarch,
-					    expr_block, expr_pc);
+    = current_language->compute_program (compiler.get (), input, gdbarch,
+					 expr_block, expr_pc);
   if (compile_debug)
     fprintf_unfiltered (gdb_stdlog, "debug output:\n\n%s", code.c_str ());
 
-  os_rx = osabi_triplet_regexp (gdbarch_osabi (gdbarch));
-  arch_rx = gdbarch_gnu_triplet_regexp (gdbarch);
+  compiler->set_verbose (compile_debug);
 
-  /* Allow triplets with or without vendor set.  */
-  triplet_rx = concat (arch_rx, "(-[^-]*)?-", os_rx, (char *) NULL);
-  make_cleanup (xfree, triplet_rx);
+  if (compile_gcc[0] != 0)
+    {
+      if (compiler->version () < GCC_FE_VERSION_1)
+	error (_("Command 'set compile-gcc' requires GCC version 6 or higher "
+		 "(libcc1 interface version 1 or higher)"));
+
+      compiler->set_driver_filename (compile_gcc);
+    }
+  else
+    {
+      const char *os_rx = osabi_triplet_regexp (gdbarch_osabi (gdbarch));
+      const char *arch_rx = gdbarch_gnu_triplet_regexp (gdbarch);
+
+      /* Allow triplets with or without vendor set.  */
+      triplet_rx = std::string (arch_rx) + "(-[^-]*)?-" + os_rx;
+      compiler->set_triplet_regexp (triplet_rx.c_str ());
+    }
 
   /* Set compiler command-line arguments.  */
-  get_args (compiler, gdbarch, &argc, &argv);
-  make_cleanup_freeargv (argv);
+  get_args (compiler.get (), gdbarch, &argc, &argv);
+  gdb_argv argv_holder (argv);
 
-  error_message = compiler->fe->ops->set_arguments (compiler->fe, triplet_rx,
-						    argc, argv);
+  gdb::unique_xmalloc_ptr<char> error_message;
+  error_message.reset (compiler->set_arguments (argc, argv,
+						triplet_rx.c_str ()));
+
   if (error_message != NULL)
-    {
-      make_cleanup (xfree, error_message);
-      error ("%s", error_message);
-    }
+    error ("%s", error_message.get ());
 
   if (compile_debug)
     {
@@ -547,40 +772,42 @@ compile_to_object (struct command_line *cmd, const char *cmd_string,
 
   compile_file_names fnames = get_new_file_names ();
 
-  src = gdb_fopen_cloexec (fnames.source_file (), "w");
-  if (src == NULL)
-    perror_with_name (_("Could not open source file for writing"));
-  inner_cleanup = make_cleanup (cleanup_unlink_file,
-				(void *) fnames.source_file ());
-  if (fputs (code.c_str (), src) == EOF)
-    perror_with_name (_("Could not write to source file"));
-  fclose (src);
+  gdb::optional<gdb::unlinker> source_remover;
+
+  {
+    gdb_file_up src = gdb_fopen_cloexec (fnames.source_file (), "w");
+    if (src == NULL)
+      perror_with_name (_("Could not open source file for writing"));
+
+    source_remover.emplace (fnames.source_file ());
+
+    if (fputs (code.c_str (), src.get ()) == EOF)
+      perror_with_name (_("Could not write to source file"));
+  }
 
   if (compile_debug)
     fprintf_unfiltered (gdb_stdlog, "source file produced: %s\n\n",
 			fnames.source_file ());
 
   /* Call the compiler and start the compilation process.  */
-  compiler->fe->ops->set_source_file (compiler->fe, fnames.source_file ());
-
-  if (!compiler->fe->ops->compile (compiler->fe, fnames.object_file (),
-				   compile_debug))
+  compiler->set_source_file (fnames.source_file ());
+  ok = compiler->compile (fnames.object_file (), compile_debug);
+  if (!ok)
     error (_("Compilation failed."));
 
   if (compile_debug)
     fprintf_unfiltered (gdb_stdlog, "object file produced: %s\n\n",
 			fnames.object_file ());
 
-  discard_cleanups (inner_cleanup);
-  do_cleanups (cleanup);
-
+  /* Keep the source file.  */
+  source_remover->keep ();
   return fnames;
 }
 
 /* The "compile" prefix command.  */
 
 static void
-compile_command (char *args, int from_tty)
+compile_command (const char *args, int from_tty)
 {
   /* If a sub-command is not specified to the compile prefix command,
      assume it is a direct code compilation.  */
@@ -593,14 +820,13 @@ void
 eval_compile_command (struct command_line *cmd, const char *cmd_string,
 		      enum compile_i_scope_types scope, void *scope_data)
 {
-  struct cleanup *cleanup_unlink;
   struct compile_module *compile_module;
 
   compile_file_names fnames = compile_to_object (cmd, cmd_string, scope);
 
-  cleanup_unlink = make_cleanup (cleanup_unlink_file,
-				 (void *) fnames.object_file ());
-  make_cleanup (cleanup_unlink_file, (void *) fnames.source_file ());
+  gdb::unlinker object_remover (fnames.object_file ());
+  gdb::unlinker source_remover (fnames.source_file ());
+
   compile_module = compile_object_load (fnames, scope, scope_data);
   if (compile_module == NULL)
     {
@@ -609,18 +835,22 @@ eval_compile_command (struct command_line *cmd, const char *cmd_string,
 			    COMPILE_I_PRINT_VALUE_SCOPE, scope_data);
       return;
     }
-  discard_cleanups (cleanup_unlink);
+
+  /* Keep the files.  */
+  source_remover.keep ();
+  object_remover.keep ();
+
   compile_object_run (compile_module);
 }
 
 /* See compile/compile-internal.h.  */
 
-char *
+std::string
 compile_register_name_mangled (struct gdbarch *gdbarch, int regnum)
 {
   const char *regname = gdbarch_register_name (gdbarch, regnum);
 
-  return xstrprintf ("__%s", regname);
+  return string_printf ("__%s", regname);
 }
 
 /* See compile/compile-internal.h.  */
@@ -642,27 +872,111 @@ compile_register_name_demangle (struct gdbarch *gdbarch,
   error (_("Cannot find gdbarch register \"%s\"."), regname);
 }
 
-extern initialize_file_ftype _initialize_compile;
+/* Forwards to the plug-in.  */
+
+#define FORWARD(OP,...) (m_gcc_fe->ops->OP (m_gcc_fe, ##__VA_ARGS__))
+
+/* See compile-internal.h.  */
 
 void
-_initialize_compile (void)
+compile_instance::set_print_callback
+  (void (*print_function) (void *, const char *), void *datum)
+{
+  FORWARD (set_print_callback, print_function, datum);
+}
+
+/* See compile-internal.h.  */
+
+unsigned int
+compile_instance::version () const
+{
+  return m_gcc_fe->ops->version;
+}
+
+/* See compile-internal.h.  */
+
+void
+compile_instance::set_verbose (int level)
+{
+  if (version () >= GCC_FE_VERSION_1)
+    FORWARD (set_verbose, level);
+}
+
+/* See compile-internal.h.  */
+
+void
+compile_instance::set_driver_filename (const char *filename)
+{
+  if (version () >= GCC_FE_VERSION_1)
+    FORWARD (set_driver_filename, filename);
+}
+
+/* See compile-internal.h.  */
+
+void
+compile_instance::set_triplet_regexp (const char *regexp)
+{
+  if (version () >= GCC_FE_VERSION_1)
+    FORWARD (set_triplet_regexp, regexp);
+}
+
+/* See compile-internal.h.  */
+
+char *
+compile_instance::set_arguments (int argc, char **argv, const char *regexp)
+{
+  if (version () >= GCC_FE_VERSION_1)
+    return FORWARD (set_arguments, argc, argv);
+  else
+    return FORWARD (set_arguments_v0, regexp, argc, argv);
+}
+
+/* See compile-internal.h.  */
+
+void
+compile_instance::set_source_file (const char *filename)
+{
+  FORWARD (set_source_file, filename);
+}
+
+/* See compile-internal.h.  */
+
+bool
+compile_instance::compile (const char *filename, int verbose_level)
+{
+  if (version () >= GCC_FE_VERSION_1)
+    return FORWARD (compile, filename);
+  else
+    return FORWARD (compile_v0, filename, verbose_level);
+}
+
+#undef FORWARD
+
+/* See compile.h.  */
+cmd_list_element *compile_cmd_element = nullptr;
+
+void _initialize_compile ();
+void
+_initialize_compile ()
 {
   struct cmd_list_element *c = NULL;
 
-  add_prefix_cmd ("compile", class_obscure, compile_command,
-		  _("\
+  compile_cmd_element = add_prefix_cmd ("compile", class_obscure,
+					compile_command, _("\
 Command to compile source code and inject it into the inferior."),
 		  &compile_command_list, "compile ", 1, &cmdlist);
   add_com_alias ("expression", "compile", class_obscure, 0);
 
-  add_cmd ("code", class_obscure, compile_code_command,
-	   _("\
+  const auto compile_opts = make_compile_options_def_group (nullptr);
+
+  static const std::string compile_code_help
+    = gdb::option::build_help (_("\
 Compile, inject, and execute code.\n\
 \n\
-Usage: compile code [-r|-raw] [--] [CODE]\n\
--r|-raw: Suppress automatic 'void _gdb_expr () { CODE }' wrapping.\n\
---: Do not parse any options beyond this delimiter.  All text to the\n\
-    right will be treated as source code.\n\
+Usage: compile code [OPTION]... [CODE]\n\
+\n\
+Options:\n\
+%OPTIONS%\n\
 \n\
 The source code may be specified as a simple one line expression, e.g.:\n\
 \n\
@@ -672,22 +986,42 @@ Alternatively, you can type a multiline expression by invoking\n\
 this command with no argument.  GDB will then prompt for the\n\
 expression interactively; type a line containing \"end\" to\n\
 indicate the end of the expression."),
-	   &compile_command_list);
+			       compile_opts);
 
-  c = add_cmd ("file", class_obscure, compile_file_command,
-	       _("\
+  c = add_cmd ("code", class_obscure, compile_code_command,
+	       compile_code_help.c_str (),
+	       &compile_command_list);
+  set_cmd_completer_handle_brkchars (c, compile_code_command_completer);
+
+static const std::string compile_file_help
+    = gdb::option::build_help (_("\
 Evaluate a file containing source code.\n\
 \n\
-Usage: compile file [-r|-raw] [filename]\n\
--r|-raw: Suppress automatic 'void _gdb_expr () { CODE }' wrapping."),
-	       &compile_command_list);
-  set_cmd_completer (c, filename_completer);
+Usage: compile file [OPTION].. [FILENAME]\n\
+\n\
+Options:\n\
+%OPTIONS%"),
+			       compile_opts);
 
-  add_cmd ("print", class_obscure, compile_print_command,
-	   _("\
+  c = add_cmd ("file", class_obscure, compile_file_command,
+	       compile_file_help.c_str (),
+	       &compile_command_list);
+  set_cmd_completer_handle_brkchars (c, compile_file_command_completer);
+
+  const auto compile_print_opts = make_value_print_options_def_group (nullptr);
+
+  static const std::string compile_print_help
+    = gdb::option::build_help (_("\
 Evaluate EXPR by using the compiler and print result.\n\
 \n\
-Usage: compile print[/FMT] [EXPR]\n\
+Usage: compile print [[OPTION]... --] [/FMT] [EXPR]\n\
+\n\
+Options:\n\
+%OPTIONS%\n\
+\n\
+Note: because this command accepts arbitrary expressions, if you\n\
+specify any command option, you must use a double dash (\"--\")\n\
+to mark the end of option processing.  E.g.: \"compile print -o -- myobj\".\n\
 \n\
 The expression may be specified on the same line as the command, e.g.:\n\
 \n\
@@ -700,7 +1034,12 @@ indicate the end of the expression.\n\
 \n\
 EXPR may be preceded with /FMT, where FMT is a format letter\n\
 but no count or size letter (see \"x\" command)."),
-	   &compile_command_list);
+			       compile_print_opts);
+
+  c = add_cmd ("print", class_obscure, compile_print_command,
+	       compile_print_help.c_str (),
+	       &compile_command_list);
+  set_cmd_completer_handle_brkchars (c, print_command_completer);
 
   add_setshow_boolean_cmd ("compile", class_maintenance, &compile_debug, _("\
 Set compile command debugging."), _("\
@@ -711,8 +1050,8 @@ When on, compile command debugging is enabled."),
 
   add_setshow_string_cmd ("compile-args", class_support,
 			  &compile_args,
-			  _("Set compile command GCC command-line arguments"),
-			  _("Show compile command GCC command-line arguments"),
+			  _("Set compile command GCC command-line arguments."),
+			  _("Show compile command GCC command-line arguments."),
 			  _("\
 Use options like -I (include file directory) or ABI settings.\n\
 String quoting is parsed like in shell, for example:\n\
@@ -730,11 +1069,23 @@ String quoting is parsed like in shell, for example:\n\
 			 " -fPIE"
   /* We want warnings, except for some commonly happening for GDB commands.  */
 			 " -Wall "
-			 " -Wno-implicit-function-declaration"
 			 " -Wno-unused-but-set-variable"
 			 " -Wno-unused-variable"
   /* Override CU's possible -fstack-protector-strong.  */
 			 " -fno-stack-protector"
   );
   set_compile_args (compile_args, 0, NULL);
+
+  add_setshow_optional_filename_cmd ("compile-gcc", class_support,
+				     &compile_gcc,
+				     _("Set compile command "
+				       "GCC driver filename."),
+				     _("Show compile command "
+				       "GCC driver filename."),
+				     _("\
+It should be absolute filename of the gcc executable.\n\
+If empty the default target triplet will be searched in $PATH."),
+				     NULL, show_compile_gcc, &setlist,
+				     &showlist);
+  compile_gcc = xstrdup ("");
 }

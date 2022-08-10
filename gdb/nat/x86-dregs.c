@@ -1,6 +1,6 @@
 /* Debug register code for x86 (i386 and x86-64).
 
-   Copyright (C) 2001-2017 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,9 +17,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "common-defs.h"
+#include "gdbsupport/common-defs.h"
 #include "x86-dregs.h"
-#include "break-common.h"
+#include "gdbsupport/break-common.h"
 
 /* Support for hardware watchpoints and breakpoints using the x86
    debug registers.
@@ -253,7 +253,7 @@ Invalid hardware breakpoint type %d in x86_length_and_rw_bits.\n"),
       case 8:
         if (TARGET_HAS_DR_LEN_8)
  	  return (DR_LEN_8 | rw);
-	/* ELSE FALL THROUGH */
+	/* FALL THROUGH */
       default:
 	internal_error (__FILE__, __LINE__, _("\
 Invalid hardware breakpoint length %d in x86_length_and_rw_bits.\n"), len);
@@ -648,4 +648,49 @@ x86_dr_stopped_by_watchpoint (struct x86_debug_reg_state *state)
 {
   CORE_ADDR addr = 0;
   return x86_dr_stopped_data_address (state, &addr);
+}
+
+/* Return non-zero if the inferior has some hardware breakpoint that
+   triggered.  Otherwise return zero.  */
+
+int
+x86_dr_stopped_by_hw_breakpoint (struct x86_debug_reg_state *state)
+{
+  CORE_ADDR addr = 0;
+  int i;
+  int rc = 0;
+  /* The current thread's DR_STATUS.  We always need to read this to
+     check whether some watchpoint caused the trap.  */
+  unsigned status;
+  /* We need DR_CONTROL as well, but only iff DR_STATUS indicates a
+     breakpoint trap.  Only fetch it when necessary, to avoid an
+     unnecessary extra syscall when no watchpoint triggered.  */
+  int control_p = 0;
+  unsigned control = 0;
+
+  /* As above, always read the current thread's debug registers rather
+     than trusting dr_mirror.  */
+  status = x86_dr_low_get_status ();
+
+  ALL_DEBUG_ADDRESS_REGISTERS (i)
+    {
+      if (!X86_DR_WATCH_HIT (status, i))
+	continue;
+
+      if (!control_p)
+	{
+	  control = x86_dr_low_get_control ();
+	  control_p = 1;
+	}
+
+      if (X86_DR_GET_RW_LEN (control, i) == 0)
+	{
+	  addr = x86_dr_low_get_addr (i);
+	  rc = 1;
+	  if (show_debug_regs)
+	    x86_show_dr (state, "watchpoint_hit", addr, -1, hw_execute);
+	}
+    }
+
+  return rc;
 }

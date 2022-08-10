@@ -1,8 +1,9 @@
+/* DO NOT EDIT!  -*- buffer-read-only: t -*- vi:set ro:  */
 /* CPU data for mt.
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright (C) 1996-2017 Free Software Foundation, Inc.
+Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -975,6 +976,11 @@ init_tables (void)
 {
 }
 
+#ifndef opcodes_error_handler
+#define opcodes_error_handler(...) \
+  fprintf (stderr, __VA_ARGS__); fputc ('\n', stderr)
+#endif
+
 static const CGEN_MACH * lookup_mach_via_bfd_name (const CGEN_MACH *, const char *);
 static void build_hw_table      (CGEN_CPU_TABLE *);
 static void build_ifield_table  (CGEN_CPU_TABLE *);
@@ -1135,8 +1141,11 @@ mt_cgen_rebuild_tables (CGEN_CPU_TABLE *cd)
 	{
 	  if (cd->insn_chunk_bitsize != 0 && cd->insn_chunk_bitsize != mach->insn_chunk_bitsize)
 	    {
-	      fprintf (stderr, "mt_cgen_rebuild_tables: conflicting insn-chunk-bitsize values: `%d' vs. `%d'\n",
-		       cd->insn_chunk_bitsize, mach->insn_chunk_bitsize);
+	      opcodes_error_handler
+		(/* xgettext:c-format */
+		 _("internal error: mt_cgen_rebuild_tables: "
+		   "conflicting insn-chunk-bitsize values: `%d' vs. `%d'"),
+		 cd->insn_chunk_bitsize, mach->insn_chunk_bitsize);
 	      abort ();
 	    }
 
@@ -1167,6 +1176,7 @@ mt_cgen_rebuild_tables (CGEN_CPU_TABLE *cd)
    CGEN_CPU_OPEN_MACHS:   bitmap of values in enum mach_attr
    CGEN_CPU_OPEN_BFDMACH: specify 1 mach using bfd name
    CGEN_CPU_OPEN_ENDIAN:  specify endian choice
+   CGEN_CPU_OPEN_INSN_ENDIAN: specify instruction endian choice
    CGEN_CPU_OPEN_END:     terminates arguments
 
    ??? Simultaneous multiple isas might not make sense, but it's not (yet)
@@ -1180,6 +1190,7 @@ mt_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
   CGEN_BITSET *isas = 0;  /* 0 = "unspecified" */
   unsigned int machs = 0; /* 0 = "unspecified" */
   enum cgen_endian endian = CGEN_ENDIAN_UNKNOWN;
+  enum cgen_endian insn_endian = CGEN_ENDIAN_UNKNOWN;
   va_list ap;
 
   if (! init_p)
@@ -1214,9 +1225,15 @@ mt_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
 	case CGEN_CPU_OPEN_ENDIAN :
 	  endian = va_arg (ap, enum cgen_endian);
 	  break;
+	case CGEN_CPU_OPEN_INSN_ENDIAN :
+	  insn_endian = va_arg (ap, enum cgen_endian);
+	  break;
 	default :
-	  fprintf (stderr, "mt_cgen_cpu_open: unsupported argument `%d'\n",
-		   arg_type);
+	  opcodes_error_handler
+	    (/* xgettext:c-format */
+	     _("internal error: mt_cgen_cpu_open: "
+	       "unsupported argument `%d'"),
+	     arg_type);
 	  abort (); /* ??? return NULL? */
 	}
       arg_type = va_arg (ap, enum cgen_cpu_open_arg);
@@ -1231,18 +1248,17 @@ mt_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
   if (endian == CGEN_ENDIAN_UNKNOWN)
     {
       /* ??? If target has only one, could have a default.  */
-      fprintf (stderr, "mt_cgen_cpu_open: no endianness specified\n");
+      opcodes_error_handler
+	(/* xgettext:c-format */
+	 _("internal error: mt_cgen_cpu_open: no endianness specified"));
       abort ();
     }
 
   cd->isas = cgen_bitset_copy (isas);
   cd->machs = machs;
   cd->endian = endian;
-  /* FIXME: for the sparc case we can determine insn-endianness statically.
-     The worry here is where both data and insn endian can be independently
-     chosen, in which case this function will need another argument.
-     Actually, will want to allow for more arguments in the future anyway.  */
-  cd->insn_endian = endian;
+  cd->insn_endian
+    = (insn_endian == CGEN_ENDIAN_UNKNOWN ? endian : insn_endian);
 
   /* Table (re)builder.  */
   cd->rebuild_tables = mt_cgen_rebuild_tables;
@@ -1292,18 +1308,10 @@ mt_cgen_cpu_close (CGEN_CPU_DESC cd)
 	  regfree (CGEN_INSN_RX (insns));
     }
 
-  if (cd->macro_insn_table.init_entries)
-    free ((CGEN_INSN *) cd->macro_insn_table.init_entries);
-
-  if (cd->insn_table.init_entries)
-    free ((CGEN_INSN *) cd->insn_table.init_entries);
-
-  if (cd->hw_table.entries)
-    free ((CGEN_HW_ENTRY *) cd->hw_table.entries);
-
-  if (cd->operand_table.entries)
-    free ((CGEN_HW_ENTRY *) cd->operand_table.entries);
-
+  free ((CGEN_INSN *) cd->macro_insn_table.init_entries);
+  free ((CGEN_INSN *) cd->insn_table.init_entries);
+  free ((CGEN_HW_ENTRY *) cd->hw_table.entries);
+  free ((CGEN_HW_ENTRY *) cd->operand_table.entries);
   free (cd);
 }
 

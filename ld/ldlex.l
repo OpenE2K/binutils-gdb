@@ -2,7 +2,7 @@
 
 %{
 
-/* Copyright (C) 1991-2017 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2020 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
    This file is part of the GNU Binutils.
@@ -25,6 +25,7 @@
 #include "bfd.h"
 #include "safe-ctype.h"
 #include "bfdlink.h"
+#include "ctf-api.h"
 #include "ld.h"
 #include "ldmisc.h"
 #include "ldexp.h"
@@ -79,7 +80,7 @@ static void lex_warn_invalid (char *where, char *what);
 	INPUTLIST	definitely in a script, a filename-list
 	BOTH		either EXPRESSION or SCRIPT
 	DEFSYMEXP	in an argument to -defsym
-        MRI             in an MRI script
+	MRI		in an MRI script
 	VERS_START	starting a Sun style mapfile
 	VERS_SCRIPT	a Sun style mapfile
 	VERS_NODE	a node within a Sun style mapfile
@@ -91,15 +92,13 @@ static void lex_warn_invalid (char *where, char *what);
 %a 4000
 %o 5000
 
-CMDFILENAMECHAR   [_a-zA-Z0-9\/\.\\_\+\$\:\[\]\\\,\=\&\!\<\>\-\~]
-CMDFILENAMECHAR1  [_a-zA-Z0-9\/\.\\_\+\$\:\[\]\\\,\=\&\!\<\>\~]
-FILENAMECHAR1	[_a-zA-Z\/\.\\\$\_\~]
-SYMBOLCHARN     [_a-zA-Z\/\.\\\$\_\~0-9]
-FILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\=\$\:\[\]\\\,\~]
-WILDCHAR	[_a-zA-Z0-9\/\.\-\_\+\=\$\:\[\]\\\,\~\?\*\^\!]
+WILDCHAR	[_a-zA-Z0-9\/\.\\\$\~\-\+\:\[\]\,\=\?\*\^\!]
+FILENAMECHAR	[_a-zA-Z0-9\/\.\\\$\~\-\+\:\[\]\,\=]
+NOCFILENAMECHAR	[_a-zA-Z0-9\/\.\\\$\~\-\+\:\[\]]
+SYMBOLNAMECHAR  [_a-zA-Z0-9\/\.\\\$\~]
+FILENAMECHAR1	[_a-zA-Z\/\.\\\$\~]
+SYMBOLNAMECHAR1	[_a-zA-Z\.\\\$]
 WHITE		[ \t\n\r]+
-
-NOCFILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\$\:\[\]\\\~]
 
 V_TAG [.$_a-zA-Z][._a-zA-Z0-9]*
 V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
@@ -134,13 +133,14 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <BOTH,SCRIPT,EXPRESSION,VERS_START,VERS_NODE,VERS_SCRIPT,INPUTLIST>"/*"	{ comment (); }
 
 
-<DEFSYMEXP>"-"                  { RTOKEN('-');}
-<DEFSYMEXP>"+"                  { RTOKEN('+');}
-<DEFSYMEXP>{FILENAMECHAR1}{SYMBOLCHARN}*   { yylval.name = xstrdup (yytext); return NAME; }
-<DEFSYMEXP>"="                  { RTOKEN('='); }
+<DEFSYMEXP>"-"			{ RTOKEN('-');}
+<DEFSYMEXP>"+"			{ RTOKEN('+');}
+<DEFSYMEXP>{SYMBOLNAMECHAR1}{SYMBOLNAMECHAR}* { yylval.name = xstrdup (yytext);
+						return NAME; }
+<DEFSYMEXP>"="			{ RTOKEN('='); }
 
 <MRI,EXPRESSION>"$"([0-9A-Fa-f])+ {
-  				yylval.integer = bfd_scan_vma (yytext + 1, 0, 16);
+				yylval.integer = bfd_scan_vma (yytext + 1, 0, 16);
 				yylval.bigint.str = NULL;
 				return INT;
 			}
@@ -230,7 +230,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <BOTH,SCRIPT,EXPRESSION,MRI>"/"		{ RTOKEN('/');}
 <BOTH,SCRIPT,EXPRESSION,MRI>"%"		{ RTOKEN('%');}
 <BOTH,SCRIPT,EXPRESSION,MRI>"<"		{ RTOKEN('<');}
-<BOTH,SCRIPT,EXPRESSION,MRI>"="         { RTOKEN('=');}
+<BOTH,SCRIPT,EXPRESSION,MRI>"="		{ RTOKEN('=');}
 <BOTH,SCRIPT,EXPRESSION,MRI>"}"		{ RTOKEN('}') ; }
 <BOTH,SCRIPT,EXPRESSION,MRI>"{"		{ RTOKEN('{'); }
 <BOTH,SCRIPT,EXPRESSION,MRI,INPUTLIST>")"		{ RTOKEN(')');}
@@ -326,72 +326,71 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <EXPRESSION,BOTH,SCRIPT>"EXCLUDE_FILE"  { RTOKEN(EXCLUDE_FILE); }
 <EXPRESSION,BOTH,SCRIPT>"CONSTANT"	{ RTOKEN(CONSTANT);}
 <MRI>"#".*\n?			{ ++ lineno; }
-<MRI>"\n"	                { ++ lineno;  RTOKEN(NEWLINE); }
+<MRI>"\n"			{ ++ lineno;  RTOKEN(NEWLINE); }
 <MRI>"*".*			{ /* Mri comment line */ }
 <MRI>";".*			{ /* Mri comment line */ }
-<MRI>"END"                      { RTOKEN(ENDWORD); }
+<MRI>"END"			{ RTOKEN(ENDWORD); }
 <MRI>"ALIGNMOD"			{ RTOKEN(ALIGNMOD);}
 <MRI>"ALIGN"			{ RTOKEN(ALIGN_K);}
-<MRI>"CHIP"                     { RTOKEN(CHIP); }
-<MRI>"BASE"                     { RTOKEN(BASE); }
-<MRI>"ALIAS"                    { RTOKEN(ALIAS); }
-<MRI>"TRUNCATE"                 { RTOKEN(TRUNCATE); }
-<MRI>"LOAD"                     { RTOKEN(LOAD); }
-<MRI>"PUBLIC"                   { RTOKEN(PUBLIC); }
-<MRI>"ORDER"                    { RTOKEN(ORDER); }
-<MRI>"NAME"                     { RTOKEN(NAMEWORD); }
-<MRI>"FORMAT"                   { RTOKEN(FORMAT); }
-<MRI>"CASE"                     { RTOKEN(CASE); }
-<MRI>"START"                    { RTOKEN(START); }
-<MRI>"LIST".*                   { RTOKEN(LIST); /* LIST and ignore to end of line */ }
+<MRI>"CHIP"			{ RTOKEN(CHIP); }
+<MRI>"BASE"			{ RTOKEN(BASE); }
+<MRI>"ALIAS"			{ RTOKEN(ALIAS); }
+<MRI>"TRUNCATE"			{ RTOKEN(TRUNCATE); }
+<MRI>"LOAD"			{ RTOKEN(LOAD); }
+<MRI>"PUBLIC"			{ RTOKEN(PUBLIC); }
+<MRI>"ORDER"			{ RTOKEN(ORDER); }
+<MRI>"NAME"			{ RTOKEN(NAMEWORD); }
+<MRI>"FORMAT"			{ RTOKEN(FORMAT); }
+<MRI>"CASE"			{ RTOKEN(CASE); }
+<MRI>"START"			{ RTOKEN(START); }
+<MRI>"LIST".*			{ RTOKEN(LIST); /* LIST and ignore to end of line */ }
 <MRI>"SECT"			{ RTOKEN(SECT); }
 <EXPRESSION,BOTH,SCRIPT,MRI>"ABSOLUTE"			{ RTOKEN(ABSOLUTE); }
-<MRI>"end"                      { RTOKEN(ENDWORD); }
+<MRI>"end"			{ RTOKEN(ENDWORD); }
 <MRI>"alignmod"			{ RTOKEN(ALIGNMOD);}
 <MRI>"align"			{ RTOKEN(ALIGN_K);}
-<MRI>"chip"                     { RTOKEN(CHIP); }
-<MRI>"base"                     { RTOKEN(BASE); }
-<MRI>"alias"                    { RTOKEN(ALIAS); }
-<MRI>"truncate"                 { RTOKEN(TRUNCATE); }
-<MRI>"load"                     { RTOKEN(LOAD); }
-<MRI>"public"                   { RTOKEN(PUBLIC); }
-<MRI>"order"                    { RTOKEN(ORDER); }
-<MRI>"name"                     { RTOKEN(NAMEWORD); }
-<MRI>"format"                   { RTOKEN(FORMAT); }
-<MRI>"case"                     { RTOKEN(CASE); }
-<MRI>"extern"                   { RTOKEN(EXTERN); }
-<MRI>"start"                    { RTOKEN(START); }
-<MRI>"list".*                   { RTOKEN(LIST); /* LIST and ignore to end of line */ }
+<MRI>"chip"			{ RTOKEN(CHIP); }
+<MRI>"base"			{ RTOKEN(BASE); }
+<MRI>"alias"			{ RTOKEN(ALIAS); }
+<MRI>"truncate"			{ RTOKEN(TRUNCATE); }
+<MRI>"load"			{ RTOKEN(LOAD); }
+<MRI>"public"			{ RTOKEN(PUBLIC); }
+<MRI>"order"			{ RTOKEN(ORDER); }
+<MRI>"name"			{ RTOKEN(NAMEWORD); }
+<MRI>"format"			{ RTOKEN(FORMAT); }
+<MRI>"case"			{ RTOKEN(CASE); }
+<MRI>"extern"			{ RTOKEN(EXTERN); }
+<MRI>"start"			{ RTOKEN(START); }
+<MRI>"list".*			{ RTOKEN(LIST); /* LIST and ignore to end of line */ }
 <MRI>"sect"			{ RTOKEN(SECT); }
 <EXPRESSION,BOTH,SCRIPT,MRI>"absolute"			{ RTOKEN(ABSOLUTE); }
 
 <MRI>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
 /* Filename without commas, needed to parse mri stuff */
-				 yylval.name = xstrdup (yytext);
+				  yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
 
 
 <BOTH,INPUTLIST>{FILENAMECHAR1}{FILENAMECHAR}*	{
-				 yylval.name = xstrdup (yytext);
+				  yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
 <INPUTLIST>"="{FILENAMECHAR1}{FILENAMECHAR}*	{
 /* Filename to be prefixed by --sysroot or when non-sysrooted, nothing.  */
-				 yylval.name = xstrdup (yytext);
-				  return NAME;
-				}
-<INPUTLIST>"$SYSROOT"{FILENAMECHAR1}{FILENAMECHAR}*	{
-/* Filename to be prefixed by --sysroot or when non-sysrooted, nothing.  */
-				 yylval.name = xstrdup (yytext);
+				  yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
 <BOTH,INPUTLIST>"-l"{FILENAMECHAR}+ {
 				  yylval.name = xstrdup (yytext + 2);
 				  return LNAME;
 				}
-<EXPRESSION>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
-				 yylval.name = xstrdup (yytext);
+<EXPRESSION>{SYMBOLNAMECHAR1}{NOCFILENAMECHAR}* {
+				  yylval.name = xstrdup (yytext);
+				  return NAME;
+				}
+<EXPRESSION>"/DISCARD/"		{
+				  yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
 <EXPRESSION>"-l"{NOCFILENAMECHAR}+ {
@@ -423,7 +422,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 					/* PR ld/20906.  A corrupt input file
 					   can contain bogus strings.  */
 					len = strlen (yylval.name);
-					if (len > yyleng - 2)
+					if (len > (bfd_size_type) yyleng - 2)
 					  len = yyleng - 2;
 					yylval.name[len] = 0;
 					return NAME;
@@ -462,7 +461,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 
 <VERS_START,VERS_NODE,VERS_SCRIPT>#.*		{ /* Eat up comments */ }
 
-<VERS_START,VERS_NODE,VERS_SCRIPT,INPUTLIST>[ \t\r]+   	{ /* Eat up whitespace */ }
+<VERS_START,VERS_NODE,VERS_SCRIPT,INPUTLIST>[ \t\r]+	{ /* Eat up whitespace */ }
 
 <<EOF>> {
   include_stack_ptr--;
@@ -494,7 +493,7 @@ lex_push_file (FILE *file, const char *name, unsigned int sysrooted)
 {
   if (include_stack_ptr >= MAX_INCLUDE_DEPTH)
     {
-      einfo ("%F:includes nested too deeply\n");
+      einfo (_("%F:includes nested too deeply\n"));
     }
   file_name_stack[include_stack_ptr] = name;
   lineno_stack[include_stack_ptr] = lineno;
@@ -516,14 +515,13 @@ yy_create_string_buffer (const char *string, size_t size)
 {
   YY_BUFFER_STATE b;
 
-  /* Calls to m-alloc get turned by sed into xm-alloc.  */
-  b = malloc (sizeof (struct yy_buffer_state));
+  b = xmalloc (sizeof (struct yy_buffer_state));
   b->yy_input_file = 0;
   b->yy_buf_size = size;
 
   /* yy_ch_buf has to be 2 characters longer than the size given because
      we need to put in 2 end-of-buffer characters.  */
-  b->yy_ch_buf = malloc ((unsigned) (b->yy_buf_size + 3));
+  b->yy_ch_buf = xmalloc ((size_t) b->yy_buf_size + 3);
 
   b->yy_ch_buf[0] = '\n';
   strcpy (b->yy_ch_buf+1, string);
@@ -559,7 +557,7 @@ lex_redirect (const char *string, const char *fake_filename, unsigned int count)
   yy_init = 0;
   if (include_stack_ptr >= MAX_INCLUDE_DEPTH)
     {
-      einfo("%F: macros nested too deeply\n");
+      einfo (_("%F: macros nested too deeply\n"));
     }
   file_name_stack[include_stack_ptr] = fake_filename;
   lineno_stack[include_stack_ptr] = lineno;
@@ -661,7 +659,7 @@ yy_input (char *buf, int max_size)
 	{
 	  result = fread (buf, 1, max_size, yyin);
 	  if (result < max_size && ferror (yyin))
-	    einfo ("%F%P: read in flex scanner failed\n");
+	    einfo (_("%F%P: read in flex scanner failed\n"));
 	}
     }
   return result;
@@ -675,33 +673,33 @@ comment (void)
   int c;
 
   while (1)
-  {
-    c = input();
-    while (c != '*' && c != EOF)
     {
+      c = input();
+      while (c != '*' && c != 0)
+	{
+	  if (c == '\n')
+	    lineno++;
+	  c = input();
+	}
+
+      if (c == '*')
+	{
+	  c = input();
+	  while (c == '*')
+	    c = input();
+	  if (c == '/')
+	    break;			/* found the end */
+	}
+
       if (c == '\n')
 	lineno++;
-      c = input();
-    }
 
-    if (c == '*')
-    {
-      c = input();
-      while (c == '*')
-       c = input();
-      if (c == '/')
-       break;			/* found the end */
+      if (c == 0)
+	{
+	  einfo (_("%F%P: EOF in comment\n"));
+	  break;
+	}
     }
-
-    if (c == '\n')
-      lineno++;
-
-    if (c == EOF)
-    {
-      einfo( "%F%P: EOF in comment\n");
-      break;
-    }
-  }
 }
 
 /* Warn the user about a garbage character WHAT in the input
@@ -719,7 +717,7 @@ lex_warn_invalid (char *where, char *what)
   if (ldfile_assumed_script)
     {
       bfd_set_error (bfd_error_file_not_recognized);
-      einfo ("%F%s: file not recognized: %E\n", ldlex_filename ());
+      einfo (_("%F%s: file not recognized: %E\n"), ldlex_filename ());
     }
 
   if (! ISPRINT (*what))
@@ -728,5 +726,5 @@ lex_warn_invalid (char *where, char *what)
       what = buf;
     }
 
-  einfo ("%P:%S: ignoring invalid character `%s'%s\n", NULL, what, where);
+  einfo (_("%P:%pS: ignoring invalid character `%s'%s\n"), NULL, what, where);
 }

@@ -1,6 +1,6 @@
 /* Remote File-I/O communications
 
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,21 +22,23 @@
 #ifndef REMOTE_FILEIO_H
 #define REMOTE_FILEIO_H
 
-#include "fileio.h"
+#include "gdbsupport/fileio.h"
 
 struct cmd_list_element;
+struct remote_target;
 
 /* Unified interface to remote fileio, called in remote.c from
    remote_wait () and remote_async_wait ().  */
-extern void remote_fileio_request (char *buf, int ctrlc_pending_p);
+extern void remote_fileio_request (remote_target *remote,
+				   char *buf, int ctrlc_pending_p);
 
 /* Cleanup any remote fileio state.  */
 extern void remote_fileio_reset (void);
 
 /* Called from _initialize_remote ().  */
 extern void initialize_remote_fileio (
-  struct cmd_list_element *remote_set_cmdlist,
-  struct cmd_list_element *remote_show_cmdlist);
+  struct cmd_list_element **remote_set_cmdlist,
+  struct cmd_list_element **remote_show_cmdlist);
 
 /* Unpack a struct fio_stat.  */
 extern void remote_fileio_to_host_stat (struct fio_stat *fst,

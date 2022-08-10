@@ -1,6 +1,6 @@
-/* Target dependent code for ARC arhitecture, for GDB.
+/* Target dependent code for ARC architecture, for GDB.
 
-   Copyright 2005-2017 Free Software Foundation, Inc.
+   Copyright 2005-2020 Free Software Foundation, Inc.
    Contributed by Synopsys Inc.
 
    This file is part of GDB.
@@ -23,6 +23,7 @@
 
 /* Need disassemble_info.  */
 #include "dis-asm.h"
+#include "arch/arc.h"
 
 /* To simplify GDB code this enum assumes that internal regnums should be same
    as architectural register numbers, i.e. PCL regnum is 63.  This allows to
@@ -123,6 +124,21 @@ arc_mach_is_arcv2 (struct gdbarch *gdbarch)
   return gdbarch_bfd_arch_info (gdbarch)->mach == bfd_mach_arc_arcv2;
 }
 
+/* ARC EM and ARC HS are unique BFD arches, however they share the same machine
+   number as "ARCv2".  */
+
+static inline bool
+arc_arch_is_hs (const struct bfd_arch_info* arch)
+{
+  return startswith (arch->printable_name, "HS");
+}
+
+static inline bool
+arc_arch_is_em (const struct bfd_arch_info* arch)
+{
+  return startswith (arch->printable_name, "EM");
+}
+
 /* Function to access ARC disassembler.  Underlying opcodes disassembler will
    print an instruction into stream specified in the INFO, so if it is
    undesired, then this stream should be set to some invisible stream, but it
@@ -147,5 +163,8 @@ CORE_ADDR arc_insn_get_branch_target (const struct arc_instruction &insn);
    instruction length with LIMM".  */
 
 CORE_ADDR arc_insn_get_linear_next_pc (const struct arc_instruction &insn);
+
+/* Get the correct ARC target description for the given system type.  */
+const target_desc *arc_read_description (arc_sys_type sys_type);
 
 #endif /* ARC_TDEP_H */

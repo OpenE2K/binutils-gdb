@@ -1,4 +1,4 @@
-# Copyright 1992-2017 Free Software Foundation, Inc.
+# Copyright 1992-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ set skip_float_test [gdb_skip_float_test]
 # specifies that the numeric value of a relational or logical expression
 # (computed in the inferior) is 1 for true and 0 for false.
 
-proc do_function_calls {} {
+proc do_function_calls {prototypes} {
     global gdb_prompt skip_float_test
 
     # We need to up this because this can be really slow on some boards.
@@ -95,11 +95,25 @@ proc do_function_calls {} {
 	setup_xfail "mn10300-*-*"
 	if { [test_compiler_info "armcc-*"] } { setup_xfail "*-*-*" }
 	gdb_test "p t_float_values(float_val1,-2.3765)" " = 1"
+	# Same, via unprototyped function pointer (t_float_values is
+	# always unprototyped).
+	gdb_test "p ((int (*) ()) t_float_values)(float_val1,-2.3765)" " = 1"
 
 	# Test passing of arguments which might not be widened.
 	gdb_test "p t_float_values2(0.0,0.0)" " = 0"
+	# Same, via function pointer.
+	if {$prototypes} {
+	    gdb_test "p ((int (*) (float, float)) t_float_values2)(0.0,0.0)" " = 0"
+	} else {
+	    gdb_test "p ((int (*) ()) t_float_values2)(0.0,0.0)" " = 0"
+	}
 
 	gdb_test "p t_float_values2(3.14159,float_val2)" " = 1"
+	if {$prototypes} {
+	    gdb_test "p ((int (*) (float, float)) t_float_values2)(3.14159,float_val2)" " = 1"
+	} else {
+	    gdb_test "p ((int (*) ()) t_float_values2)(3.14159,float_val2)" " = 1"
+	}
 
 	gdb_test "p t_float_many_args (float_val1, float_val2, float_val3, float_val4, float_val5, float_val6, float_val7, float_val8, float_val9, float_val10, float_val11, float_val12, float_val13, float_val14, float_val15)" " = 1" "call function with many float arguments."
 
@@ -210,13 +224,13 @@ proc do_function_calls {} {
 
     if [support_complex_tests] {
 
-	gdb_test "p t_structs_fc(struct_val1)" ".*= 3 \\+ 3 \\* I" \
+	gdb_test "p t_structs_fc(struct_val1)" ".*= 3 \\+ 3i" \
 	    "call inferior func with struct - returns float _Complex"
 
-	gdb_test "p t_structs_dc(struct_val1)" ".*= 4 \\+ 4 \\* I" \
+	gdb_test "p t_structs_dc(struct_val1)" ".*= 4 \\+ 4i" \
 	    "call inferior func with struct - returns double _Complex"
 
-	gdb_test "p t_structs_ldc(struct_val1)" "= 5 \\+ 5 \\* I" \
+	gdb_test "p t_structs_ldc(struct_val1)" "= 5 \\+ 5i" \
 	    "call inferior func with struct - returns long double _Complex"
     }
 
@@ -271,6 +285,16 @@ proc fetch_all_registers {test} {
 	    }
 	    exp_continue
 	}
+	-re "^\(?:cycle\|instret\)\[ \t\]+\[^\r\n\]+\r\n" {
+	    if [istarget "riscv*-*-*"] {
+		# Filter out the cycle counter and instructions
+		# retired counter CSRs which are read-only, giving
+		# spurious differences.
+	    } else {
+		lappend all_registers_lines $expect_out(0,string)
+	    }
+	    exp_continue
+	}
 	-re "^\[^ \t\]+\[ \t\]+\[^\r\n\]+\r\n" {
 	    lappend all_registers_lines $expect_out(0,string)
 	    exp_continue
@@ -298,24 +322,34 @@ proc fetch_all_registers {test} {
     return $all_registers_lines
 }
 
+# Global used by RERUN_AND_PREPARE to make test names unique.
+set rerun_count 0
+
 proc rerun_and_prepare {} {
-    if { ![runto_main] } {
-	gdb_suppress_tests
+    global rerun_count
+
+    incr rerun_count
+    with_test_prefix "rerun number ${rerun_count}" {
+
+	if { ![runto_main] } {
+	    gdb_suppress_tests
+	}
+
+	gdb_test_no_output "set language c"
+
+	get_debug_format
+
+	# Make sure that malloc gets called and that the floating
+	# point unit is initialized via a call to t_double_values.
+	gdb_test "next" \
+	    "t_double_values\\(double_val1, double_val2\\);.*" \
+	    "next to t_double_values"
+	gdb_test "next" "t_structs_c\\(struct_val1\\);.*" \
+	    "next to t_structs_c"
     }
-
-    gdb_test_no_output "set language c"
-
-    get_debug_format
-
-    # Make sure that malloc gets called and that the floating point unit
-    # is initialized via a call to t_double_values.
-    gdb_test "next" "t_double_values\\(double_val1, double_val2\\);.*" \
-	"next to t_double_values"
-    gdb_test "next" "t_structs_c\\(struct_val1\\);.*" \
-	"next to t_structs_c"
 }
 
-proc perform_all_tests {} {
+proc perform_all_tests {prototypes} {
     gdb_test_no_output "set print sevenbit-strings"
     gdb_test_no_output "set print address off"
     gdb_test_no_output "set width 0"
@@ -323,10 +357,11 @@ proc perform_all_tests {} {
     rerun_and_prepare
 
     # Save all register contents.
-    set old_reg_content [fetch_all_registers "retrieve original register contents"]
+    set old_reg_content \
+	[fetch_all_registers "retrieve original register contents 1"]
 
     # Perform function calls.
-    do_function_calls
+    do_function_calls $prototypes
 
     # Check if all registers still have the same value.
     set new_reg_content [fetch_all_registers \
@@ -340,7 +375,8 @@ proc perform_all_tests {} {
 
     rerun_and_prepare
     # Save all register contents.
-    set old_reg_content [fetch_all_registers "retrieve original register contents"]
+    set old_reg_content \
+	[fetch_all_registers "retrieve original register contents 2"]
 
     # Set breakpoint at a function we will call from gdb.
     gdb_breakpoint add
@@ -367,7 +403,8 @@ proc perform_all_tests {} {
     # Set breakpoint at a function we will call from gdb.
     gdb_breakpoint add
     # Save all register contents.
-    set old_reg_content [fetch_all_registers "retrieve original register contents"]
+    set old_reg_content \
+	[fetch_all_registers "retrieve original register contents 3"]
 
     # Call function (causing a breakpoint hit in the call dummy) and do a finish,
     # make sure we are back at main and still have the same register contents.
@@ -392,7 +429,8 @@ proc perform_all_tests {} {
     # Set breakpoint at a function we will call from gdb.
     gdb_breakpoint add
     # Save all register contents.
-    set old_reg_content [fetch_all_registers "retrieve original register contents"]
+    set old_reg_content \
+	[fetch_all_registers "retrieve original register contents 4"]
 
     # Call function (causing a breakpoint hit in the call dummy) and do a return
     # with a value, make sure we are back at main with the same register contents.
@@ -415,7 +453,8 @@ proc perform_all_tests {} {
     rerun_and_prepare
     # Set breakpoint at a function we will call from gdb.
     gdb_breakpoint add
-    set old_reg_content [fetch_all_registers "retrieve original register contents"]
+    set old_reg_content \
+	[fetch_all_registers "retrieve original register contents 5"]
 
     # Call function (causing a breakpoint hit in the call dummy), and
     # call another function from the call dummy frame (thereby setting up
@@ -500,9 +539,11 @@ proc perform_all_tests {} {
 # Perform all tests with and without function prototypes.
 
 if { ![prepare_for_testing "failed to prepare" $testfile $srcfile "$compile_flags additional_flags=-DPROTOTYPES"] } {
-    perform_all_tests
+    perform_all_tests 1
 }
 
 if { ![prepare_for_testing "failed to prepare" $testfile $srcfile "$compile_flags additional_flags=-DNO_PROTOTYPES"] } {
-    with_test_prefix "noproto" perform_all_tests
+    with_test_prefix "noproto" {
+	perform_all_tests 0
+    }
 }

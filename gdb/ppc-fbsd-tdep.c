@@ -1,6 +1,6 @@
 /* Target-dependent code for PowerPC systems running FreeBSD.
 
-   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+   Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -35,6 +35,7 @@
 #include "ppc-fbsd-tdep.h"
 #include "fbsd-tdep.h"
 #include "solib-svr4.h"
+#include "inferior.h"
 
 
 /* 32-bit regset descriptions.  */
@@ -56,13 +57,7 @@ static const struct ppc_reg_offsets ppc32_fbsd_reg_offsets =
 	/* Floating-point registers.  */
 	/* .f0_offset = */     0,
 	/* .fpscr_offset = */  256,
-	/* .fpscr_size = */    8,
-#ifdef NOTYET
-	/* AltiVec registers.  */
-	/* .vr0_offset = */    0,
-	/* .vscr_offset = */   512 + 12,
-	/* .vrsave_offset = */ 512
-#endif
+	/* .fpscr_size = */    8
   };
 
 /* 64-bit regset descriptions.  */
@@ -84,13 +79,7 @@ static const struct ppc_reg_offsets ppc64_fbsd_reg_offsets =
 	/* Floating-point registers.  */
 	/* .f0_offset = */     0,
 	/* .fpscr_offset = */  256,
-	/* .fpscr_size = */    8,
-#ifdef NOYET
-	/* AltiVec registers.  */
-	/* .vr0_offset = */    0,
-	/* .vscr_offset = */   512 + 12,
-	/* .vrsave_offset = */ 528
-#endif
+	/* .fpscr_size = */    8
   };
 
 /* 32-bit general-purpose register set.  */
@@ -140,10 +129,10 @@ ppcfbsd_iterate_over_regset_sections (struct gdbarch *gdbarch,
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
   if (tdep->wordsize == 4)
-    cb (".reg", 148, &ppc32_fbsd_gregset, NULL, cb_data);
+    cb (".reg", 148, 148, &ppc32_fbsd_gregset, NULL, cb_data);
   else
-    cb (".reg", 296, &ppc64_fbsd_gregset, NULL, cb_data);
-  cb (".reg2", 264, &ppc32_fbsd_fpregset, NULL, cb_data);
+    cb (".reg", 296, 296, &ppc64_fbsd_gregset, NULL, cb_data);
+  cb (".reg2", 264, 264, &ppc32_fbsd_fpregset, NULL, cb_data);
 }
 
 /* Default page size.  */
@@ -291,6 +280,40 @@ ppcfbsd_return_value (struct gdbarch *gdbarch, struct value *function,
 					   regcache, readbuf, writebuf);
 }
 
+/* Implement the "get_thread_local_address" gdbarch method.  */
+
+static CORE_ADDR
+ppcfbsd_get_thread_local_address (struct gdbarch *gdbarch, ptid_t ptid,
+				  CORE_ADDR lm_addr, CORE_ADDR offset)
+{
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  struct regcache *regcache;
+  int tp_offset, tp_regnum;
+
+  regcache = get_thread_arch_regcache (current_inferior ()->process_target (),
+				       ptid, gdbarch);
+
+  if (tdep->wordsize == 4)
+    {
+      tp_offset = 0x7008;
+      tp_regnum = PPC_R0_REGNUM + 2;
+    }
+  else
+    {
+      tp_offset = 0x7010;
+      tp_regnum = PPC_R0_REGNUM + 13;
+    }
+  target_fetch_registers (regcache, tp_regnum);
+
+  ULONGEST tp;
+  if (regcache->cooked_read (tp_regnum, &tp) != REG_VALID)
+    error (_("Unable to fetch tcb pointer"));
+
+  /* tp points to the end of the TCB block.  The first member of the
+     TCB is the pointer to the DTV array.  */
+  CORE_ADDR dtv_addr = tp - tp_offset;
+  return fbsd_get_thread_local_address (gdbarch, dtv_addr, lm_addr, offset);
+}
 
 static void
 ppcfbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
@@ -334,14 +357,13 @@ ppcfbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   set_gdbarch_fetch_tls_load_module_address (gdbarch,
 					     svr4_fetch_objfile_link_map);
+  set_gdbarch_get_thread_local_address (gdbarch,
+					ppcfbsd_get_thread_local_address);
 }
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-
-void _initialize_ppcfbsd_tdep (void);
-
+void _initialize_ppcfbsd_tdep ();
 void
-_initialize_ppcfbsd_tdep (void)
+_initialize_ppcfbsd_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_powerpc, bfd_mach_ppc, GDB_OSABI_FREEBSD,
 			  ppcfbsd_init_abi);

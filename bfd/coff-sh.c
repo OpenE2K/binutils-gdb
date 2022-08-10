@@ -1,5 +1,5 @@
 /* BFD back-end for Renesas Super-H COFF binaries.
-   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
    Relaxing code written by Ian Lance Taylor, <ian@cygnus.com>.
@@ -173,19 +173,19 @@ static reloc_howto_type sh_coff_howtos[] =
 
   EMPTY_HOWTO (15),
 #ifdef COFF_WITH_PE
-  HOWTO (R_SH_IMAGEBASE,        /* type */
-	 0,	                /* rightshift */
-	 2,	                /* size (0 = byte, 1 = short, 2 = long) */
-	 32,	                /* bitsize */
-	 FALSE,	                /* pc_relative */
-	 0,	                /* bitpos */
+  HOWTO (R_SH_IMAGEBASE,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
 	 complain_overflow_bitfield, /* complain_on_overflow */
-	 sh_reloc,       	/* special_function */
-	 "rva32",	        /* name */
-	 TRUE,	                /* partial_inplace */
-	 0xffffffff,            /* src_mask */
-	 0xffffffff,            /* dst_mask */
-	 FALSE),                /* pcrel_offset */
+	 sh_reloc,		/* special_function */
+	 "rva32",		/* name */
+	 TRUE,			/* partial_inplace */
+	 0xffffffff,		/* src_mask */
+	 0xffffffff,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
 #else
   EMPTY_HOWTO (16), /* R_SH_IMM8 */
 #endif
@@ -445,11 +445,11 @@ coff_sh_rtype_to_howto (bfd * abfd ATTRIBUTE_UNUSED,
       *addendp -= 4;
 
       /* If the symbol is defined, then the generic code is going to
-         add back the symbol value in order to cancel out an
-         adjustment it made to the addend.  However, we set the addend
-         to 0 at the start of this function.  We need to adjust here,
-         to avoid the adjustment the generic code will make.  FIXME:
-         This is getting a bit hackish.  */
+	 add back the symbol value in order to cancel out an
+	 adjustment it made to the addend.  However, we set the addend
+	 to 0 at the start of this function.  We need to adjust here,
+	 to avoid the adjustment the generic code will make.  FIXME:
+	 This is getting a bit hackish.  */
       if (sym != NULL && sym->n_scnum != 0)
 	*addendp -= sym->n_value;
     }
@@ -492,7 +492,7 @@ static const struct shcoff_reloc_map sh_reloc_map[] =
 #define coff_bfd_reloc_name_lookup sh_coff_reloc_name_lookup
 
 static reloc_howto_type *
-sh_coff_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
+sh_coff_reloc_type_lookup (bfd *abfd,
 			   bfd_reloc_code_real_type code)
 {
   unsigned int i;
@@ -501,7 +501,8 @@ sh_coff_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
     if (sh_reloc_map[i].bfd_reloc_val == code)
       return &sh_coff_howtos[(int) sh_reloc_map[i].shcoff_reloc_val];
 
-  _bfd_error_handler (_("SH Error: unknown reloc type %d"), code);
+  _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
+		      abfd, (unsigned int) code);
   return NULL;
 }
 
@@ -566,7 +567,7 @@ sh_reloc (bfd *      abfd,
 	  bfd *      output_bfd,
 	  char **    error_message ATTRIBUTE_UNUSED)
 {
-  unsigned long insn;
+  bfd_vma insn;
   bfd_vma sym_value;
   unsigned short r_type;
   bfd_vma addr = reloc_entry->address;
@@ -609,14 +610,14 @@ sh_reloc (bfd *      abfd,
 #endif
       insn = bfd_get_32 (abfd, hit_data);
       insn += sym_value + reloc_entry->addend;
-      bfd_put_32 (abfd, (bfd_vma) insn, hit_data);
+      bfd_put_32 (abfd, insn, hit_data);
       break;
 #ifdef COFF_WITH_PE
     case R_SH_IMAGEBASE:
       insn = bfd_get_32 (abfd, hit_data);
       insn += sym_value + reloc_entry->addend;
       insn -= pe_data (input_section->output_section->owner)->pe_opthdr.ImageBase;
-      bfd_put_32 (abfd, (bfd_vma) insn, hit_data);
+      bfd_put_32 (abfd, insn, hit_data);
       break;
 #endif
     case R_SH_PCDISP:
@@ -626,12 +627,10 @@ sh_reloc (bfd *      abfd,
 		    + input_section->output_offset
 		    + addr
 		    + 4);
-      sym_value += (insn & 0xfff) << 1;
-      if (insn & 0x800)
-	sym_value -= 0x1000;
-      insn = (insn & 0xf000) | (sym_value & 0xfff);
-      bfd_put_16 (abfd, (bfd_vma) insn, hit_data);
-      if (sym_value < (bfd_vma) -0x1000 || sym_value >= 0x1000)
+      sym_value += (((insn & 0xfff) ^ 0x800) - 0x800) << 1;
+      insn = (insn & 0xf000) | ((sym_value >> 1) & 0xfff);
+      bfd_put_16 (abfd, insn, hit_data);
+      if (sym_value + 0x1000 >= 0x2000 || (sym_value & 1) != 0)
 	return bfd_reloc_overflow;
       break;
     default:
@@ -723,7 +722,7 @@ sh_relax_section (bfd *abfd,
 
   if (coff_section_data (abfd, sec) == NULL)
     {
-      bfd_size_type amt = sizeof (struct coff_section_tdata);
+      size_t amt = sizeof (struct coff_section_tdata);
       sec->used_by_bfd = bfd_zalloc (abfd, amt);
       if (sec->used_by_bfd == NULL)
 	return FALSE;
@@ -766,17 +765,18 @@ sh_relax_section (bfd *abfd,
 	}
 
       /* The r_offset field of the R_SH_USES reloc will point us to
-         the register load.  The 4 is because the r_offset field is
-         computed as though it were a jump offset, which are based
-         from 4 bytes after the jump instruction.  */
+	 the register load.  The 4 is because the r_offset field is
+	 computed as though it were a jump offset, which are based
+	 from 4 bytes after the jump instruction.  */
       laddr = irel->r_vaddr - sec->vma + 4;
       /* Careful to sign extend the 32-bit offset.  */
       laddr += ((irel->r_offset & 0xffffffff) ^ 0x80000000) - 0x80000000;
       if (laddr >= sec->size)
 	{
 	  /* xgettext: c-format */
-	  _bfd_error_handler (_("%B: 0x%lx: warning: bad R_SH_USES offset"),
-			      abfd, (unsigned long) irel->r_vaddr);
+	  _bfd_error_handler
+	    (_("%pB: %#" PRIx64 ": warning: bad R_SH_USES offset"),
+	     abfd, (uint64_t) irel->r_vaddr);
 	  continue;
 	}
       insn = bfd_get_16 (abfd, contents + laddr);
@@ -786,17 +786,17 @@ sh_relax_section (bfd *abfd,
 	{
 	  _bfd_error_handler
 	    /* xgettext: c-format */
-	    (_("%B: 0x%lx: warning: R_SH_USES points to unrecognized insn 0x%x"),
-	     abfd, (unsigned long) irel->r_vaddr, insn);
+	    (_("%pB: %#" PRIx64 ": warning: R_SH_USES points to unrecognized insn %#x"),
+	     abfd, (uint64_t) irel->r_vaddr, insn);
 	  continue;
 	}
 
       /* Get the address from which the register is being loaded.  The
-      	 displacement in the mov.l instruction is quadrupled.  It is a
-      	 displacement from four bytes after the movl instruction, but,
-      	 before adding in the PC address, two least significant bits
-      	 of the PC are cleared.  We assume that the section is aligned
-      	 on a four byte boundary.  */
+	 displacement in the mov.l instruction is quadrupled.  It is a
+	 displacement from four bytes after the movl instruction, but,
+	 before adding in the PC address, two least significant bits
+	 of the PC are cleared.  We assume that the section is aligned
+	 on a four byte boundary.  */
       paddr = insn & 0xff;
       paddr *= 4;
       paddr += (laddr + 4) &~ (bfd_vma) 3;
@@ -804,14 +804,14 @@ sh_relax_section (bfd *abfd,
 	{
 	  _bfd_error_handler
 	    /* xgettext: c-format */
-	    (_("%B: 0x%lx: warning: bad R_SH_USES load offset"),
-	     abfd, (unsigned long) irel->r_vaddr);
+	    (_("%pB: %#" PRIx64 ": warning: bad R_SH_USES load offset"),
+	     abfd, (uint64_t) irel->r_vaddr);
 	  continue;
 	}
 
       /* Get the reloc for the address from which the register is
-         being loaded.  This reloc will tell us which function is
-         actually being called.  */
+	 being loaded.  This reloc will tell us which function is
+	 actually being called.  */
       paddr += sec->vma;
       for (irelfn = internal_relocs; irelfn < irelend; irelfn++)
 	if (irelfn->r_vaddr == paddr
@@ -829,8 +829,8 @@ sh_relax_section (bfd *abfd,
 	{
 	  _bfd_error_handler
 	    /* xgettext: c-format */
-	    (_("%B: 0x%lx: warning: could not find expected reloc"),
-	     abfd, (unsigned long) paddr);
+	    (_("%pB: %#" PRIx64 ": warning: could not find expected reloc"),
+	     abfd, (uint64_t) paddr);
 	  continue;
 	}
 
@@ -846,8 +846,8 @@ sh_relax_section (bfd *abfd,
 	{
 	  _bfd_error_handler
 	    /* xgettext: c-format */
-	    (_("%B: 0x%lx: warning: symbol in unexpected section"),
-	     abfd, (unsigned long) paddr);
+	    (_("%pB: %#" PRIx64 ": warning: symbol in unexpected section"),
+	     abfd, (uint64_t) paddr);
 	  continue;
 	}
 
@@ -868,8 +868,8 @@ sh_relax_section (bfd *abfd,
 	      && h->root.type != bfd_link_hash_defweak)
 	    {
 	      /* This appears to be a reference to an undefined
-                 symbol.  Just ignore it--it will be caught by the
-                 regular reloc processing.  */
+		 symbol.  Just ignore it--it will be caught by the
+		 regular reloc processing.  */
 	      continue;
 	    }
 
@@ -914,14 +914,14 @@ sh_relax_section (bfd *abfd,
       /* Replace the jsr with a bsr.  */
 
       /* Change the R_SH_USES reloc into an R_SH_PCDISP reloc, and
-         replace the jsr with a bsr.  */
+	 replace the jsr with a bsr.  */
       irel->r_type = R_SH_PCDISP;
       irel->r_symndx = irelfn->r_symndx;
       if (sym.n_sclass != C_EXT)
 	{
 	  /* If this needs to be changed because of future relaxing,
-             it will be handled here like other internal PCDISP
-             relocs.  */
+	     it will be handled here like other internal PCDISP
+	     relocs.  */
 	  bfd_put_16 (abfd,
 		      (bfd_vma) 0xb000 | ((foff >> 1) & 0xfff),
 		      contents + irel->r_vaddr - sec->vma);
@@ -929,14 +929,14 @@ sh_relax_section (bfd *abfd,
       else
 	{
 	  /* We can't fully resolve this yet, because the external
-             symbol value may be changed by future relaxing.  We let
-             the final link phase handle it.  */
+	     symbol value may be changed by future relaxing.  We let
+	     the final link phase handle it.  */
 	  bfd_put_16 (abfd, (bfd_vma) 0xb000,
 		      contents + irel->r_vaddr - sec->vma);
 	}
 
       /* See if there is another R_SH_USES reloc referring to the same
-         register load.  */
+	 register load.  */
       for (irelscan = internal_relocs; irelscan < irelend; irelscan++)
 	if (irelscan->r_type == R_SH_USES
 	    && laddr == irelscan->r_vaddr - sec->vma + 4 + irelscan->r_offset)
@@ -951,8 +951,8 @@ sh_relax_section (bfd *abfd,
 	}
 
       /* Look for a R_SH_COUNT reloc on the location where the
-         function address is stored.  Do this before deleting any
-         bytes, to avoid confusion about the address.  */
+	 function address is stored.  Do this before deleting any
+	 bytes, to avoid confusion about the address.  */
       for (irelcount = internal_relocs; irelcount < irelend; irelcount++)
 	if (irelcount->r_vaddr == paddr
 	    && irelcount->r_type == R_SH_COUNT)
@@ -963,8 +963,8 @@ sh_relax_section (bfd *abfd,
 	goto error_return;
 
       /* That will change things, so, just in case it permits some
-         other function call to come within range, we should relax
-         again.  Note that this is not required, and it may be slow.  */
+	 other function call to come within range, we should relax
+	 again.  Note that this is not required, and it may be slow.  */
       *again = TRUE;
 
       /* Now check whether we got a COUNT reloc.  */
@@ -972,26 +972,26 @@ sh_relax_section (bfd *abfd,
 	{
 	  _bfd_error_handler
 	    /* xgettext: c-format */
-	    (_("%B: 0x%lx: warning: could not find expected COUNT reloc"),
-	     abfd, (unsigned long) paddr);
+	    (_("%pB: %#" PRIx64 ": warning: could not find expected COUNT reloc"),
+	     abfd, (uint64_t) paddr);
 	  continue;
 	}
 
       /* The number of uses is stored in the r_offset field.  We've
-         just deleted one.  */
+	 just deleted one.  */
       if (irelcount->r_offset == 0)
 	{
 	  /* xgettext: c-format */
-	  _bfd_error_handler (_("%B: 0x%lx: warning: bad count"),
-			      abfd, (unsigned long) paddr);
+	  _bfd_error_handler (_("%pB: %#" PRIx64 ": warning: bad count"),
+			      abfd, (uint64_t) paddr);
 	  continue;
 	}
 
       --irelcount->r_offset;
 
       /* If there are no more uses, we can delete the address.  Reload
-         the address from irelfn, in case it was changed by the
-         previous call to sh_relax_delete_bytes.  */
+	 the address from irelfn, in case it was changed by the
+	 previous call to sh_relax_delete_bytes.  */
       if (irelcount->r_offset == 0)
 	{
 	  if (! sh_relax_delete_bytes (abfd, sec,
@@ -1056,10 +1056,9 @@ sh_relax_section (bfd *abfd,
   return TRUE;
 
  error_return:
-  if (internal_relocs != NULL
-      && internal_relocs != coff_section_data (abfd, sec)->relocs)
+  if (internal_relocs != coff_section_data (abfd, sec)->relocs)
     free (internal_relocs);
-  if (contents != NULL && contents != coff_section_data (abfd, sec)->contents)
+  if (contents != coff_section_data (abfd, sec)->contents)
     free (contents);
   return FALSE;
 }
@@ -1083,7 +1082,7 @@ sh_relax_delete_bytes (bfd *abfd,
 
   contents = coff_section_data (abfd, sec)->contents;
 
-  /* The deletion must stop at the next ALIGN reloc for an aligment
+  /* The deletion must stop at the next ALIGN reloc for an alignment
      power larger than the number of bytes we are deleting.  */
 
   irelalign = NULL;
@@ -1150,7 +1149,7 @@ sh_relax_delete_bytes (bfd *abfd,
 	irel->r_type = R_SH_UNUSED;
 
       /* If this is a PC relative reloc, see if the range it covers
-         includes the bytes we have deleted.  */
+	 includes the bytes we have deleted.  */
       switch (irel->r_type)
 	{
 	default:
@@ -1177,9 +1176,9 @@ sh_relax_delete_bytes (bfd *abfd,
 	case R_SH_IMAGEBASE:
 #endif
 	  /* If this reloc is against a symbol defined in this
-             section, and the symbol will not be adjusted below, we
-             must check the addend to see it will put the value in
-             range to be adjusted, and hence must be changed.  */
+	     section, and the symbol will not be adjusted below, we
+	     must check the addend to see it will put the value in
+	     range to be adjusted, and hence must be changed.  */
 	  bfd_coff_swap_sym_in (abfd,
 				((bfd_byte *) obj_coff_external_syms (abfd)
 				 + (irel->r_symndx
@@ -1354,8 +1353,8 @@ sh_relax_delete_bytes (bfd *abfd,
 	    {
 	      _bfd_error_handler
 		/* xgettext: c-format */
-		(_("%B: 0x%lx: fatal: reloc overflow while relaxing"),
-		 abfd, (unsigned long) irel->r_vaddr);
+		(_("%pB: %#" PRIx64 ": fatal: reloc overflow while relaxing"),
+		 abfd, (uint64_t) irel->r_vaddr);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -1379,8 +1378,8 @@ sh_relax_delete_bytes (bfd *abfd,
 	continue;
 
       /* We always cache the relocs.  Perhaps, if info->keep_memory is
-         FALSE, we should free them, if we are permitted to, when we
-         leave sh_coff_relax_section.  */
+	 FALSE, we should free them, if we are permitted to, when we
+	 leave sh_coff_relax_section.  */
       internal_relocs = (_bfd_coff_read_internal_relocs
 			 (abfd, o, TRUE, (bfd_byte *) NULL, FALSE,
 			  (struct internal_reloc *) NULL));
@@ -1423,9 +1422,9 @@ sh_relax_delete_bytes (bfd *abfd,
 		      if (!bfd_malloc_and_get_section (abfd, o, &ocontents))
 			return FALSE;
 		      /* We always cache the section contents.
-                         Perhaps, if info->keep_memory is FALSE, we
-                         should free them, if we are permitted to,
-                         when we leave sh_coff_relax_section.  */
+			 Perhaps, if info->keep_memory is FALSE, we
+			 should free them, if we are permitted to,
+			 when we leave sh_coff_relax_section.  */
 		      coff_section_data (abfd, o)->contents = ocontents;
 		    }
 		}
@@ -1449,7 +1448,7 @@ sh_relax_delete_bytes (bfd *abfd,
       || obj_raw_syments (abfd) != NULL)
     {
       _bfd_error_handler
-	(_("%B: fatal: generic symbols retrieved before relaxing"), abfd);
+	(_("%pB: fatal: generic symbols retrieved before relaxing"), abfd);
       bfd_set_error (bfd_error_invalid_operation);
       return FALSE;
     }
@@ -2047,7 +2046,7 @@ sh_insn_info (unsigned int insn)
       opend = op + min->count;
 
       /* Since the opcodes tables are sorted, we could use a binary
-         search here if the count were above some cutoff value.  */
+	 search here if the count were above some cutoff value.  */
       for (; op < opend; op++)
 	if (op->opcode == l)
 	  return op;
@@ -2547,8 +2546,8 @@ sh_swap_insns (bfd *      abfd,
       int type, add;
 
       /* There are a few special types of relocs that we don't want to
-         adjust.  These relocs do not apply to the instruction itself,
-         but are only associated with the address.  */
+	 adjust.  These relocs do not apply to the instruction itself,
+	 but are only associated with the address.  */
       type = irel->r_type;
       if (type == R_SH_ALIGN
 	  || type == R_SH_CODE
@@ -2557,11 +2556,11 @@ sh_swap_insns (bfd *      abfd,
 	continue;
 
       /* If an R_SH_USES reloc points to one of the addresses being
-         swapped, we must adjust it.  It would be incorrect to do this
-         for a jump, though, since we want to execute both
-         instructions after the jump.  (We have avoided swapping
-         around a label, so the jump will not wind up executing an
-         instruction it shouldn't).  */
+	 swapped, we must adjust it.  It would be incorrect to do this
+	 for a jump, though, since we want to execute both
+	 instructions after the jump.  (We have avoided swapping
+	 around a label, so the jump will not wind up executing an
+	 instruction it shouldn't).  */
       if (type == R_SH_USES)
 	{
 	  bfd_vma off;
@@ -2620,11 +2619,11 @@ sh_swap_insns (bfd *      abfd,
 
 	    case R_SH_PCRELIMM8BY4:
 	      /* This reloc ignores the least significant 3 bits of
-                 the program counter before adding in the offset.
-                 This means that if ADDR is at an even address, the
-                 swap will not affect the offset.  If ADDR is an at an
-                 odd address, then the instruction will be crossing a
-                 four byte boundary, and must be adjusted.  */
+		 the program counter before adding in the offset.
+		 This means that if ADDR is at an even address, the
+		 swap will not affect the offset.  If ADDR is an at an
+		 odd address, then the instruction will be crossing a
+		 four byte boundary, and must be adjusted.  */
 	      if ((addr & 3) != 0)
 		{
 		  insn = bfd_get_16 (abfd, loc);
@@ -2642,8 +2641,8 @@ sh_swap_insns (bfd *      abfd,
 	    {
 	      _bfd_error_handler
 		/* xgettext: c-format */
-		(_("%B: 0x%lx: fatal: reloc overflow while relaxing"),
-		 abfd, (unsigned long) irel->r_vaddr);
+		(_("%pB: %#" PRIx64 ": fatal: reloc overflow while relaxing"),
+		 abfd, (uint64_t) irel->r_vaddr);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -2723,8 +2722,7 @@ sh_align_loads (bfd *abfd,
   return TRUE;
 
  error_return:
-  if (labels != NULL)
-    free (labels);
+  free (labels);
   return FALSE;
 }
 
@@ -2757,7 +2755,7 @@ sh_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
       bfd_reloc_status_type rstat;
 
       /* Almost all relocs have to do with relaxing.  If any work must
-         be done for them, it has been done in sh_relax_section.  */
+	 be done for them, it has been done in sh_relax_section.  */
       if (rel->r_type != R_SH_IMM32
 #ifdef COFF_WITH_PE
 	  && rel->r_type != R_SH_IMM32CE
@@ -2780,7 +2778,7 @@ sh_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	    {
 	      _bfd_error_handler
 		/* xgettext: c-format */
-		(_("%B: illegal symbol index %ld in relocs"),
+		(_("%pB: illegal symbol index %ld in relocs"),
 		 input_bfd, symndx);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
@@ -2831,7 +2829,7 @@ sh_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  else
 	    {
 	      sec = sections[symndx];
-              val = (sec->output_section->vma
+	      val = (sec->output_section->vma
 		     + sec->output_offset
 		     + sym->n_value
 		     - sec->vma);
@@ -2880,7 +2878,7 @@ sh_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	      name = obj_coff_strings (input_bfd) + sym->_n._n_n._n_offset;
 	    else
 	      {
- 		strncpy (buf, sym->_n._n_name, SYMNMLEN);
+		strncpy (buf, sym->_n._n_name, SYMNMLEN);
 		buf[SYMNMLEN] = '\0';
 		name = buf;
 	      }
@@ -2995,12 +2993,9 @@ sh_coff_get_relocated_section_contents (bfd *output_bfd,
   return data;
 
  error_return:
-  if (internal_relocs != NULL)
-    free (internal_relocs);
-  if (internal_syms != NULL)
-    free (internal_syms);
-  if (sections != NULL)
-    free (sections);
+  free (internal_relocs);
+  free (internal_syms);
+  free (sections);
   return NULL;
 }
 
@@ -3044,7 +3039,7 @@ CREATE_LITTLE_COFF_TARGET_VEC (TARGET_SYM, TARGET_SHL_NAME, BFD_IS_RELAXABLE,
 /* Only recognize the small versions if the target was not defaulted.
    Otherwise we won't recognize the non default endianness.  */
 
-static const bfd_target *
+static bfd_cleanup
 coff_small_object_p (bfd *abfd)
 {
   if (abfd->target_defaulted)
@@ -3130,9 +3125,9 @@ const bfd_target sh_coff_small_vec =
   BFD_ENDIAN_BIG,		/* data byte order is big */
   BFD_ENDIAN_BIG,		/* header byte order is big */
 
-  (HAS_RELOC | EXEC_P |		/* object flags */
-   HAS_LINENO | HAS_DEBUG |
-   HAS_SYMS | HAS_LOCALS | WP_TEXT | BFD_IS_RELAXABLE),
+  (HAS_RELOC | EXEC_P		/* object flags */
+   | HAS_LINENO | HAS_DEBUG
+   | HAS_SYMS | HAS_LOCALS | WP_TEXT | BFD_IS_RELAXABLE),
 
   (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC),
   '_',				/* leading symbol underscore */
@@ -3146,12 +3141,24 @@ const bfd_target sh_coff_small_vec =
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
   bfd_getb16, bfd_getb_signed_16, bfd_putb16, /* hdrs */
 
-  {_bfd_dummy_target, coff_small_object_p, /* bfd_check_format */
-     bfd_generic_archive_p, _bfd_dummy_target},
-  {bfd_false, coff_mkobject, _bfd_generic_mkarchive, /* bfd_set_format */
-     bfd_false},
-  {bfd_false, coff_write_object_contents, /* bfd_write_contents */
-     _bfd_write_archive_contents, bfd_false},
+  {				/* bfd_check_format */
+    _bfd_dummy_target,
+    coff_small_object_p,
+    bfd_generic_archive_p,
+    _bfd_dummy_target
+  },
+  {				/* bfd_set_format */
+    _bfd_bool_bfd_false_error,
+    coff_mkobject,
+    _bfd_generic_mkarchive,
+    _bfd_bool_bfd_false_error
+  },
+  {				/* bfd_write_contents */
+    _bfd_bool_bfd_false_error,
+    coff_write_object_contents,
+    _bfd_write_archive_contents,
+    _bfd_bool_bfd_false_error
+  },
 
   BFD_JUMP_TABLE_GENERIC (coff_small),
   BFD_JUMP_TABLE_COPY (coff),
@@ -3163,9 +3170,9 @@ const bfd_target sh_coff_small_vec =
   BFD_JUMP_TABLE_LINK (coff),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
-  & sh_coff_small_le_vec,
+  &sh_coff_small_le_vec,
 
-  & bfd_coff_small_swap_table
+  &bfd_coff_small_swap_table
 };
 
 const bfd_target sh_coff_small_le_vec =
@@ -3175,9 +3182,9 @@ const bfd_target sh_coff_small_le_vec =
   BFD_ENDIAN_LITTLE,		/* data byte order is little */
   BFD_ENDIAN_LITTLE,		/* header byte order is little endian too*/
 
-  (HAS_RELOC | EXEC_P |		/* object flags */
-   HAS_LINENO | HAS_DEBUG |
-   HAS_SYMS | HAS_LOCALS | WP_TEXT | BFD_IS_RELAXABLE),
+  (HAS_RELOC | EXEC_P		/* object flags */
+   | HAS_LINENO | HAS_DEBUG
+   | HAS_SYMS | HAS_LOCALS | WP_TEXT | BFD_IS_RELAXABLE),
 
   (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC),
   '_',				/* leading symbol underscore */
@@ -3191,12 +3198,24 @@ const bfd_target sh_coff_small_le_vec =
   bfd_getl32, bfd_getl_signed_32, bfd_putl32,
   bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* hdrs */
 
-  {_bfd_dummy_target, coff_small_object_p, /* bfd_check_format */
-     bfd_generic_archive_p, _bfd_dummy_target},
-  {bfd_false, coff_mkobject, _bfd_generic_mkarchive, /* bfd_set_format */
-     bfd_false},
-  {bfd_false, coff_write_object_contents, /* bfd_write_contents */
-     _bfd_write_archive_contents, bfd_false},
+  {				/* bfd_check_format */
+    _bfd_dummy_target,
+    coff_small_object_p,
+    bfd_generic_archive_p,
+    _bfd_dummy_target
+  },
+  {				/* bfd_set_format */
+    _bfd_bool_bfd_false_error,
+    coff_mkobject,
+    _bfd_generic_mkarchive,
+    _bfd_bool_bfd_false_error
+  },
+  {				/* bfd_write_contents */
+    _bfd_bool_bfd_false_error,
+    coff_write_object_contents,
+    _bfd_write_archive_contents,
+    _bfd_bool_bfd_false_error
+  },
 
   BFD_JUMP_TABLE_GENERIC (coff_small),
   BFD_JUMP_TABLE_COPY (coff),
@@ -3208,8 +3227,8 @@ const bfd_target sh_coff_small_le_vec =
   BFD_JUMP_TABLE_LINK (coff),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
-  & sh_coff_small_vec,
+  &sh_coff_small_vec,
 
-  & bfd_coff_small_swap_table
+  &bfd_coff_small_swap_table
 };
 #endif

@@ -2,7 +2,8 @@
 #as: --compress-debug-sections
 #ld: -shared
 #readelf: -S --wide
-#target: *-*-linux* *-*-gnu*
+#target: *-*-linux* *-*-gnu* arm*-*-uclinuxfdpiceabi
+#xfail: ![check_shared_lib_support] 
 
 #failif
 #...

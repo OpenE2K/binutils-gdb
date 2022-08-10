@@ -1,9 +1,10 @@
+/* DO NOT EDIT!  -*- buffer-read-only: t -*- vi:set ro:  */
 /* Instruction building/extraction support for xstormy16. -*- C -*-
 
    THIS FILE IS MACHINE GENERATED WITH CGEN: Cpu tools GENerator.
    - the resultant file is machine generated, cgen-ibld.in isn't
 
-   Copyright (C) 1996-2017 Free Software Foundation, Inc.
+   Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
    This file is part of libopcodes.
 
@@ -87,7 +88,7 @@ insert_1 (CGEN_CPU_DESC cd,
   unsigned long x,mask;
   int shift;
 
-  x = cgen_get_insn_value (cd, bufp, word_length);
+  x = cgen_get_insn_value (cd, bufp, word_length, cd->endian);
 
   /* Written this way to avoid undefined behaviour.  */
   mask = (((1L << (length - 1)) - 1) << 1) | 1;
@@ -97,7 +98,7 @@ insert_1 (CGEN_CPU_DESC cd,
     shift = (word_length - (start + length));
   x = (x & ~(mask << shift)) | ((value & mask) << shift);
 
-  cgen_put_insn_value (cd, bufp, word_length, (bfd_vma) x);
+  cgen_put_insn_value (cd, bufp, word_length, (bfd_vma) x, cd->endian);
 }
 
 #endif /* ! CGEN_INT_INSN_P */
@@ -268,8 +269,8 @@ insert_insn_normal (CGEN_CPU_DESC cd,
 #else
 
   cgen_put_insn_value (cd, buffer, min ((unsigned) cd->base_insn_bitsize,
-					(unsigned) CGEN_FIELDS_BITSIZE (fields)),
-		       value);
+                                        (unsigned) CGEN_FIELDS_BITSIZE (fields)),
+		       value, cd->insn_endian);
 
 #endif /* ! CGEN_INT_INSN_P */
 
@@ -386,7 +387,7 @@ extract_1 (CGEN_CPU_DESC cd,
   unsigned long x;
   int shift;
 
-  x = cgen_get_insn_value (cd, bufp, word_length);
+  x = cgen_get_insn_value (cd, bufp, word_length, cd->endian);
 
   if (CGEN_INSN_LSB0_P)
     shift = (start + 1) - length;
@@ -479,7 +480,10 @@ extract_normal (CGEN_CPU_DESC cd,
 	abort ();
 
       if (fill_cache (cd, ex_info, word_offset / 8, word_length / 8, pc) == 0)
-	return 0;
+	{
+	  *valuep = 0;
+	  return 0;
+	}
 
       value = extract_1 (cd, ex_info, start, length, word_length, bufp, pc);
     }
@@ -678,8 +682,9 @@ xstormy16_cgen_insert_operand (CGEN_CPU_DESC cd,
 
     default :
       /* xgettext:c-format */
-      fprintf (stderr, _("Unrecognized field %d while building insn.\n"),
-	       opindex);
+      opcodes_error_handler
+	(_("internal error: unrecognized field %d while building insn"),
+	 opindex);
       abort ();
   }
 
@@ -798,7 +803,7 @@ xstormy16_cgen_extract_operand (CGEN_CPU_DESC cd,
       {
         long value;
         length = extract_normal (cd, ex_info, insn_value, 0|(1<<CGEN_IFLD_SIGNED)|(1<<CGEN_IFLD_PCREL_ADDR), 0, 4, 11, 32, total_length, pc, & value);
-        value = ((((value) << (1))) + (((pc) + (2))));
+        value = ((((value) * (2))) + (((pc) + (2))));
         fields->f_rel12a = value;
       }
       break;
@@ -824,8 +829,9 @@ xstormy16_cgen_extract_operand (CGEN_CPU_DESC cd,
 
     default :
       /* xgettext:c-format */
-      fprintf (stderr, _("Unrecognized field %d while decoding insn.\n"),
-	       opindex);
+      opcodes_error_handler
+	(_("internal error: unrecognized field %d while decoding insn"),
+	 opindex);
       abort ();
     }
 
@@ -934,8 +940,9 @@ xstormy16_cgen_get_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 
     default :
       /* xgettext:c-format */
-      fprintf (stderr, _("Unrecognized field %d while getting int operand.\n"),
-		       opindex);
+      opcodes_error_handler
+	(_("internal error: unrecognized field %d while getting int operand"),
+	 opindex);
       abort ();
   }
 
@@ -1026,8 +1033,9 @@ xstormy16_cgen_get_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 
     default :
       /* xgettext:c-format */
-      fprintf (stderr, _("Unrecognized field %d while getting vma operand.\n"),
-		       opindex);
+      opcodes_error_handler
+	(_("internal error: unrecognized field %d while getting vma operand"),
+	 opindex);
       abort ();
   }
 
@@ -1125,8 +1133,9 @@ xstormy16_cgen_set_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 
     default :
       /* xgettext:c-format */
-      fprintf (stderr, _("Unrecognized field %d while setting int operand.\n"),
-		       opindex);
+      opcodes_error_handler
+	(_("internal error: unrecognized field %d while setting int operand"),
+	 opindex);
       abort ();
   }
 }
@@ -1214,8 +1223,9 @@ xstormy16_cgen_set_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
 
     default :
       /* xgettext:c-format */
-      fprintf (stderr, _("Unrecognized field %d while setting vma operand.\n"),
-		       opindex);
+      opcodes_error_handler
+	(_("internal error: unrecognized field %d while setting vma operand"),
+	 opindex);
       abort ();
   }
 }

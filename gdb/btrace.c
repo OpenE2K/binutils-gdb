@@ -1,6 +1,6 @@
 /* Branch trace support for GDB, the GNU debugger.
 
-   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+   Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
    Contributed by Intel Corp. <markus.t.metzger@intel.com>
 
@@ -31,9 +31,13 @@
 #include "filenames.h"
 #include "xml-support.h"
 #include "regcache.h"
-#include "rsp-low.h"
+#include "gdbsupport/rsp-low.h"
 #include "gdbcmd.h"
 #include "cli/cli-utils.h"
+#include "gdbarch.h"
+
+/* For maintenance commands.  */
+#include "record-btrace.h"
 
 #include <inttypes.h>
 #include <ctype.h>
@@ -47,7 +51,7 @@ static struct cmd_list_element *maint_btrace_pt_set_cmdlist;
 static struct cmd_list_element *maint_btrace_pt_show_cmdlist;
 
 /* Control whether to skip PAD packets when computing the packet history.  */
-static int maint_btrace_pt_skip_pad = 1;
+static bool maint_btrace_pt_skip_pad = true;
 
 static void btrace_add_pc (struct thread_info *tp);
 
@@ -78,10 +82,10 @@ ftrace_print_function_name (const struct btrace_function *bfun)
   sym = bfun->sym;
 
   if (sym != NULL)
-    return SYMBOL_PRINT_NAME (sym);
+    return sym->print_name ();
 
   if (msym != NULL)
-    return MSYMBOL_PRINT_NAME (msym);
+    return msym->print_name ();
 
   return "<unknown>";
 }
@@ -131,7 +135,7 @@ ftrace_debug (const struct btrace_function *bfun, const char *prefix)
   level = bfun->level;
 
   ibegin = bfun->insn_offset;
-  iend = ibegin + VEC_length (btrace_insn_s, bfun->insn);
+  iend = ibegin + bfun->insn.size ();
 
   DEBUG_FTRACE ("%s: fun = %s, file = %s, level = %d, insn = [%u; %u)",
 		prefix, fun, file, level, ibegin, iend);
@@ -149,7 +153,7 @@ ftrace_call_num_insn (const struct btrace_function* bfun)
   if (bfun->errcode != 0)
     return 1;
 
-  return VEC_length (btrace_insn_s, bfun->insn);
+  return bfun->insn.size ();
 }
 
 /* Return the function segment with the given NUMBER or NULL if no such segment
@@ -193,7 +197,7 @@ ftrace_function_switched (const struct btrace_function *bfun,
 
   /* If the minimal symbol changed, we certainly switched functions.  */
   if (mfun != NULL && msym != NULL
-      && strcmp (MSYMBOL_LINKAGE_NAME (mfun), MSYMBOL_LINKAGE_NAME (msym)) != 0)
+      && strcmp (mfun->linkage_name (), msym->linkage_name ()) != 0)
     return 1;
 
   /* If the symbol changed, we certainly switched functions.  */
@@ -202,7 +206,7 @@ ftrace_function_switched (const struct btrace_function *bfun,
       const char *bfname, *fname;
 
       /* Check the function name.  */
-      if (strcmp (SYMBOL_LINKAGE_NAME (fun), SYMBOL_LINKAGE_NAME (sym)) != 0)
+      if (strcmp (fun->linkage_name (), sym->linkage_name ()) != 0)
 	return 1;
 
       /* Check the location of those functions, as well.  */
@@ -390,15 +394,13 @@ ftrace_find_call (struct btrace_thread_info *btinfo,
 {
   for (; bfun != NULL; bfun = ftrace_find_call_by_number (btinfo, bfun->up))
     {
-      struct btrace_insn *last;
-
       /* Skip gaps.  */
       if (bfun->errcode != 0)
 	continue;
 
-      last = VEC_last (btrace_insn_s, bfun->insn);
+      btrace_insn &last = bfun->insn.back ();
 
-      if (last->iclass == BTRACE_INSN_CALL)
+      if (last.iclass == BTRACE_INSN_CALL)
 	break;
     }
 
@@ -528,7 +530,7 @@ ftrace_new_gap (struct btrace_thread_info *btinfo, int errcode,
     {
       /* We hijack the previous function segment if it was empty.  */
       bfun = &btinfo->functions.back ();
-      if (bfun->errcode != 0 || !VEC_empty (btrace_insn_s, bfun->insn))
+      if (bfun->errcode != 0 || !bfun->insn.empty ())
 	bfun = ftrace_new_function (btinfo, NULL, NULL);
     }
 
@@ -550,7 +552,6 @@ ftrace_update_function (struct btrace_thread_info *btinfo, CORE_ADDR pc)
   struct bound_minimal_symbol bmfun;
   struct minimal_symbol *mfun;
   struct symbol *fun;
-  struct btrace_insn *last;
   struct btrace_function *bfun;
 
   /* Try to determine the function we're in.  We use both types of symbols
@@ -575,9 +576,9 @@ ftrace_update_function (struct btrace_thread_info *btinfo, CORE_ADDR pc)
   /* Check the last instruction, if we have one.
      We do this check first, since it allows us to fill in the call stack
      links in addition to the normal flow links.  */
-  last = NULL;
-  if (!VEC_empty (btrace_insn_s, bfun->insn))
-    last = VEC_last (btrace_insn_s, bfun->insn);
+  btrace_insn *last = NULL;
+  if (!bfun->insn.empty ())
+    last = &bfun->insn.back ();
 
   if (last != NULL)
     {
@@ -620,6 +621,20 @@ ftrace_update_function (struct btrace_thread_info *btinfo, CORE_ADDR pc)
 	    if (start == pc)
 	      return ftrace_new_tailcall (btinfo, mfun, fun);
 
+	    /* Some versions of _Unwind_RaiseException use an indirect
+	       jump to 'return' to the exception handler of the caller
+	       handling the exception instead of a return.  Let's restrict
+	       this heuristic to that and related functions.  */
+	    const char *fname = ftrace_print_function_name (bfun);
+	    if (strncmp (fname, "_Unwind_", strlen ("_Unwind_")) == 0)
+	      {
+		struct btrace_function *caller
+		  = ftrace_find_call_by_number (btinfo, bfun->up);
+		caller = ftrace_find_caller (btinfo, caller, mfun, fun);
+		if (caller != NULL)
+		  return ftrace_new_return (btinfo, mfun, fun);
+	      }
+
 	    /* If we can't determine the function for PC, we treat a jump at
 	       the end of the block as tail call if we're switching functions
 	       and as an intra-function branch if we don't.  */
@@ -648,10 +663,9 @@ ftrace_update_function (struct btrace_thread_info *btinfo, CORE_ADDR pc)
 /* Add the instruction at PC to BFUN's instructions.  */
 
 static void
-ftrace_update_insns (struct btrace_function *bfun,
-		     const struct btrace_insn *insn)
+ftrace_update_insns (struct btrace_function *bfun, const btrace_insn &insn)
 {
-  VEC_safe_push (btrace_insn_s, bfun->insn, insn);
+  bfun->insn.push_back (insn);
 
   if (record_debug > 1)
     ftrace_debug (bfun, "update insn");
@@ -665,7 +679,7 @@ ftrace_classify_insn (struct gdbarch *gdbarch, CORE_ADDR pc)
   enum btrace_insn_class iclass;
 
   iclass = BTRACE_INSN_OTHER;
-  TRY
+  try
     {
       if (gdbarch_insn_is_call (gdbarch, pc))
 	iclass = BTRACE_INSN_CALL;
@@ -674,10 +688,9 @@ ftrace_classify_insn (struct gdbarch *gdbarch, CORE_ADDR pc)
       else if (gdbarch_insn_is_jump (gdbarch, pc))
 	iclass = BTRACE_INSN_JUMP;
     }
-  CATCH (error, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &error)
     {
     }
-  END_CATCH
 
   return iclass;
 }
@@ -747,7 +760,7 @@ ftrace_compute_global_level_offset (struct btrace_thread_info *btinfo)
      really part of the trace.  If it contains just this one instruction, we
      ignore the segment.  */
   struct btrace_function *last = &btinfo->functions.back();
-  if (VEC_length (btrace_insn_s, last->insn) != 1)
+  if (last->insn.size () != 1)
     level = std::min (level, last->level);
 
   DEBUG_FTRACE ("setting global level offset: %d", -level);
@@ -913,7 +926,7 @@ ftrace_bridge_gap (struct btrace_thread_info *btinfo,
   best_r = NULL;
 
   /* We search the back traces of LHS and RHS for valid connections and connect
-     the two functon segments that give the longest combined back trace.  */
+     the two function segments that give the longest combined back trace.  */
 
   for (cand_l = lhs; cand_l != NULL;
        cand_l = ftrace_get_caller (btinfo, cand_l))
@@ -1046,7 +1059,7 @@ btrace_compute_ftrace_bts (struct thread_info *tp,
 
   gdbarch = target_gdbarch ();
   btinfo = &tp->btrace;
-  blk = VEC_length (btrace_block_s, btrace->blocks);
+  blk = btrace->blocks->size ();
 
   if (btinfo->functions.empty ())
     level = INT_MAX;
@@ -1055,13 +1068,12 @@ btrace_compute_ftrace_bts (struct thread_info *tp,
 
   while (blk != 0)
     {
-      btrace_block_s *block;
       CORE_ADDR pc;
 
       blk -= 1;
 
-      block = VEC_index (btrace_block_s, btrace->blocks, blk);
-      pc = block->begin;
+      const btrace_block &block = btrace->blocks->at (blk);
+      pc = block.begin;
 
       for (;;)
 	{
@@ -1070,7 +1082,7 @@ btrace_compute_ftrace_bts (struct thread_info *tp,
 	  int size;
 
 	  /* We should hit the end of the block.  Warn if we went too far.  */
-	  if (block->end < pc)
+	  if (block.end < pc)
 	    {
 	      /* Indicate the gap in the trace.  */
 	      bfun = ftrace_new_gap (btinfo, BDE_BTS_OVERFLOW, gaps);
@@ -1090,24 +1102,23 @@ btrace_compute_ftrace_bts (struct thread_info *tp,
 	    level = std::min (level, bfun->level);
 
 	  size = 0;
-	  TRY
+	  try
 	    {
 	      size = gdb_insn_length (gdbarch, pc);
 	    }
-	  CATCH (error, RETURN_MASK_ERROR)
+	  catch (const gdb_exception_error &error)
 	    {
 	    }
-	  END_CATCH
 
 	  insn.pc = pc;
 	  insn.size = size;
 	  insn.iclass = ftrace_classify_insn (gdbarch, pc);
 	  insn.flags = 0;
 
-	  ftrace_update_insns (bfun, &insn);
+	  ftrace_update_insns (bfun, insn);
 
 	  /* We're done once we pushed the instruction at the end.  */
-	  if (block->end == pc)
+	  if (block.end == pc)
 	    break;
 
 	  /* We can't continue if we fail to compute the size.  */
@@ -1329,8 +1340,7 @@ ftrace_add_pt (struct btrace_thread_info *btinfo,
 	  /* Maintain the function level offset.  */
 	  *plevel = std::min (*plevel, bfun->level);
 
-	  btrace_insn btinsn = pt_btrace_insn (insn);
-	  ftrace_update_insns (bfun, &btinsn);
+	  ftrace_update_insns (bfun, pt_btrace_insn (insn));
 	}
 
       if (status == -pte_eos)
@@ -1358,17 +1368,16 @@ btrace_pt_readmem_callback (gdb_byte *buffer, size_t size,
   int result, errcode;
 
   result = (int) size;
-  TRY
+  try
     {
       errcode = target_read_code ((CORE_ADDR) pc, buffer, size);
       if (errcode != 0)
 	result = -pte_nomap;
     }
-  CATCH (error, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &error)
     {
       result = -pte_nomap;
     }
-  END_CATCH
 
   return result;
 }
@@ -1433,21 +1442,26 @@ btrace_compute_ftrace_pt (struct thread_info *tp,
   config.begin = btrace->data;
   config.end = btrace->data + btrace->size;
 
-  config.cpu.vendor = pt_translate_cpu_vendor (btrace->config.cpu.vendor);
-  config.cpu.family = btrace->config.cpu.family;
-  config.cpu.model = btrace->config.cpu.model;
-  config.cpu.stepping = btrace->config.cpu.stepping;
+  /* We treat an unknown vendor as 'no errata'.  */
+  if (btrace->config.cpu.vendor != CV_UNKNOWN)
+    {
+      config.cpu.vendor
+	= pt_translate_cpu_vendor (btrace->config.cpu.vendor);
+      config.cpu.family = btrace->config.cpu.family;
+      config.cpu.model = btrace->config.cpu.model;
+      config.cpu.stepping = btrace->config.cpu.stepping;
 
-  errcode = pt_cpu_errata (&config.errata, &config.cpu);
-  if (errcode < 0)
-    error (_("Failed to configure the Intel Processor Trace decoder: %s."),
-	   pt_errstr (pt_errcode (errcode)));
+      errcode = pt_cpu_errata (&config.errata, &config.cpu);
+      if (errcode < 0)
+	error (_("Failed to configure the Intel Processor Trace "
+		 "decoder: %s."), pt_errstr (pt_errcode (errcode)));
+    }
 
   decoder = pt_insn_alloc_decoder (&config);
   if (decoder == NULL)
     error (_("Failed to allocate the Intel Processor Trace decoder."));
 
-  TRY
+  try
     {
       struct pt_image *image;
 
@@ -1462,7 +1476,7 @@ btrace_compute_ftrace_pt (struct thread_info *tp,
 
       ftrace_add_pt (btinfo, decoder, &level, gaps);
     }
-  CATCH (error, RETURN_MASK_ALL)
+  catch (const gdb_exception &error)
     {
       /* Indicate a gap in the trace if we quit trace processing.  */
       if (error.reason == RETURN_QUIT && !btinfo->functions.empty ())
@@ -1470,9 +1484,8 @@ btrace_compute_ftrace_pt (struct thread_info *tp,
 
       btrace_finalize_ftrace_pt (decoder, tp, level);
 
-      throw_exception (error);
+      throw;
     }
-  END_CATCH
 
   btrace_finalize_ftrace_pt (decoder, tp, level);
 }
@@ -1490,10 +1503,14 @@ btrace_compute_ftrace_pt (struct thread_info *tp,
 #endif /* defined (HAVE_LIBIPT)  */
 
 /* Compute the function branch trace from a block branch trace BTRACE for
-   a thread given by BTINFO.  */
+   a thread given by BTINFO.  If CPU is not NULL, overwrite the cpu in the
+   branch trace configuration.  This is currently only used for the PT
+   format.  */
 
 static void
-btrace_compute_ftrace_1 (struct thread_info *tp, struct btrace_data *btrace,
+btrace_compute_ftrace_1 (struct thread_info *tp,
+			 struct btrace_data *btrace,
+			 const struct btrace_cpu *cpu,
 			 std::vector<unsigned int> &gaps)
 {
   DEBUG ("compute ftrace");
@@ -1508,11 +1525,15 @@ btrace_compute_ftrace_1 (struct thread_info *tp, struct btrace_data *btrace,
       return;
 
     case BTRACE_FORMAT_PT:
+      /* Overwrite the cpu we use for enabling errata workarounds.  */
+      if (cpu != nullptr)
+	btrace->variant.pt.config.cpu = *cpu;
+
       btrace_compute_ftrace_pt (tp, &btrace->variant.pt, gaps);
       return;
     }
 
-  internal_error (__FILE__, __LINE__, _("Unkown branch trace format."));
+  internal_error (__FILE__, __LINE__, _("Unknown branch trace format."));
 }
 
 static void
@@ -1526,21 +1547,21 @@ btrace_finalize_ftrace (struct thread_info *tp, std::vector<unsigned int> &gaps)
 }
 
 static void
-btrace_compute_ftrace (struct thread_info *tp, struct btrace_data *btrace)
+btrace_compute_ftrace (struct thread_info *tp, struct btrace_data *btrace,
+		       const struct btrace_cpu *cpu)
 {
   std::vector<unsigned int> gaps;
 
-  TRY
+  try
     {
-      btrace_compute_ftrace_1 (tp, btrace, gaps);
+      btrace_compute_ftrace_1 (tp, btrace, cpu, gaps);
     }
-  CATCH (error, RETURN_MASK_ALL)
+  catch (const gdb_exception &error)
     {
       btrace_finalize_ftrace (tp, gaps);
 
-      throw_exception (error);
+      throw;
     }
-  END_CATCH
 
   btrace_finalize_ftrace (tp, gaps);
 }
@@ -1551,27 +1572,18 @@ static void
 btrace_add_pc (struct thread_info *tp)
 {
   struct btrace_data btrace;
-  struct btrace_block *block;
   struct regcache *regcache;
-  struct cleanup *cleanup;
   CORE_ADDR pc;
 
-  regcache = get_thread_regcache (tp->ptid);
+  regcache = get_thread_regcache (tp);
   pc = regcache_read_pc (regcache);
 
-  btrace_data_init (&btrace);
   btrace.format = BTRACE_FORMAT_BTS;
-  btrace.variant.bts.blocks = NULL;
+  btrace.variant.bts.blocks = new std::vector<btrace_block>;
 
-  cleanup = make_cleanup_btrace_data (&btrace);
+  btrace.variant.bts.blocks->emplace_back (pc, pc);
 
-  block = VEC_safe_push (btrace_block_s, btrace.variant.bts.blocks, NULL);
-  block->begin = pc;
-  block->end = pc;
-
-  btrace_compute_ftrace (tp, &btrace);
-
-  do_cleanups (cleanup);
+  btrace_compute_ftrace (tp, &btrace, NULL);
 }
 
 /* See btrace.h.  */
@@ -1580,27 +1592,25 @@ void
 btrace_enable (struct thread_info *tp, const struct btrace_config *conf)
 {
   if (tp->btrace.target != NULL)
-    return;
+    error (_("Recording already enabled on thread %s (%s)."),
+	   print_thread_id (tp), target_pid_to_str (tp->ptid).c_str ());
 
 #if !defined (HAVE_LIBIPT)
   if (conf->format == BTRACE_FORMAT_PT)
-    error (_("GDB does not support Intel Processor Trace."));
+    error (_("Intel Processor Trace support was disabled at compile time."));
 #endif /* !defined (HAVE_LIBIPT) */
 
-  if (!target_supports_btrace (conf->format))
-    error (_("Target does not support branch tracing."));
-
   DEBUG ("enable thread %s (%s)", print_thread_id (tp),
-	 target_pid_to_str (tp->ptid));
+	 target_pid_to_str (tp->ptid).c_str ());
 
   tp->btrace.target = target_enable_btrace (tp->ptid, conf);
 
-  /* We're done if we failed to enable tracing.  */
   if (tp->btrace.target == NULL)
-    return;
+    error (_("Failed to enable recording on thread %s (%s)."),
+	   print_thread_id (tp), target_pid_to_str (tp->ptid).c_str ());
 
   /* We need to undo the enable in case of errors.  */
-  TRY
+  try
     {
       /* Add an entry for the current PC so we start tracing from where we
 	 enabled it.
@@ -1612,16 +1622,15 @@ btrace_enable (struct thread_info *tp, const struct btrace_config *conf)
 	 This is not relevant for BTRACE_FORMAT_PT since the trace will already
 	 start at the PC at which tracing was enabled.  */
       if (conf->format != BTRACE_FORMAT_PT
-	  && can_access_registers_ptid (tp->ptid))
+	  && can_access_registers_thread (tp))
 	btrace_add_pc (tp);
     }
-  CATCH (exception, RETURN_MASK_ALL)
+  catch (const gdb_exception &exception)
     {
       btrace_disable (tp);
 
-      throw_exception (exception);
+      throw;
     }
-  END_CATCH
 }
 
 /* See btrace.h.  */
@@ -1641,13 +1650,13 @@ void
 btrace_disable (struct thread_info *tp)
 {
   struct btrace_thread_info *btp = &tp->btrace;
-  int errcode = 0;
 
   if (btp->target == NULL)
-    return;
+    error (_("Recording not enabled on thread %s (%s)."),
+	   print_thread_id (tp), target_pid_to_str (tp->ptid).c_str ());
 
   DEBUG ("disable thread %s (%s)", print_thread_id (tp),
-	 target_pid_to_str (tp->ptid));
+	 target_pid_to_str (tp->ptid).c_str ());
 
   target_disable_btrace (btp->target);
   btp->target = NULL;
@@ -1661,13 +1670,12 @@ void
 btrace_teardown (struct thread_info *tp)
 {
   struct btrace_thread_info *btp = &tp->btrace;
-  int errcode = 0;
 
   if (btp->target == NULL)
     return;
 
   DEBUG ("teardown thread %s (%s)", print_thread_id (tp),
-	 target_pid_to_str (tp->ptid));
+	 target_pid_to_str (tp->ptid).c_str ());
 
   target_teardown_btrace (btp->target);
   btp->target = NULL;
@@ -1682,29 +1690,28 @@ btrace_stitch_bts (struct btrace_data_bts *btrace, struct thread_info *tp)
 {
   struct btrace_thread_info *btinfo;
   struct btrace_function *last_bfun;
-  struct btrace_insn *last_insn;
-  btrace_block_s *first_new_block;
+  btrace_block *first_new_block;
 
   btinfo = &tp->btrace;
   gdb_assert (!btinfo->functions.empty ());
-  gdb_assert (!VEC_empty (btrace_block_s, btrace->blocks));
+  gdb_assert (!btrace->blocks->empty ());
 
   last_bfun = &btinfo->functions.back ();
 
   /* If the existing trace ends with a gap, we just glue the traces
      together.  We need to drop the last (i.e. chronologically first) block
      of the new trace,  though, since we can't fill in the start address.*/
-  if (VEC_empty (btrace_insn_s, last_bfun->insn))
+  if (last_bfun->insn.empty ())
     {
-      VEC_pop (btrace_block_s, btrace->blocks);
+      btrace->blocks->pop_back ();
       return 0;
     }
 
   /* Beware that block trace starts with the most recent block, so the
      chronologically first block in the new trace is the last block in
      the new trace's block vector.  */
-  first_new_block = VEC_last (btrace_block_s, btrace->blocks);
-  last_insn = VEC_last (btrace_insn_s, last_bfun->insn);
+  first_new_block = &btrace->blocks->back ();
+  const btrace_insn &last_insn = last_bfun->insn.back ();
 
   /* If the current PC at the end of the block is the same as in our current
      trace, there are two explanations:
@@ -1714,19 +1721,18 @@ btrace_stitch_bts (struct btrace_data_bts *btrace, struct thread_info *tp)
      entries.
      In the second case, the delta trace vector should contain exactly one
      entry for the partial block containing the current PC.  Remove it.  */
-  if (first_new_block->end == last_insn->pc
-      && VEC_length (btrace_block_s, btrace->blocks) == 1)
+  if (first_new_block->end == last_insn.pc && btrace->blocks->size () == 1)
     {
-      VEC_pop (btrace_block_s, btrace->blocks);
+      btrace->blocks->pop_back ();
       return 0;
     }
 
-  DEBUG ("stitching %s to %s", ftrace_print_insn_addr (last_insn),
+  DEBUG ("stitching %s to %s", ftrace_print_insn_addr (&last_insn),
 	 core_addr_to_string_nz (first_new_block->end));
 
   /* Do a simple sanity check to make sure we don't accidentally end up
      with a bad block.  This should not occur in practice.  */
-  if (first_new_block->end < last_insn->pc)
+  if (first_new_block->end < last_insn.pc)
     {
       warning (_("Error while trying to read delta trace.  Falling back to "
 		 "a full read."));
@@ -1735,16 +1741,16 @@ btrace_stitch_bts (struct btrace_data_bts *btrace, struct thread_info *tp)
 
   /* We adjust the last block to start at the end of our current trace.  */
   gdb_assert (first_new_block->begin == 0);
-  first_new_block->begin = last_insn->pc;
+  first_new_block->begin = last_insn.pc;
 
   /* We simply pop the last insn so we can insert it again as part of
      the normal branch trace computation.
      Since instruction iterators are based on indices in the instructions
      vector, we don't leave any pointers dangling.  */
   DEBUG ("pruning insn at %s for stitching",
-	 ftrace_print_insn_addr (last_insn));
+	 ftrace_print_insn_addr (&last_insn));
 
-  VEC_pop (btrace_insn_s, last_bfun->insn);
+  last_bfun->insn.pop_back ();
 
   /* The instructions vector may become empty temporarily if this has
      been the only instruction in this function segment.
@@ -1755,7 +1761,7 @@ btrace_stitch_bts (struct btrace_data_bts *btrace, struct thread_info *tp)
      of just that one instruction.  If we remove it, we might turn the now
      empty btrace function segment into a gap.  But we don't want gaps at
      the beginning.  To avoid this, we remove the entire old trace.  */
-  if (last_bfun->number == 1 && VEC_empty (btrace_insn_s, last_bfun->insn))
+  if (last_bfun->number == 1 && last_bfun->insn.empty ())
     btrace_clear (tp);
 
   return 0;
@@ -1771,7 +1777,7 @@ static int
 btrace_stitch_trace (struct btrace_data *btrace, struct thread_info *tp)
 {
   /* If we don't have trace, there's nothing to do.  */
-  if (btrace_data_empty (btrace))
+  if (btrace->empty ())
     return 0;
 
   switch (btrace->format)
@@ -1787,7 +1793,7 @@ btrace_stitch_trace (struct btrace_data *btrace, struct thread_info *tp)
       return -1;
     }
 
-  internal_error (__FILE__, __LINE__, _("Unkown branch trace format."));
+  internal_error (__FILE__, __LINE__, _("Unknown branch trace format."));
 }
 
 /* Clear the branch trace histories in BTINFO.  */
@@ -1821,7 +1827,7 @@ btrace_maint_clear (struct btrace_thread_info *btinfo)
 
 #if defined (HAVE_LIBIPT)
     case BTRACE_FORMAT_PT:
-      xfree (btinfo->maint.variant.pt.packets);
+      delete btinfo->maint.variant.pt.packets;
 
       btinfo->maint.variant.pt.packets = NULL;
       btinfo->maint.variant.pt.packet_history.begin = 0;
@@ -1883,16 +1889,15 @@ btrace_decode_error (enum btrace_format format, int errcode)
 /* See btrace.h.  */
 
 void
-btrace_fetch (struct thread_info *tp)
+btrace_fetch (struct thread_info *tp, const struct btrace_cpu *cpu)
 {
   struct btrace_thread_info *btinfo;
   struct btrace_target_info *tinfo;
   struct btrace_data btrace;
-  struct cleanup *cleanup;
   int errcode;
 
   DEBUG ("fetch thread %s (%s)", print_thread_id (tp),
-	 target_pid_to_str (tp->ptid));
+	 target_pid_to_str (tp->ptid).c_str ());
 
   btinfo = &tp->btrace;
   tinfo = btinfo->target;
@@ -1905,17 +1910,15 @@ btrace_fetch (struct thread_info *tp)
   if (btinfo->replay != NULL)
     return;
 
-  /* With CLI usage, TP->PTID always equals INFERIOR_PTID here.  Now that we
-     can store a gdb.Record object in Python referring to a different thread
-     than the current one, temporarily set INFERIOR_PTID.  */
-  cleanup = save_inferior_ptid ();
-  inferior_ptid = tp->ptid;
+  /* With CLI usage, TP is always the current thread when we get here.
+     However, since we can also store a gdb.Record object in Python
+     referring to a different thread than the current one, we need to
+     temporarily set the current thread.  */
+  scoped_restore_current_thread restore_thread;
+  switch_to_thread (tp);
 
   /* We should not be called on running or exited threads.  */
-  gdb_assert (can_access_registers_ptid (tp->ptid));
-
-  btrace_data_init (&btrace);
-  make_cleanup_btrace_data (&btrace);
+  gdb_assert (can_access_registers_thread (tp));
 
   /* Let's first try to extend the trace we already have.  */
   if (!btinfo->functions.empty ())
@@ -1932,7 +1935,7 @@ btrace_fetch (struct thread_info *tp)
 	  errcode = target_read_btrace (&btrace, tinfo, BTRACE_READ_NEW);
 
 	  /* If we got any new trace, discard what we have.  */
-	  if (errcode == 0 && !btrace_data_empty (&btrace))
+	  if (errcode == 0 && !btrace.empty ())
 	    btrace_clear (tp);
 	}
 
@@ -1951,7 +1954,7 @@ btrace_fetch (struct thread_info *tp)
     error (_("Failed to read branch trace."));
 
   /* Compute the trace, provided we have any.  */
-  if (!btrace_data_empty (&btrace))
+  if (!btrace.empty ())
     {
       /* Store the raw trace data.  The stored data will be cleared in
 	 btrace_clear, so we always append the new trace.  */
@@ -1959,10 +1962,8 @@ btrace_fetch (struct thread_info *tp)
       btrace_maint_clear (btinfo);
 
       btrace_clear_history (btinfo);
-      btrace_compute_ftrace (tp, &btrace);
+      btrace_compute_ftrace (tp, &btrace, cpu);
     }
-
-  do_cleanups (cleanup);
 }
 
 /* See btrace.h.  */
@@ -1973,22 +1974,20 @@ btrace_clear (struct thread_info *tp)
   struct btrace_thread_info *btinfo;
 
   DEBUG ("clear thread %s (%s)", print_thread_id (tp),
-	 target_pid_to_str (tp->ptid));
+	 target_pid_to_str (tp->ptid).c_str ());
 
   /* Make sure btrace frames that may hold a pointer into the branch
      trace data are destroyed.  */
   reinit_frame_cache ();
 
   btinfo = &tp->btrace;
-  for (auto &bfun : btinfo->functions)
-    VEC_free (btrace_insn_s, bfun.insn);
 
   btinfo->functions.clear ();
   btinfo->ngaps = 0;
 
   /* Must clear the maint data before - it depends on BTINFO->DATA.  */
   btrace_maint_clear (btinfo);
-  btrace_data_clear (&btinfo->data);
+  btinfo->data.clear ();
   btrace_clear_history (btinfo);
 }
 
@@ -1997,11 +1996,9 @@ btrace_clear (struct thread_info *tp)
 void
 btrace_free_objfile (struct objfile *objfile)
 {
-  struct thread_info *tp;
-
   DEBUG ("free objfile");
 
-  ALL_NON_EXITED_THREADS (tp)
+  for (thread_info *tp : all_non_exited_threads ())
     btrace_clear (tp);
 }
 
@@ -2012,10 +2009,11 @@ btrace_free_objfile (struct objfile *objfile)
 static void
 check_xml_btrace_version (struct gdb_xml_parser *parser,
 			  const struct gdb_xml_element *element,
-			  void *user_data, VEC (gdb_xml_value_s) *attributes)
+			  void *user_data,
+			  std::vector<gdb_xml_value> &attributes)
 {
   const char *version
-    = (const char *) xml_find_attribute (attributes, "version")->value;
+    = (const char *) xml_find_attribute (attributes, "version")->value.get ();
 
   if (strcmp (version, "1.0") != 0)
     gdb_xml_error (parser, _("Unsupported btrace version: \"%s\""), version);
@@ -2026,10 +2024,10 @@ check_xml_btrace_version (struct gdb_xml_parser *parser,
 static void
 parse_xml_btrace_block (struct gdb_xml_parser *parser,
 			const struct gdb_xml_element *element,
-			void *user_data, VEC (gdb_xml_value_s) *attributes)
+			void *user_data,
+			std::vector<gdb_xml_value> &attributes)
 {
   struct btrace_data *btrace;
-  struct btrace_block *block;
   ULONGEST *begin, *end;
 
   btrace = (struct btrace_data *) user_data;
@@ -2041,19 +2039,16 @@ parse_xml_btrace_block (struct gdb_xml_parser *parser,
 
     case BTRACE_FORMAT_NONE:
       btrace->format = BTRACE_FORMAT_BTS;
-      btrace->variant.bts.blocks = NULL;
+      btrace->variant.bts.blocks = new std::vector<btrace_block>;
       break;
 
     default:
       gdb_xml_error (parser, _("Btrace format error."));
     }
 
-  begin = (ULONGEST *) xml_find_attribute (attributes, "begin")->value;
-  end = (ULONGEST *) xml_find_attribute (attributes, "end")->value;
-
-  block = VEC_safe_push (btrace_block_s, btrace->variant.bts.blocks, NULL);
-  block->begin = *begin;
-  block->end = *end;
+  begin = (ULONGEST *) xml_find_attribute (attributes, "begin")->value.get ();
+  end = (ULONGEST *) xml_find_attribute (attributes, "end")->value.get ();
+  btrace->variant.bts.blocks->emplace_back (*begin, *end);
 }
 
 /* Parse a "raw" xml record.  */
@@ -2062,8 +2057,7 @@ static void
 parse_xml_raw (struct gdb_xml_parser *parser, const char *body_text,
 	       gdb_byte **pdata, size_t *psize)
 {
-  struct cleanup *cleanup;
-  gdb_byte *data, *bin;
+  gdb_byte *bin;
   size_t len, size;
 
   len = strlen (body_text);
@@ -2072,10 +2066,10 @@ parse_xml_raw (struct gdb_xml_parser *parser, const char *body_text,
 
   size = len / 2;
 
-  bin = data = (gdb_byte *) xmalloc (size);
-  cleanup = make_cleanup (xfree, data);
+  gdb::unique_xmalloc_ptr<gdb_byte> data ((gdb_byte *) xmalloc (size));
+  bin = data.get ();
 
-  /* We use hex encoding - see common/rsp-low.h.  */
+  /* We use hex encoding - see gdbsupport/rsp-low.h.  */
   while (len > 0)
     {
       char hi, lo;
@@ -2090,9 +2084,7 @@ parse_xml_raw (struct gdb_xml_parser *parser, const char *body_text,
       len -= 2;
     }
 
-  discard_cleanups (cleanup);
-
-  *pdata = data;
+  *pdata = data.release ();
   *psize = size;
 }
 
@@ -2102,16 +2094,20 @@ static void
 parse_xml_btrace_pt_config_cpu (struct gdb_xml_parser *parser,
 				const struct gdb_xml_element *element,
 				void *user_data,
-				VEC (gdb_xml_value_s) *attributes)
+				std::vector<gdb_xml_value> &attributes)
 {
   struct btrace_data *btrace;
   const char *vendor;
   ULONGEST *family, *model, *stepping;
 
-  vendor = (const char *) xml_find_attribute (attributes, "vendor")->value;
-  family = (ULONGEST *) xml_find_attribute (attributes, "family")->value;
-  model = (ULONGEST *) xml_find_attribute (attributes, "model")->value;
-  stepping = (ULONGEST *) xml_find_attribute (attributes, "stepping")->value;
+  vendor =
+    (const char *) xml_find_attribute (attributes, "vendor")->value.get ();
+  family
+    = (ULONGEST *) xml_find_attribute (attributes, "family")->value.get ();
+  model
+    = (ULONGEST *) xml_find_attribute (attributes, "model")->value.get ();
+  stepping
+    = (ULONGEST *) xml_find_attribute (attributes, "stepping")->value.get ();
 
   btrace = (struct btrace_data *) user_data;
 
@@ -2142,7 +2138,8 @@ parse_xml_btrace_pt_raw (struct gdb_xml_parser *parser,
 static void
 parse_xml_btrace_pt (struct gdb_xml_parser *parser,
 		     const struct gdb_xml_element *element,
-		     void *user_data, VEC (gdb_xml_value_s) *attributes)
+		     void *user_data,
+		     std::vector<gdb_xml_value> &attributes)
 {
   struct btrace_data *btrace;
 
@@ -2206,25 +2203,24 @@ static const struct gdb_xml_element btrace_elements[] = {
 void
 parse_xml_btrace (struct btrace_data *btrace, const char *buffer)
 {
-  struct cleanup *cleanup;
-  int errcode;
-
 #if defined (HAVE_LIBEXPAT)
 
-  btrace->format = BTRACE_FORMAT_NONE;
+  int errcode;
+  btrace_data result;
+  result.format = BTRACE_FORMAT_NONE;
 
-  cleanup = make_cleanup_btrace_data (btrace);
   errcode = gdb_xml_parse_quick (_("btrace"), "btrace.dtd", btrace_elements,
-				 buffer, btrace);
+				 buffer, &result);
   if (errcode != 0)
     error (_("Error parsing branch trace."));
 
   /* Keep parse results.  */
-  discard_cleanups (cleanup);
+  *btrace = std::move (result);
 
 #else  /* !defined (HAVE_LIBEXPAT) */
 
-  error (_("Cannot process branch trace.  XML parsing is not supported."));
+  error (_("Cannot process branch trace.  XML support was disabled at "
+	   "compile time."));
 
 #endif  /* !defined (HAVE_LIBEXPAT) */
 }
@@ -2236,7 +2232,8 @@ parse_xml_btrace (struct btrace_data *btrace, const char *buffer)
 static void
 parse_xml_btrace_conf_bts (struct gdb_xml_parser *parser,
 			  const struct gdb_xml_element *element,
-			  void *user_data, VEC (gdb_xml_value_s) *attributes)
+			  void *user_data,
+			  std::vector<gdb_xml_value> &attributes)
 {
   struct btrace_config *conf;
   struct gdb_xml_value *size;
@@ -2247,7 +2244,7 @@ parse_xml_btrace_conf_bts (struct gdb_xml_parser *parser,
 
   size = xml_find_attribute (attributes, "size");
   if (size != NULL)
-    conf->bts.size = (unsigned int) *(ULONGEST *) size->value;
+    conf->bts.size = (unsigned int) *(ULONGEST *) size->value.get ();
 }
 
 /* Parse a btrace-conf "pt" xml record.  */
@@ -2255,7 +2252,8 @@ parse_xml_btrace_conf_bts (struct gdb_xml_parser *parser,
 static void
 parse_xml_btrace_conf_pt (struct gdb_xml_parser *parser,
 			  const struct gdb_xml_element *element,
-			  void *user_data, VEC (gdb_xml_value_s) *attributes)
+			  void *user_data,
+			  std::vector<gdb_xml_value> &attributes)
 {
   struct btrace_config *conf;
   struct gdb_xml_value *size;
@@ -2266,7 +2264,7 @@ parse_xml_btrace_conf_pt (struct gdb_xml_parser *parser,
 
   size = xml_find_attribute (attributes, "size");
   if (size != NULL)
-    conf->pt.size = (unsigned int) *(ULONGEST *) size->value;
+    conf->pt.size = (unsigned int) *(ULONGEST *) size->value.get ();
 }
 
 static const struct gdb_xml_attribute btrace_conf_pt_attributes[] = {
@@ -2305,10 +2303,9 @@ static const struct gdb_xml_element btrace_conf_elements[] = {
 void
 parse_xml_btrace_conf (struct btrace_config *conf, const char *xml)
 {
-  int errcode;
-
 #if defined (HAVE_LIBEXPAT)
 
+  int errcode;
   errcode = gdb_xml_parse_quick (_("btrace-conf"), "btrace-conf.dtd",
 				 btrace_conf_elements, xml, conf);
   if (errcode != 0)
@@ -2316,7 +2313,8 @@ parse_xml_btrace_conf (struct btrace_config *conf, const char *xml)
 
 #else  /* !defined (HAVE_LIBEXPAT) */
 
-  error (_("XML parsing is not supported."));
+  error (_("Cannot process the branch trace configuration.  XML support "
+	   "was disabled at compile time."));
 
 #endif  /* !defined (HAVE_LIBEXPAT) */
 }
@@ -2337,11 +2335,11 @@ btrace_insn_get (const struct btrace_insn_iterator *it)
     return NULL;
 
   /* The index is within the bounds of this function's instruction vector.  */
-  end = VEC_length (btrace_insn_s, bfun->insn);
+  end = bfun->insn.size ();
   gdb_assert (0 < end);
   gdb_assert (index < end);
 
-  return VEC_index (btrace_insn_s, bfun->insn, index);
+  return &bfun->insn[index];
 }
 
 /* See btrace.h.  */
@@ -2387,7 +2385,7 @@ btrace_insn_end (struct btrace_insn_iterator *it,
     error (_("No trace."));
 
   bfun = &btinfo->functions.back ();
-  length = VEC_length (btrace_insn_s, bfun->insn);
+  length = bfun->insn.size ();
 
   /* The last function may either be a gap or it contains the current
      instruction, which is one past the end of the execution trace; ignore
@@ -2416,7 +2414,7 @@ btrace_insn_next (struct btrace_insn_iterator *it, unsigned int stride)
     {
       unsigned int end, space, adv;
 
-      end = VEC_length (btrace_insn_s, bfun->insn);
+      end = bfun->insn.size ();
 
       /* An empty function segment represents a gap in the trace.  We count
 	 it as one instruction.  */
@@ -2509,7 +2507,7 @@ btrace_insn_prev (struct btrace_insn_iterator *it, unsigned int stride)
 
 	  /* We point to one after the last instruction in the new function.  */
 	  bfun = prev;
-	  index = VEC_length (btrace_insn_s, bfun->insn);
+	  index = bfun->insn.size ();
 
 	  /* An empty function segment represents a gap in the trace.  We count
 	     it as one instruction.  */
@@ -2829,22 +2827,6 @@ btrace_is_empty (struct thread_info *tp)
   return btrace_insn_cmp (&begin, &end) == 0;
 }
 
-/* Forward the cleanup request.  */
-
-static void
-do_btrace_data_cleanup (void *arg)
-{
-  btrace_data_fini ((struct btrace_data *) arg);
-}
-
-/* See btrace.h.  */
-
-struct cleanup *
-make_cleanup_btrace_data (struct btrace_data *data)
-{
-  return make_cleanup (do_btrace_data_cleanup, data);
-}
-
 #if defined (HAVE_LIBIPT)
 
 /* Print a single packet.  */
@@ -2983,6 +2965,9 @@ btrace_maint_decode_pt (struct btrace_maint_info *maint,
 {
   int errcode;
 
+  if (maint->variant.pt.packets == NULL)
+    maint->variant.pt.packets = new std::vector<btrace_pt_packet>;
+
   for (;;)
     {
       struct btrace_pt_packet packet;
@@ -3003,8 +2988,7 @@ btrace_maint_decode_pt (struct btrace_maint_info *maint,
 	  if (maint_btrace_pt_skip_pad == 0 || packet.packet.type != ppt_pad)
 	    {
 	      packet.errcode = pt_errcode (errcode);
-	      VEC_safe_push (btrace_pt_packet_s, maint->variant.pt.packets,
-			     &packet);
+	      maint->variant.pt.packets->push_back (packet);
 	    }
 	}
 
@@ -3012,8 +2996,7 @@ btrace_maint_decode_pt (struct btrace_maint_info *maint,
 	break;
 
       packet.errcode = pt_errcode (errcode);
-      VEC_safe_push (btrace_pt_packet_s, maint->variant.pt.packets,
-		     &packet);
+      maint->variant.pt.packets->push_back (packet);
 
       warning (_("Error at trace offset 0x%" PRIx64 ": %s."),
 	       packet.offset, pt_errstr (packet.errcode));
@@ -3029,8 +3012,8 @@ btrace_maint_decode_pt (struct btrace_maint_info *maint,
 static void
 btrace_maint_update_pt_packets (struct btrace_thread_info *btinfo)
 {
-  volatile struct gdb_exception except;
   struct pt_packet_decoder *decoder;
+  const struct btrace_cpu *cpu;
   struct btrace_data_pt *pt;
   struct pt_config config;
   int errcode;
@@ -3047,32 +3030,39 @@ btrace_maint_update_pt_packets (struct btrace_thread_info *btinfo)
   config.begin = pt->data;
   config.end = pt->data + pt->size;
 
-  config.cpu.vendor = pt_translate_cpu_vendor (pt->config.cpu.vendor);
-  config.cpu.family = pt->config.cpu.family;
-  config.cpu.model = pt->config.cpu.model;
-  config.cpu.stepping = pt->config.cpu.stepping;
+  cpu = record_btrace_get_cpu ();
+  if (cpu == nullptr)
+    cpu = &pt->config.cpu;
 
-  errcode = pt_cpu_errata (&config.errata, &config.cpu);
-  if (errcode < 0)
-    error (_("Failed to configure the Intel Processor Trace decoder: %s."),
-	   pt_errstr (pt_errcode (errcode)));
+  /* We treat an unknown vendor as 'no errata'.  */
+  if (cpu->vendor != CV_UNKNOWN)
+    {
+      config.cpu.vendor = pt_translate_cpu_vendor (cpu->vendor);
+      config.cpu.family = cpu->family;
+      config.cpu.model = cpu->model;
+      config.cpu.stepping = cpu->stepping;
+
+      errcode = pt_cpu_errata (&config.errata, &config.cpu);
+      if (errcode < 0)
+	error (_("Failed to configure the Intel Processor Trace "
+		 "decoder: %s."), pt_errstr (pt_errcode (errcode)));
+    }
 
   decoder = pt_pkt_alloc_decoder (&config);
   if (decoder == NULL)
     error (_("Failed to allocate the Intel Processor Trace decoder."));
 
-  TRY
+  try
     {
       btrace_maint_decode_pt (&btinfo->maint, decoder);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  catch (const gdb_exception &except)
     {
       pt_pkt_free_decoder (decoder);
 
       if (except.reason < 0)
-	throw_exception (except);
+	throw;
     }
-  END_CATCH
 
   pt_pkt_free_decoder (decoder);
 }
@@ -3100,18 +3090,21 @@ btrace_maint_update_packets (struct btrace_thread_info *btinfo,
     case BTRACE_FORMAT_BTS:
       /* Nothing to do - we operate directly on BTINFO->DATA.  */
       *begin = 0;
-      *end = VEC_length (btrace_block_s, btinfo->data.variant.bts.blocks);
+      *end = btinfo->data.variant.bts.blocks->size ();
       *from = btinfo->maint.variant.bts.packet_history.begin;
       *to = btinfo->maint.variant.bts.packet_history.end;
       break;
 
 #if defined (HAVE_LIBIPT)
     case BTRACE_FORMAT_PT:
-      if (VEC_empty (btrace_pt_packet_s, btinfo->maint.variant.pt.packets))
+      if (btinfo->maint.variant.pt.packets == nullptr)
+	btinfo->maint.variant.pt.packets = new std::vector<btrace_pt_packet>;
+
+      if (btinfo->maint.variant.pt.packets->empty ())
 	btrace_maint_update_pt_packets (btinfo);
 
       *begin = 0;
-      *end = VEC_length (btrace_pt_packet_s, btinfo->maint.variant.pt.packets);
+      *end = btinfo->maint.variant.pt.packets->size ();
       *from = btinfo->maint.variant.pt.packet_history.begin;
       *to = btinfo->maint.variant.pt.packet_history.end;
       break;
@@ -3133,19 +3126,17 @@ btrace_maint_print_packets (struct btrace_thread_info *btinfo,
 
     case BTRACE_FORMAT_BTS:
       {
-	VEC (btrace_block_s) *blocks;
+	const std::vector<btrace_block> &blocks
+	  = *btinfo->data.variant.bts.blocks;
 	unsigned int blk;
 
-	blocks = btinfo->data.variant.bts.blocks;
 	for (blk = begin; blk < end; ++blk)
 	  {
-	    const btrace_block_s *block;
-
-	    block = VEC_index (btrace_block_s, blocks, blk);
+	    const btrace_block &block = blocks.at (blk);
 
 	    printf_unfiltered ("%u\tbegin: %s, end: %s\n", blk,
-			       core_addr_to_string_nz (block->begin),
-			       core_addr_to_string_nz (block->end));
+			       core_addr_to_string_nz (block.begin),
+			       core_addr_to_string_nz (block.end));
 	  }
 
 	btinfo->maint.variant.bts.packet_history.begin = begin;
@@ -3156,23 +3147,21 @@ btrace_maint_print_packets (struct btrace_thread_info *btinfo,
 #if defined (HAVE_LIBIPT)
     case BTRACE_FORMAT_PT:
       {
-	VEC (btrace_pt_packet_s) *packets;
+	const std::vector<btrace_pt_packet> &packets
+	  = *btinfo->maint.variant.pt.packets;
 	unsigned int pkt;
 
-	packets = btinfo->maint.variant.pt.packets;
 	for (pkt = begin; pkt < end; ++pkt)
 	  {
-	    const struct btrace_pt_packet *packet;
-
-	    packet = VEC_index (btrace_pt_packet_s, packets, pkt);
+	    const struct btrace_pt_packet &packet = packets.at (pkt);
 
 	    printf_unfiltered ("%u\t", pkt);
-	    printf_unfiltered ("0x%" PRIx64 "\t", packet->offset);
+	    printf_unfiltered ("0x%" PRIx64 "\t", packet.offset);
 
-	    if (packet->errcode == pte_ok)
-	      pt_print_packet (&packet->packet);
+	    if (packet.errcode == pte_ok)
+	      pt_print_packet (&packet.packet);
 	    else
-	      printf_unfiltered ("[error: %s]", pt_errstr (packet->errcode));
+	      printf_unfiltered ("[error: %s]", pt_errstr (packet.errcode));
 
 	    printf_unfiltered ("\n");
 	  }
@@ -3188,9 +3177,10 @@ btrace_maint_print_packets (struct btrace_thread_info *btinfo,
 /* Read a number from an argument string.  */
 
 static unsigned int
-get_uint (char **arg)
+get_uint (const char **arg)
 {
-  char *begin, *end, *pos;
+  const char *begin, *pos;
+  char *end;
   unsigned long number;
 
   begin = *arg;
@@ -3211,23 +3201,23 @@ get_uint (char **arg)
 /* Read a context size from an argument string.  */
 
 static int
-get_context_size (char **arg)
+get_context_size (const char **arg)
 {
-  char *pos;
-  int number;
-
-  pos = skip_spaces (*arg);
+  const char *pos = skip_spaces (*arg);
 
   if (!isdigit (*pos))
     error (_("Expected positive number, got: %s."), pos);
 
-  return strtol (pos, arg, 10);
+  char *end;
+  long result = strtol (pos, &end, 10);
+  *arg = end;
+  return result;
 }
 
 /* Complain about junk at the end of an argument string.  */
 
 static void
-no_chunk (char *arg)
+no_chunk (const char *arg)
 {
   if (*arg != 0)
     error (_("Junk after argument: %s."), arg);
@@ -3236,13 +3226,12 @@ no_chunk (char *arg)
 /* The "maintenance btrace packet-history" command.  */
 
 static void
-maint_btrace_packet_history_cmd (char *arg, int from_tty)
+maint_btrace_packet_history_cmd (const char *arg, int from_tty)
 {
   struct btrace_thread_info *btinfo;
-  struct thread_info *tp;
   unsigned int size, begin, end, from, to;
 
-  tp = find_thread_ptid (inferior_ptid);
+  thread_info *tp = find_thread_ptid (current_inferior (), inferior_ptid);
   if (tp == NULL)
     error (_("No thread."));
 
@@ -3341,103 +3330,52 @@ maint_btrace_packet_history_cmd (char *arg, int from_tty)
 /* The "maintenance btrace clear-packet-history" command.  */
 
 static void
-maint_btrace_clear_packet_history_cmd (char *args, int from_tty)
+maint_btrace_clear_packet_history_cmd (const char *args, int from_tty)
 {
-  struct btrace_thread_info *btinfo;
-  struct thread_info *tp;
-
   if (args != NULL && *args != 0)
     error (_("Invalid argument."));
 
-  tp = find_thread_ptid (inferior_ptid);
-  if (tp == NULL)
+  if (inferior_ptid == null_ptid)
     error (_("No thread."));
 
-  btinfo = &tp->btrace;
+  thread_info *tp = inferior_thread ();
+  btrace_thread_info *btinfo = &tp->btrace;
 
   /* Must clear the maint data before - it depends on BTINFO->DATA.  */
   btrace_maint_clear (btinfo);
-  btrace_data_clear (&btinfo->data);
+  btinfo->data.clear ();
 }
 
 /* The "maintenance btrace clear" command.  */
 
 static void
-maint_btrace_clear_cmd (char *args, int from_tty)
+maint_btrace_clear_cmd (const char *args, int from_tty)
 {
-  struct btrace_thread_info *btinfo;
-  struct thread_info *tp;
-
   if (args != NULL && *args != 0)
     error (_("Invalid argument."));
 
-  tp = find_thread_ptid (inferior_ptid);
-  if (tp == NULL)
+  if (inferior_ptid == null_ptid)
     error (_("No thread."));
 
+  thread_info *tp = inferior_thread ();
   btrace_clear (tp);
-}
-
-/* The "maintenance btrace" command.  */
-
-static void
-maint_btrace_cmd (char *args, int from_tty)
-{
-  help_list (maint_btrace_cmdlist, "maintenance btrace ", all_commands,
-	     gdb_stdout);
-}
-
-/* The "maintenance set btrace" command.  */
-
-static void
-maint_btrace_set_cmd (char *args, int from_tty)
-{
-  help_list (maint_btrace_set_cmdlist, "maintenance set btrace ", all_commands,
-	     gdb_stdout);
-}
-
-/* The "maintenance show btrace" command.  */
-
-static void
-maint_btrace_show_cmd (char *args, int from_tty)
-{
-  help_list (maint_btrace_show_cmdlist, "maintenance show btrace ",
-	     all_commands, gdb_stdout);
-}
-
-/* The "maintenance set btrace pt" command.  */
-
-static void
-maint_btrace_pt_set_cmd (char *args, int from_tty)
-{
-  help_list (maint_btrace_pt_set_cmdlist, "maintenance set btrace pt ",
-	     all_commands, gdb_stdout);
-}
-
-/* The "maintenance show btrace pt" command.  */
-
-static void
-maint_btrace_pt_show_cmd (char *args, int from_tty)
-{
-  help_list (maint_btrace_pt_show_cmdlist, "maintenance show btrace pt ",
-	     all_commands, gdb_stdout);
 }
 
 /* The "maintenance info btrace" command.  */
 
 static void
-maint_info_btrace_cmd (char *args, int from_tty)
+maint_info_btrace_cmd (const char *args, int from_tty)
 {
   struct btrace_thread_info *btinfo;
-  struct thread_info *tp;
   const struct btrace_config *conf;
 
   if (args != NULL && *args != 0)
     error (_("Invalid argument."));
 
-  tp = find_thread_ptid (inferior_ptid);
-  if (tp == NULL)
+  if (inferior_ptid == null_ptid)
     error (_("No thread."));
+
+  thread_info *tp = inferior_thread ();
 
   btinfo = &tp->btrace;
 
@@ -3454,9 +3392,8 @@ maint_info_btrace_cmd (char *args, int from_tty)
       break;
 
     case BTRACE_FORMAT_BTS:
-      printf_unfiltered (_("Number of packets: %u.\n"),
-			 VEC_length (btrace_block_s,
-				     btinfo->data.variant.bts.blocks));
+      printf_unfiltered (_("Number of packets: %zu.\n"),
+			 btinfo->data.variant.bts.blocks->size ());
       break;
 
 #if defined (HAVE_LIBIPT)
@@ -3470,9 +3407,9 @@ maint_info_btrace_cmd (char *args, int from_tty)
 			   version.ext != NULL ? version.ext : "");
 
 	btrace_maint_update_pt_packets (btinfo);
-	printf_unfiltered (_("Number of packets: %u.\n"),
-			   VEC_length (btrace_pt_packet_s,
-				       btinfo->maint.variant.pt.packets));
+	printf_unfiltered (_("Number of packets: %zu.\n"),
+			   ((btinfo->maint.variant.pt.packets == nullptr)
+			    ? 0 : btinfo->maint.variant.pt.packets->size ()));
       }
       break;
 #endif /* defined (HAVE_LIBIPT)  */
@@ -3492,37 +3429,39 @@ show_maint_btrace_pt_skip_pad  (struct ui_file *file, int from_tty,
 
 /* Initialize btrace maintenance commands.  */
 
-void _initialize_btrace (void);
+void _initialize_btrace ();
 void
-_initialize_btrace (void)
+_initialize_btrace ()
 {
   add_cmd ("btrace", class_maintenance, maint_info_btrace_cmd,
 	   _("Info about branch tracing data."), &maintenanceinfolist);
 
-  add_prefix_cmd ("btrace", class_maintenance, maint_btrace_cmd,
-		  _("Branch tracing maintenance commands."),
-		  &maint_btrace_cmdlist, "maintenance btrace ",
-		  0, &maintenancelist);
+  add_basic_prefix_cmd ("btrace", class_maintenance,
+			_("Branch tracing maintenance commands."),
+			&maint_btrace_cmdlist, "maintenance btrace ",
+			0, &maintenancelist);
 
-  add_prefix_cmd ("btrace", class_maintenance, maint_btrace_set_cmd, _("\
+  add_basic_prefix_cmd ("btrace", class_maintenance, _("\
 Set branch tracing specific variables."),
-                  &maint_btrace_set_cmdlist, "maintenance set btrace ",
-                  0, &maintenance_set_cmdlist);
+			&maint_btrace_set_cmdlist, "maintenance set btrace ",
+			0, &maintenance_set_cmdlist);
 
-  add_prefix_cmd ("pt", class_maintenance, maint_btrace_pt_set_cmd, _("\
+  add_basic_prefix_cmd ("pt", class_maintenance, _("\
 Set Intel Processor Trace specific variables."),
-                  &maint_btrace_pt_set_cmdlist, "maintenance set btrace pt ",
-                  0, &maint_btrace_set_cmdlist);
+			&maint_btrace_pt_set_cmdlist,
+			"maintenance set btrace pt ",
+			0, &maint_btrace_set_cmdlist);
 
-  add_prefix_cmd ("btrace", class_maintenance, maint_btrace_show_cmd, _("\
+  add_show_prefix_cmd ("btrace", class_maintenance, _("\
 Show branch tracing specific variables."),
-                  &maint_btrace_show_cmdlist, "maintenance show btrace ",
-                  0, &maintenance_show_cmdlist);
+		       &maint_btrace_show_cmdlist, "maintenance show btrace ",
+		       0, &maintenance_show_cmdlist);
 
-  add_prefix_cmd ("pt", class_maintenance, maint_btrace_pt_show_cmd, _("\
+  add_show_prefix_cmd ("pt", class_maintenance, _("\
 Show Intel Processor Trace specific variables."),
-                  &maint_btrace_pt_show_cmdlist, "maintenance show btrace pt ",
-                  0, &maint_btrace_show_cmdlist);
+		       &maint_btrace_pt_show_cmdlist,
+		       "maintenance show btrace pt ",
+		       0, &maint_btrace_show_cmdlist);
 
   add_setshow_boolean_cmd ("skip-pad", class_maintenance,
 			   &maint_btrace_pt_skip_pad, _("\
@@ -3541,21 +3480,19 @@ One argument specifies the starting packet of a ten-line print.\n\
 Two arguments with comma between specify starting and ending packets to \
 print.\n\
 Preceded with '+'/'-' the second argument specifies the distance from the \
-first.\n"),
+first."),
 	   &maint_btrace_cmdlist);
 
   add_cmd ("clear-packet-history", class_maintenance,
 	   maint_btrace_clear_packet_history_cmd,
 	   _("Clears the branch tracing packet history.\n\
-Discards the raw branch tracing data but not the execution history data.\n\
-"),
+Discards the raw branch tracing data but not the execution history data."),
 	   &maint_btrace_cmdlist);
 
   add_cmd ("clear", class_maintenance, maint_btrace_clear_cmd,
 	   _("Clears the branch tracing data.\n\
 Discards the raw branch tracing data and the execution history data.\n\
-The next 'record' command will fetch the branch tracing data anew.\n\
-"),
+The next 'record' command will fetch the branch tracing data anew."),
 	   &maint_btrace_cmdlist);
 
 }

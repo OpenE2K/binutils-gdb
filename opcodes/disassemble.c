@@ -1,5 +1,5 @@
 /* Select disassembly routine for specified architecture.
-   Copyright (C) 1994-2017 Free Software Foundation, Inc.
+   Copyright (C) 1994-2020 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -21,7 +21,7 @@
 #include "sysdep.h"
 #include "disassemble.h"
 #include "safe-ctype.h"
-#include <assert.h>
+#include "opintl.h"
 
 #ifdef ARCH_all
 #define ARCH_aarch64
@@ -33,21 +33,18 @@
 #define ARCH_cr16
 #define ARCH_cris
 #define ARCH_crx
+#define ARCH_csky
 #define ARCH_d10v
 #define ARCH_d30v
 #define ARCH_dlx
-#define ARCH_e2k
+#define ARCH_bpf
 #define ARCH_epiphany
 #define ARCH_fr30
 #define ARCH_frv
 #define ARCH_ft32
 #define ARCH_h8300
-#define ARCH_h8500
 #define ARCH_hppa
-#define ARCH_i370
 #define ARCH_i386
-#define ARCH_i860
-#define ARCH_i960
 #define ARCH_ia64
 #define ARCH_ip2k
 #define ARCH_iq2000
@@ -57,7 +54,6 @@
 #define ARCH_m68hc11
 #define ARCH_m68hc12
 #define ARCH_m68k
-#define ARCH_m88k
 #define ARCH_mcore
 #define ARCH_mep
 #define ARCH_metag
@@ -70,6 +66,7 @@
 #define ARCH_mt
 #define ARCH_msp430
 #define ARCH_nds32
+#define ARCH_nfp
 #define ARCH_nios2
 #define ARCH_ns32k
 #define ARCH_or1k
@@ -77,9 +74,11 @@
 #define ARCH_pj
 #define ARCH_powerpc
 #define ARCH_pru
+#define ARCH_riscv
 #define ARCH_rs6000
 #define ARCH_rl78
 #define ARCH_rx
+#define ARCH_s12z
 #define ARCH_s390
 #define ARCH_score
 #define ARCH_sh
@@ -89,13 +88,11 @@
 #define ARCH_tic4x
 #define ARCH_tic54x
 #define ARCH_tic6x
-#define ARCH_tic80
 #define ARCH_tilegx
 #define ARCH_tilepro
 #define ARCH_v850
 #define ARCH_vax
 #define ARCH_visium
-#define ARCH_w65
 #define ARCH_wasm32
 #define ARCH_xstormy16
 #define ARCH_xc16x
@@ -103,29 +100,36 @@
 #define ARCH_xtensa
 #define ARCH_z80
 #define ARCH_z8k
-#define INCLUDE_SHMEDIA
 #endif
 
 #ifdef ARCH_m32c
 #include "m32c-desc.h"
 #endif
 
+#ifdef ARCH_bpf
+/* XXX this should be including bpf-desc.h instead of this hackery,
+   but at the moment it is not possible to include several CGEN
+   generated *-desc.h files simultaneously.  To be fixed in
+   CGEN...  */
+
+# ifdef ARCH_m32c
+enum epbf_isa_attr
+{
+ ISA_EBPFLE, ISA_EBPFBE, ISA_EBPFMAX
+};
+# else
+#  include "bpf-desc.h"
+#  define ISA_EBPFMAX ISA_MAX
+# endif
+#endif /* ARCH_bpf */
+
 disassembler_ftype
-disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
-	      bfd *abfd)
+disassembler (enum bfd_architecture a,
+	      bfd_boolean big ATTRIBUTE_UNUSED,
+	      unsigned long mach ATTRIBUTE_UNUSED,
+	      bfd *abfd ATTRIBUTE_UNUSED)
 {
   disassembler_ftype disassemble;
-
-  if (abfd != NULL)
-    {
-      /* Do some asserts that the first three parameters should equal
-	 to what we can get from ABFD.  On the other hand, these
-	 asserts help removing some compiler errors on unused
-	 parameter.  */
-      assert (a == bfd_get_arch (abfd));
-      assert (big == bfd_big_endian (abfd));
-      assert (mach == bfd_get_mach (abfd));
-    }
 
   switch (a)
     {
@@ -179,6 +183,12 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
       disassemble = print_insn_crx;
       break;
 #endif
+#ifdef ARCH_csky
+    case bfd_arch_csky:
+      disassemble = csky_get_disassembler (abfd);
+      break;
+#endif
+
 #ifdef ARCH_d10v
     case bfd_arch_d10v:
       disassemble = print_insn_d10v;
@@ -195,11 +205,6 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
       disassemble = print_insn_dlx;
       break;
 #endif
-#ifdef ARCH_e2k
-    case bfd_arch_e2k:
-      disassemble = print_insn_e2k;
-      break;
-#endif
 #ifdef ARCH_h8300
     case bfd_arch_h8300:
       if (mach == bfd_mach_h8300h || mach == bfd_mach_h8300hn)
@@ -213,19 +218,9 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
 	disassemble = print_insn_h8300;
       break;
 #endif
-#ifdef ARCH_h8500
-    case bfd_arch_h8500:
-      disassemble = print_insn_h8500;
-      break;
-#endif
 #ifdef ARCH_hppa
     case bfd_arch_hppa:
       disassemble = print_insn_hppa;
-      break;
-#endif
-#ifdef ARCH_i370
-    case bfd_arch_i370:
-      disassemble = print_insn_i370;
       break;
 #endif
 #ifdef ARCH_i386
@@ -236,16 +231,6 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
       disassemble = print_insn_i386;
       break;
 #endif
-#ifdef ARCH_i860
-    case bfd_arch_i860:
-      disassemble = print_insn_i860;
-      break;
-#endif
-#ifdef ARCH_i960
-    case bfd_arch_i960:
-      disassemble = print_insn_i960;
-      break;
-#endif
 #ifdef ARCH_ia64
     case bfd_arch_ia64:
       disassemble = print_insn_ia64;
@@ -254,6 +239,11 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
 #ifdef ARCH_ip2k
     case bfd_arch_ip2k:
       disassemble = print_insn_ip2k;
+      break;
+#endif
+#ifdef ARCH_bpf
+    case bfd_arch_bpf:
+      disassemble = print_insn_bpf;
       break;
 #endif
 #ifdef ARCH_epiphany
@@ -291,14 +281,14 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
       disassemble = print_insn_m9s12xg;
       break;
 #endif
+#if defined(ARCH_s12z)
+    case bfd_arch_s12z:
+      disassemble = print_insn_s12z;
+      break;
+#endif
 #ifdef ARCH_m68k
     case bfd_arch_m68k:
       disassemble = print_insn_m68k;
-      break;
-#endif
-#ifdef ARCH_m88k
-    case bfd_arch_m88k:
-      disassemble = print_insn_m88k;
       break;
 #endif
 #ifdef ARCH_mt
@@ -319,6 +309,11 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
 #ifdef ARCH_nds32
     case bfd_arch_nds32:
       disassemble = print_insn_nds32;
+      break;
+#endif
+#ifdef ARCH_nfp
+    case bfd_arch_nfp:
+      disassemble = print_insn_nfp;
       break;
 #endif
 #ifdef ARCH_ns32k
@@ -389,6 +384,11 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
 #endif
 #ifdef ARCH_powerpc
     case bfd_arch_powerpc:
+#endif
+#ifdef ARCH_rs6000
+    case bfd_arch_rs6000:
+#endif
+#if defined ARCH_powerpc || defined ARCH_rs6000
       if (big)
 	disassemble = print_insn_big_powerpc;
       else
@@ -403,14 +403,6 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
 #ifdef ARCH_riscv
     case bfd_arch_riscv:
       disassemble = print_insn_riscv;
-      break;
-#endif
-#ifdef ARCH_rs6000
-    case bfd_arch_rs6000:
-      if (mach == bfd_mach_ppc_620)
-	disassemble = print_insn_big_powerpc;
-      else
-	disassemble = print_insn_rs6000;
       break;
 #endif
 #ifdef ARCH_rl78
@@ -471,11 +463,6 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
       disassemble = print_insn_tic6x;
       break;
 #endif
-#ifdef ARCH_tic80
-    case bfd_arch_tic80:
-      disassemble = print_insn_tic80;
-      break;
-#endif
 #ifdef ARCH_ft32
     case bfd_arch_ft32:
       disassemble = print_insn_ft32;
@@ -485,11 +472,6 @@ disassembler (enum bfd_architecture a, bfd_boolean big, unsigned long mach,
     case bfd_arch_v850:
     case bfd_arch_v850_rh850:
       disassemble = print_insn_v850;
-      break;
-#endif
-#ifdef ARCH_w65
-    case bfd_arch_w65:
-      disassemble = print_insn_w65;
       break;
 #endif
 #ifdef ARCH_wasm32
@@ -591,6 +573,9 @@ disassembler_usage (FILE *stream ATTRIBUTE_UNUSED)
 #ifdef ARCH_mips
   print_mips_disassembler_options (stream);
 #endif
+#ifdef ARCH_nfp
+  print_nfp_disassembler_options (stream);
+#endif
 #ifdef ARCH_powerpc
   print_ppc_disassembler_options (stream);
 #endif
@@ -630,6 +615,13 @@ disassemble_init_for_target (struct disassemble_info * info)
       info->disassembler_needs_relocs = TRUE;
       break;
 #endif
+#ifdef ARCH_csky
+    case bfd_arch_csky:
+      info->symbol_is_valid = csky_symbol_is_valid;
+      info->disassembler_needs_relocs = TRUE;
+      break;
+#endif
+
 #ifdef ARCH_ia64
     case bfd_arch_ia64:
       info->skip_zeroes = 16;
@@ -656,14 +648,32 @@ disassemble_init_for_target (struct disassemble_info * info)
       /* This processor in fact is little endian.  The value set here
 	 reflects the way opcodes are written in the cgen description.  */
       info->endian = BFD_ENDIAN_BIG;
-      if (! info->insn_sets)
+      if (!info->private_data)
 	{
-	  info->insn_sets = cgen_bitset_create (ISA_MAX);
+	  info->private_data = cgen_bitset_create (ISA_MAX);
 	  if (info->mach == bfd_mach_m16c)
-	    cgen_bitset_set (info->insn_sets, ISA_M16C);
+	    cgen_bitset_set (info->private_data, ISA_M16C);
 	  else
-	    cgen_bitset_set (info->insn_sets, ISA_M32C);
+	    cgen_bitset_set (info->private_data, ISA_M32C);
 	}
+      break;
+#endif
+#ifdef ARCH_bpf
+    case bfd_arch_bpf:
+      info->endian_code = BFD_ENDIAN_LITTLE;
+      if (!info->private_data)
+	{
+	  info->private_data = cgen_bitset_create (ISA_EBPFMAX);
+	  if (info->endian == BFD_ENDIAN_BIG)
+	    cgen_bitset_set (info->private_data, ISA_EBPFBE);
+	  else
+	    cgen_bitset_set (info->private_data, ISA_EBPFLE);
+	}
+      break;
+#endif
+#ifdef ARCH_pru
+    case bfd_arch_pru:
+      info->disassembler_needs_relocs = TRUE;
       break;
 #endif
 #ifdef ARCH_powerpc
@@ -676,6 +686,11 @@ disassemble_init_for_target (struct disassemble_info * info)
       disassemble_init_powerpc (info);
       break;
 #endif
+#ifdef ARCH_riscv
+    case bfd_arch_riscv:
+      info->symbol_is_valid = riscv_symbol_is_valid;
+      break;
+#endif
 #ifdef ARCH_wasm32
     case bfd_arch_wasm32:
       disassemble_init_wasm32 (info);
@@ -686,9 +701,73 @@ disassemble_init_for_target (struct disassemble_info * info)
       disassemble_init_s390 (info);
       break;
 #endif
+#ifdef ARCH_nds32
+    case bfd_arch_nds32:
+      disassemble_init_nds32 (info);
+      break;
+ #endif
     default:
       break;
     }
+}
+
+void
+disassemble_free_target (struct disassemble_info *info)
+{
+  if (info == NULL)
+    return;
+
+  switch (info->arch)
+    {
+    default:
+      return;
+
+#ifdef ARCH_bpf
+    case bfd_arch_bpf:
+#endif
+#ifdef ARCH_m32c
+    case bfd_arch_m32c:
+#endif
+#if defined ARCH_bpf || defined ARCH_m32c
+      if (info->private_data)
+	{
+	  CGEN_BITSET *mask = info->private_data;
+	  free (mask->bits);
+	}
+      break;
+#endif
+
+#ifdef ARCH_arc
+    case bfd_arch_arc:
+      break;
+#endif
+#ifdef ARCH_cris
+    case bfd_arch_cris:
+      break;
+#endif
+#ifdef ARCH_mmix
+    case bfd_arch_mmix:
+      break;
+#endif
+#ifdef ARCH_nfp
+    case bfd_arch_nfp:
+      break;
+#endif
+#ifdef ARCH_powerpc
+    case bfd_arch_powerpc:
+      break;
+#endif
+#ifdef ARCH_riscv
+    case bfd_arch_riscv:
+      break;
+#endif
+#ifdef ARCH_rs6000
+    case bfd_arch_rs6000:
+      break;
+#endif
+    }
+
+  free (info->private_data);
 }
 
 /* Remove whitespace and consecutive commas from OPTIONS.  */
@@ -753,4 +832,12 @@ disassembler_options_cmp (const char *s1, const char *s2)
   while (c1 == c2);
 
   return c1 - c2;
+}
+
+void
+opcodes_assert (const char *file, int line)
+{
+  opcodes_error_handler (_("assertion fail %s:%d"), file, line);
+  opcodes_error_handler (_("Please report this bug"));
+  abort ();
 }

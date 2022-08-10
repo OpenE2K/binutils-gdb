@@ -1,5 +1,5 @@
 # Expect script for ld-plugin tests
-#   Copyright (C) 2010-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2010-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -26,15 +26,13 @@ if ![check_plugin_api_available] {
 # And a compiler to be available.
 set can_compile 1
 set failure_kind "unresolved"
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
   # Don't fail immediately, 
   set can_compile 0
   set failure_kind "unsupported"
 }
 
 pass "plugin API enabled"
-
-global base_dir
 
 # Look for the name we can dlopen in the test plugin's libtool control script.
 set plugin_name [file_contents "$base_dir/libldtestplug.la"]
@@ -95,6 +93,8 @@ if { [istarget m681*-*-*] || [istarget m68hc1*-*-*] || [istarget m9s12x*-*-*] } 
 set failed_compile 0
 set _ ""
 set plugin_nm_output ""
+set old_CFLAGS "$CFLAGS"
+append CFLAGS " $NOSANTIZE_CFLAGS"
 if { $can_compile && \
 	(![ld_compile "$CC $CFLAGS" $srcdir/$subdir/main.c tmpdir/main.o] \
 	|| ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/func.c tmpdir/func.o] \
@@ -105,6 +105,7 @@ if { $can_compile && \
     # Defer fail until we have list of tests set.
     set failed_compile 1
 }
+set CFLAGS "$old_CFLAGS"
 
 set dotsym 0
 if { $can_compile && !$failed_compile } {

@@ -1,6 +1,6 @@
 /* Fork a Unix child process, and set up to debug it, for GDB and GDBserver.
 
-   Copyright (C) 1990-2017 Free Software Foundation, Inc.
+   Copyright (C) 1990-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -17,21 +17,19 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-#include "common-defs.h"
+#include "gdbsupport/common-defs.h"
 #include "fork-inferior.h"
 #include "target/waitstatus.h"
-#include "filestuff.h"
+#include "gdbsupport/filestuff.h"
 #include "target/target.h"
-#include "common-inferior.h"
-#include "common-gdbthread.h"
-#include "signals-state-save-restore.h"
+#include "gdbsupport/common-inferior.h"
+#include "gdbsupport/common-gdbthread.h"
+#include "gdbsupport/pathstuff.h"
+#include "gdbsupport/signals-state-save-restore.h"
+#include "gdbsupport/gdb_tilde_expand.h"
 #include <vector>
 
 extern char **environ;
-
-/* Default shell file to be used if 'startup-with-shell' is set but
-   $SHELL is not.  */
-#define SHELL_FILE "/bin/sh"
 
 /* Build the argument vector for execv(3).  */
 
@@ -56,9 +54,7 @@ public:
   }
 
 private:
-  /* Disable copying.  */
-  execv_argv (const execv_argv &) = delete;
-  void operator= (const execv_argv &) = delete;
+  DISABLE_COPY_AND_ASSIGN (execv_argv);
 
   /* Helper methods for constructing the argument vector.  */
 
@@ -266,28 +262,13 @@ execv_argv::init_for_shell (const char *exec_file,
   m_argv.push_back (NULL);
 }
 
-/* Return the shell that must be used to startup the inferior.  The
-   first attempt is the environment variable SHELL; if it is not set,
-   then we default to SHELL_FILE.  */
-
-static const char *
-get_startup_shell ()
-{
-  static const char *ret;
-
-  ret = getenv ("SHELL");
-  if (ret == NULL)
-    ret = SHELL_FILE;
-
-  return ret;
-}
-
 /* See nat/fork-inferior.h.  */
 
 pid_t
 fork_inferior (const char *exec_file_arg, const std::string &allargs,
 	       char **env, void (*traceme_fun) (),
-	       void (*init_trace_fun) (int), void (*pre_trace_fun) (),
+	       gdb::function_view<void (int)> init_trace_fun,
+	       void (*pre_trace_fun) (),
 	       const char *shell_file_arg,
                void (*exec_fun)(const char *file, char * const *argv,
                                 char * const *env))
@@ -300,6 +281,8 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
   char **save_our_env;
   int i;
   int save_errno;
+  const char *inferior_cwd;
+  std::string expanded_inferior_cwd;
 
   /* If no exec file handed to us, get it from the exec-file command
      -- with a good, common error message if none is specified.  */
@@ -317,7 +300,7 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
 
       /* Figure out what shell to start up the user program under.  */
       if (shell_file == NULL)
-	shell_file = get_startup_shell ();
+	shell_file = get_shell ();
 
       gdb_assert (shell_file != NULL);
     }
@@ -340,6 +323,18 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
      output prior to doing a fork, to avoid the possibility of both
      the parent and child flushing the same data after the fork.  */
   gdb_flush_out_err ();
+
+  /* Check if the user wants to set a different working directory for
+     the inferior.  */
+  inferior_cwd = get_inferior_cwd ();
+
+  if (inferior_cwd != NULL)
+    {
+      /* Expand before forking because between fork and exec, the child
+	 process may only execute async-signal-safe operations.  */
+      expanded_inferior_cwd = gdb_tilde_expand (inferior_cwd);
+      inferior_cwd = expanded_inferior_cwd.c_str ();
+    }
 
   /* If there's any initialization of the target layers that must
      happen to prepare to handle the child we're about fork, do it
@@ -375,6 +370,14 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
 	 that this closes the file descriptors of all secondary
 	 UIs.  */
       close_most_fds ();
+
+      /* Change to the requested working directory if the user
+	 requested it.  */
+      if (inferior_cwd != NULL)
+	{
+	  if (chdir (inferior_cwd) < 0)
+	    trace_start_error_with_name (inferior_cwd);
+	}
 
       if (debug_fork)
 	sleep (debug_fork);
@@ -423,7 +426,7 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
       for (i = 1; argv[i] != NULL; i++)
 	warning (" %s", argv[i]);
 
-      warning ("Error: %s\n", safe_strerror (save_errno));
+      warning ("Error: %s", safe_strerror (save_errno));
 
       _exit (0177);
     }
@@ -437,7 +440,7 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
      initialize anything target-vector-specific that needs
      initializing.  */
   if (init_trace_fun)
-    (*init_trace_fun) (pid);
+    init_trace_fun (pid);
 
   /* We are now in the child process of interest, having exec'd the
      correct program, and are poised at the first instruction of the
@@ -448,7 +451,7 @@ fork_inferior (const char *exec_file_arg, const std::string &allargs,
 /* See nat/fork-inferior.h.  */
 
 ptid_t
-startup_inferior (pid_t pid, int ntraps,
+startup_inferior (process_stratum_target *proc_target, pid_t pid, int ntraps,
 		  struct target_waitstatus *last_waitstatus,
 		  ptid_t *last_ptid)
 {
@@ -463,7 +466,7 @@ startup_inferior (pid_t pid, int ntraps,
     }
 
   if (target_supports_multi_process ())
-    resume_ptid = pid_to_ptid (pid);
+    resume_ptid = ptid_t (pid);
   else
     resume_ptid = minus_one_ptid;
 
@@ -500,11 +503,11 @@ startup_inferior (pid_t pid, int ntraps,
 	  case TARGET_WAITKIND_SYSCALL_ENTRY:
 	  case TARGET_WAITKIND_SYSCALL_RETURN:
 	    /* Ignore gracefully during startup of the inferior.  */
-	    switch_to_thread (event_ptid);
+	    switch_to_thread (proc_target, event_ptid);
 	    break;
 
 	  case TARGET_WAITKIND_SIGNALLED:
-	    target_terminal_ours ();
+	    target_terminal::ours ();
 	    target_mourn_inferior (event_ptid);
 	    error (_("During startup program terminated with signal %s, %s."),
 		   gdb_signal_to_name (ws.value.sig),
@@ -512,7 +515,7 @@ startup_inferior (pid_t pid, int ntraps,
 	    return resume_ptid;
 
 	  case TARGET_WAITKIND_EXITED:
-	    target_terminal_ours ();
+	    target_terminal::ours ();
 	    target_mourn_inferior (event_ptid);
 	    if (ws.value.integer)
 	      error (_("During startup program exited with code %d."),
@@ -525,12 +528,12 @@ startup_inferior (pid_t pid, int ntraps,
 	    /* Handle EXEC signals as if they were SIGTRAP signals.  */
 	    xfree (ws.value.execd_pathname);
 	    resume_signal = GDB_SIGNAL_TRAP;
-	    switch_to_thread (event_ptid);
+	    switch_to_thread (proc_target, event_ptid);
 	    break;
 
 	  case TARGET_WAITKIND_STOPPED:
 	    resume_signal = ws.value.sig;
-	    switch_to_thread (event_ptid);
+	    switch_to_thread (proc_target, event_ptid);
 	    break;
 	}
 
@@ -551,10 +554,10 @@ startup_inferior (pid_t pid, int ntraps,
 
 	      /* Set up the "saved terminal modes" of the inferior
 	         based on what modes we are starting it with.  */
-	      target_terminal_init ();
+	      target_terminal::init ();
 
 	      /* Install inferior's terminal modes.  */
-	      target_terminal_inferior ();
+	      target_terminal::inferior ();
 
 	      terminal_initted = 1;
 	    }
@@ -578,7 +581,7 @@ trace_start_error (const char *fmt, ...)
   va_list ap;
 
   va_start (ap, fmt);
-  warning ("Could not trace the inferior process.\nError: ");
+  warning ("Could not trace the inferior process.");
   vwarning (fmt, ap);
   va_end (ap);
 

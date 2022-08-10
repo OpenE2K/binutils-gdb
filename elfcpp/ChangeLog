@@ -1,32 +1,40 @@
-2017-07-28  H.J. Lu  <hongjiu.lu@intel.com>
+2020-07-04  Nick Clifton  <nickc@redhat.com>
 
-	PR gold/21857
-	* elfcpp.h (Chdr_write): Add put_ch_reserved.
-	(Chdr_write<64, true>::put_ch_reserved): New.
-	(Chdr_write<64, false>::put_ch_reserved): Likewise.
+	Binutils 2.35 branch created.
 
-2017-07-03  Alan Modra  <amodra@gmail.com>
+2020-06-26  Nick Alcock  <nick.alcock@oracle.com>
 
-	* dwarf.h (DW_FIRST_IDX, DW_IDX, DW_IDX_DUP, DW_END_IDX): Define,
-	and undefine after using.
+	* elfcpp_swap.h (bswap_16): Do not assume that presence of
+	<byteswap.h> means this is declared.  Make static inline, matching
+	recent change to libctf, since there is no non-inline definition
+	of these functions.
+	(bswap_32): Likewise.
+	(bswap_64): Likewise.
 
-2017-06-21  Alan Modra  <amodra@gmail.com>
+2020-06-18  Fangrui Song  <i@maskray.me>
 
-	* elfcpp.h (DT_PPC64_OPT): Define.
-	* powerpc.h (PPC64_OPT_TLS, PPC64_OPT_MULTI_TOC,
-	PPC64_OPT_LOCALENTRY): Define.
+	PR gold/26039
+	* elfcpp.h (enum DF_1): New enum member DF_1_PIE.
 
-2017-06-20  Andreas Krebbel  <krebbel@linux.vnet.ibm.com>
+2020-06-06  Alan Modra  <amodra@gmail.com>
 
-	* elfcpp.h (enum PT): Add PT_S390_PGSTE to enum.
+	* powerpc.h: Rename
+	R_PPC64_GOT_TLSGD34 to R_PPC64_GOT_TLSGD_PCREL34,
+	R_PPC64_GOT_TLSLD34 to R_PPC64_GOT_TLSLD_PCREL34,
+	R_PPC64_GOT_TPREL34 to R_PPC64_GOT_TPREL_PCREL34, and
+	R_PPC64_GOT_DTPREL34 to R_PPC64_GOT_DTPREL_PCREL34.
 
-2017-01-02  Alan Modra  <amodra@gmail.com>
+2020-01-18  Nick Clifton  <nickc@redhat.com>
+
+	Binutils 2.34 branch created.
+
+2020-01-01  Alan Modra  <amodra@gmail.com>
 
 	Update year range in copyright notice of all files.
 
-For older changes see ChangeLog-2016
+For older changes see ChangeLog-2019
 
-Copyright (C) 2017 Free Software Foundation, Inc.
+Copyright (C) 2020 Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright

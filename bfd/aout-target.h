@@ -1,5 +1,5 @@
 /* Define a target vector and some small routines for a variant of a.out.
-   Copyright (C) 1990-2017 Free Software Foundation, Inc.
+   Copyright (C) 1990-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -34,7 +34,7 @@ extern reloc_howto_type * NAME (aout, reloc_name_lookup) (bfd *, const char *);
    This routine is called from some_aout_object_p just before it returns.  */
 #ifndef MY_callback
 
-static const bfd_target *
+static bfd_cleanup
 MY (callback) (bfd *abfd)
 {
   struct internal_exec *execp = exec_hdr (abfd);
@@ -121,20 +121,20 @@ MY (callback) (bfd *abfd)
   /* Don't set sizes now -- can't be sure until we know arch & mach.
      Sizes get set in set_sizes callback, later.  */
 
-  return abfd->xvec;
+  return _bfd_no_cleanup;
 }
 #endif
 
 #ifndef MY_object_p
 /* Finish up the reading of an a.out file header.  */
 
-static const bfd_target *
+static bfd_cleanup
 MY (object_p) (bfd *abfd)
 {
   struct external_exec exec_bytes;	/* Raw exec header from file.  */
   struct internal_exec exec;		/* Cleaned-up exec header.  */
-  const bfd_target *target;
-  bfd_size_type amt = EXEC_BYTES_SIZE;
+  bfd_cleanup cleanup;
+  size_t amt = EXEC_BYTES_SIZE;
 
   if (bfd_bread ((void *) &exec_bytes, amt, abfd) != amt)
     {
@@ -164,7 +164,7 @@ MY (object_p) (bfd *abfd)
   exec.a_info = SWAP_MAGIC (exec_bytes.e_info);
 #endif
 
-  target = NAME (aout, some_aout_object_p) (abfd, &exec, MY (callback));
+  cleanup = NAME (aout, some_aout_object_p) (abfd, &exec, MY (callback));
 
 #ifdef ENTRY_CAN_BE_ZERO
   /* The NEWSOS3 entry-point is/was 0, which (amongst other lossage)
@@ -180,12 +180,13 @@ MY (object_p) (bfd *abfd)
 #ifndef S_IXUSR
 #define S_IXUSR 0100	/* Execute by owner.  */
 #endif
-      if (stat(abfd->filename, &buf) == 0 && (buf.st_mode & S_IXUSR))
+      if (stat (bfd_get_filename (abfd), &buf) == 0
+	  && (buf.st_mode & S_IXUSR) != 0)
 	abfd->flags |= EXEC_P;
     }
 #endif /* ENTRY_CAN_BE_ZERO */
 
-  return target;
+  return cleanup;
 }
 #define MY_object_p MY (object_p)
 #endif
@@ -407,14 +408,13 @@ MY_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 #endif
 
 #ifndef MY_bfd_debug_info_start
-#define MY_bfd_debug_info_start		bfd_void
+#define MY_bfd_debug_info_start		_bfd_void_bfd
 #endif
 #ifndef MY_bfd_debug_info_end
-#define MY_bfd_debug_info_end		bfd_void
+#define MY_bfd_debug_info_end		_bfd_void_bfd
 #endif
 #ifndef MY_bfd_debug_info_accumulate
-#define MY_bfd_debug_info_accumulate	\
-		(void (*) (bfd *, struct bfd_section *)) bfd_void
+#define MY_bfd_debug_info_accumulate	_bfd_void_bfd_asection
 #endif
 
 #ifndef MY_core_file_failing_command
@@ -503,6 +503,9 @@ MY_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 #ifndef MY_bfd_is_group_section
 #define MY_bfd_is_group_section bfd_generic_is_group_section
 #endif
+#ifndef MY_bfd_group_name
+#define MY_bfd_group_name bfd_generic_group_name
+#endif
 #ifndef MY_bfd_discard_group
 #define MY_bfd_discard_group bfd_generic_discard_group
 #endif
@@ -512,6 +515,9 @@ MY_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 #endif
 #ifndef MY_bfd_define_common_symbol
 #define MY_bfd_define_common_symbol bfd_generic_define_common_symbol
+#endif
+#ifndef MY_bfd_link_hide_symbol
+#define MY_bfd_link_hide_symbol _bfd_generic_link_hide_symbol
 #endif
 #ifndef MY_bfd_define_start_stop
 #define MY_bfd_define_start_stop bfd_generic_define_start_stop
@@ -581,7 +587,7 @@ MY_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 #endif
 
 #ifndef MY_bfd_is_target_special_symbol
-#define MY_bfd_is_target_special_symbol ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
+#define MY_bfd_is_target_special_symbol _bfd_bool_bfd_asymbol_false
 #endif
 
 #ifndef MY_bfd_free_cached_info
@@ -669,12 +675,24 @@ const bfd_target MY (vec) =
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
      bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* Headers.  */
 #endif
-    {_bfd_dummy_target, MY_object_p, 		/* bfd_check_format.  */
-       bfd_generic_archive_p, MY_core_file_p},
-    {bfd_false, MY_mkobject,			/* bfd_set_format.  */
-       _bfd_generic_mkarchive, bfd_false},
-    {bfd_false, MY_write_object_contents, 	/* bfd_write_contents.  */
-       _bfd_write_archive_contents, bfd_false},
+    {				/* bfd_check_format.  */
+      _bfd_dummy_target,
+      MY_object_p,
+      bfd_generic_archive_p,
+      MY_core_file_p
+    },
+    {				/* bfd_set_format.  */
+      _bfd_bool_bfd_false_error,
+      MY_mkobject,
+      _bfd_generic_mkarchive,
+      _bfd_bool_bfd_false_error
+    },
+    {				/* bfd_write_contents.  */
+      _bfd_bool_bfd_false_error,
+      MY_write_object_contents,
+      _bfd_write_archive_contents,
+      _bfd_bool_bfd_false_error
+    },
 
      BFD_JUMP_TABLE_GENERIC (MY),
      BFD_JUMP_TABLE_COPY (MY),

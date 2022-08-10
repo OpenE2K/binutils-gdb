@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2009-2017 Free Software Foundation, Inc.
+   Copyright 2009-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <stdlib.h>
+#include <unistd.h>
 
 short hglob = 1;
 
@@ -28,7 +29,7 @@ bar()
     exit(1);
 }
 
-int commonfun() { bar(); } /* from hello */
+int commonfun() { bar(); return 0; } /* from hello */
 
 int
 hello(int x)
@@ -37,15 +38,27 @@ hello(int x)
   return x + 45;
 }
 
+static void
+hello_loop (void)
+{
+}
+
 int
 main()
 {
   int tmpx;
+
+  alarm (240);
 
   bar();
   tmpx = hello(glob);
   commonfun();
   glob = tmpx;
   commonfun();
-}
 
+  while (1)
+    {
+      hello_loop ();
+      usleep (20);
+    }
+}

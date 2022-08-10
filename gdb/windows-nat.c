@@ -1,6 +1,6 @@
 /* Target-vector operations for controlling windows child processes, for GDB.
 
-   Copyright (C) 1995-2017 Free Software Foundation, Inc.
+   Copyright (C) 1995-2020 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions, A Red Hat Company.
 
@@ -42,8 +42,9 @@
 #include <sys/cygwin.h>
 #include <cygwin/version.h>
 #endif
+#include <algorithm>
+#include <vector>
 
-#include "buildsym.h"
 #include "filenames.h"
 #include "symfile.h"
 #include "objfiles.h"
@@ -66,17 +67,28 @@
 #include "x86-nat.h"
 #include "complaints.h"
 #include "inf-child.h"
+#include "gdbsupport/gdb_tilde_expand.h"
+#include "gdbsupport/pathstuff.h"
+#include "gdbsupport/gdb_wait.h"
+#include "nat/windows-nat.h"
+
+using namespace windows_nat;
 
 #define AdjustTokenPrivileges		dyn_AdjustTokenPrivileges
 #define DebugActiveProcessStop		dyn_DebugActiveProcessStop
 #define DebugBreakProcess		dyn_DebugBreakProcess
 #define DebugSetProcessKillOnExit	dyn_DebugSetProcessKillOnExit
 #define EnumProcessModules		dyn_EnumProcessModules
+#define EnumProcessModulesEx		dyn_EnumProcessModulesEx
 #define GetModuleInformation		dyn_GetModuleInformation
 #define LookupPrivilegeValueA		dyn_LookupPrivilegeValueA
 #define OpenProcessToken		dyn_OpenProcessToken
 #define GetConsoleFontSize		dyn_GetConsoleFontSize
 #define GetCurrentConsoleFont		dyn_GetCurrentConsoleFont
+#define Wow64SuspendThread		dyn_Wow64SuspendThread
+#define Wow64GetThreadContext		dyn_Wow64GetThreadContext
+#define Wow64SetThreadContext		dyn_Wow64SetThreadContext
+#define Wow64GetThreadSelectorEntry	dyn_Wow64GetThreadSelectorEntry
 
 typedef BOOL WINAPI (AdjustTokenPrivileges_ftype) (HANDLE, BOOL,
 						   PTOKEN_PRIVILEGES,
@@ -97,6 +109,12 @@ typedef BOOL WINAPI (EnumProcessModules_ftype) (HANDLE, HMODULE *, DWORD,
 						LPDWORD);
 static EnumProcessModules_ftype *EnumProcessModules;
 
+#ifdef __x86_64__
+typedef BOOL WINAPI (EnumProcessModulesEx_ftype) (HANDLE, HMODULE *, DWORD,
+						  LPDWORD, DWORD);
+static EnumProcessModulesEx_ftype *EnumProcessModulesEx;
+#endif
+
 typedef BOOL WINAPI (GetModuleInformation_ftype) (HANDLE, HMODULE,
 						  LPMODULEINFO, DWORD);
 static GetModuleInformation_ftype *GetModuleInformation;
@@ -113,6 +131,22 @@ static GetCurrentConsoleFont_ftype *GetCurrentConsoleFont;
 
 typedef COORD WINAPI (GetConsoleFontSize_ftype) (HANDLE, DWORD);
 static GetConsoleFontSize_ftype *GetConsoleFontSize;
+
+#ifdef __x86_64__
+typedef DWORD WINAPI (Wow64SuspendThread_ftype) (HANDLE);
+static Wow64SuspendThread_ftype *Wow64SuspendThread;
+
+typedef BOOL WINAPI (Wow64GetThreadContext_ftype) (HANDLE, PWOW64_CONTEXT);
+static Wow64GetThreadContext_ftype *Wow64GetThreadContext;
+
+typedef BOOL WINAPI (Wow64SetThreadContext_ftype) (HANDLE,
+						   const WOW64_CONTEXT *);
+static Wow64SetThreadContext_ftype *Wow64SetThreadContext;
+
+typedef BOOL WINAPI (Wow64GetThreadSelectorEntry_ftype) (HANDLE, DWORD,
+							 PLDT_ENTRY);
+static Wow64GetThreadSelectorEntry_ftype *Wow64GetThreadSelectorEntry;
+#endif
 
 #undef STARTUPINFO
 #undef CreateProcess
@@ -144,8 +178,10 @@ static GetConsoleFontSize_ftype *GetConsoleFontSize;
 
 static int have_saved_context;	/* True if we've saved context from a
 				   cygwin signal.  */
-static CONTEXT saved_context;	/* Containes the saved context from a
+#ifdef __CYGWIN__
+static CONTEXT saved_context;	/* Contains the saved context from a
 				   cygwin signal.  */
+#endif
 
 /* If we're not using the old Cygwin header file set, define the
    following which never should have been in the generic Win32 API
@@ -174,19 +210,6 @@ static int debug_registers_used;
 static int windows_initialization_done;
 #define DR6_CLEAR_VALUE 0xffff0ff0
 
-/* The exception thrown by a program to tell the debugger the name of
-   a thread.  The exception record contains an ID of a thread and a
-   name to give it.  This exception has no documented name, but MSDN
-   dubs it "MS_VC_EXCEPTION" in one code example.  */
-#define MS_VC_EXCEPTION 0x406d1388
-
-typedef enum
-{
-  HANDLE_EXCEPTION_UNHANDLED = 0,
-  HANDLE_EXCEPTION_HANDLED,
-  HANDLE_EXCEPTION_IGNORED
-} handle_exception_result;
-
 /* The string sent by cygwin when it processes a signal.
    FIXME: This should be in a cygwin include file.  */
 #ifndef _CYGWIN_SIGNAL_STRING
@@ -194,14 +217,10 @@ typedef enum
 #endif
 
 #define CHECK(x)	check (x, __FILE__,__LINE__)
-#define DEBUG_EXEC(x)	if (debug_exec)		printf_unfiltered x
-#define DEBUG_EVENTS(x)	if (debug_events)	printf_unfiltered x
-#define DEBUG_MEM(x)	if (debug_memory)	printf_unfiltered x
-#define DEBUG_EXCEPT(x)	if (debug_exceptions)	printf_unfiltered x
-
-static void windows_interrupt (struct target_ops *self, ptid_t);
-static int windows_thread_alive (struct target_ops *, ptid_t);
-static void windows_kill_inferior (struct target_ops *);
+#define DEBUG_EXEC(x)	if (debug_exec)		debug_printf x
+#define DEBUG_EVENTS(x)	if (debug_events)	debug_printf x
+#define DEBUG_MEM(x)	if (debug_memory)	debug_printf x
+#define DEBUG_EXCEPT(x)	if (debug_exceptions)	debug_printf x
 
 static void cygwin_set_dr (int i, CORE_ADDR addr);
 static void cygwin_set_dr7 (unsigned long val);
@@ -209,52 +228,26 @@ static CORE_ADDR cygwin_get_dr (int i);
 static unsigned long cygwin_get_dr6 (void);
 static unsigned long cygwin_get_dr7 (void);
 
-static enum gdb_signal last_sig = GDB_SIGNAL_0;
-/* Set if a signal was received from the debugged process.  */
-
-/* Thread information structure used to track information that is
-   not available in gdb's thread structure.  */
-typedef struct windows_thread_info_struct
-  {
-    struct windows_thread_info_struct *next;
-    DWORD id;
-    HANDLE h;
-    CORE_ADDR thread_local_base;
-    char *name;
-    int suspended;
-    int reload_context;
-    CONTEXT context;
-    STACKFRAME sf;
-  }
-windows_thread_info;
-
-static windows_thread_info thread_head;
-
-/* The process and thread handles for the above context.  */
-
-static DEBUG_EVENT current_event;	/* The current debug event from
-					   WaitForDebugEvent */
-static HANDLE current_process_handle;	/* Currently executing process */
-static windows_thread_info *current_thread;	/* Info on currently selected thread */
-static DWORD main_thread_id;		/* Thread ID of the main thread */
+static std::vector<windows_thread_info *> thread_list;
 
 /* Counts of things.  */
-static int exception_count = 0;
-static int event_count = 0;
 static int saw_create;
 static int open_process_used = 0;
+#ifdef __x86_64__
+static bool wow64_process = false;
+#endif
 
 /* User options.  */
-static int new_console = 0;
+static bool new_console = false;
 #ifdef __CYGWIN__
-static int cygwin_exceptions = 0;
+static bool cygwin_exceptions = false;
 #endif
-static int new_group = 1;
-static int debug_exec = 0;		/* show execution */
-static int debug_events = 0;		/* show events from kernel */
-static int debug_memory = 0;		/* show target memory accesses */
-static int debug_exceptions = 0;	/* show target exceptions */
-static int useshell = 0;		/* use shell for subprocesses */
+static bool new_group = true;
+static bool debug_exec = false;		/* show execution */
+static bool debug_events = false;	/* show events from kernel */
+static bool debug_memory = false;	/* show target memory accesses */
+static bool debug_exceptions = false;	/* show target exceptions */
+static bool useshell = false;		/* use shell for subprocesses */
 
 /* This vector maps GDB's idea of a register's number into an offset
    in the windows exception context vector.
@@ -280,38 +273,110 @@ static const int *mappings;
    a segment register or not.  */
 static segment_register_p_ftype *segment_register_p;
 
+/* See windows_nat_target::resume to understand why this is commented
+   out.  */
+#if 0
 /* This vector maps the target's idea of an exception (extracted
    from the DEBUG_EVENT structure) to GDB's idea.  */
 
 struct xlate_exception
   {
-    int them;
+    DWORD them;
     enum gdb_signal us;
   };
 
-static const struct xlate_exception
-  xlate[] =
+static const struct xlate_exception xlate[] =
 {
   {EXCEPTION_ACCESS_VIOLATION, GDB_SIGNAL_SEGV},
   {STATUS_STACK_OVERFLOW, GDB_SIGNAL_SEGV},
   {EXCEPTION_BREAKPOINT, GDB_SIGNAL_TRAP},
   {DBG_CONTROL_C, GDB_SIGNAL_INT},
   {EXCEPTION_SINGLE_STEP, GDB_SIGNAL_TRAP},
-  {STATUS_FLOAT_DIVIDE_BY_ZERO, GDB_SIGNAL_FPE},
-  {-1, GDB_SIGNAL_UNKNOWN}};
+  {STATUS_FLOAT_DIVIDE_BY_ZERO, GDB_SIGNAL_FPE}
+};
+
+#endif /* 0 */
+
+struct windows_nat_target final : public x86_nat_target<inf_child_target>
+{
+  void close () override;
+
+  void attach (const char *, int) override;
+
+  bool attach_no_wait () override
+  { return true; }
+
+  void detach (inferior *, int) override;
+
+  void resume (ptid_t, int , enum gdb_signal) override;
+
+  ptid_t wait (ptid_t, struct target_waitstatus *, int) override;
+
+  void fetch_registers (struct regcache *, int) override;
+  void store_registers (struct regcache *, int) override;
+
+  bool stopped_by_sw_breakpoint () override
+  {
+    windows_thread_info *th
+      = thread_rec (inferior_ptid, DONT_INVALIDATE_CONTEXT);
+    return th->stopped_at_software_breakpoint;
+  }
+
+  bool supports_stopped_by_sw_breakpoint () override
+  {
+    return true;
+  }
+
+  enum target_xfer_status xfer_partial (enum target_object object,
+					const char *annex,
+					gdb_byte *readbuf,
+					const gdb_byte *writebuf,
+					ULONGEST offset, ULONGEST len,
+					ULONGEST *xfered_len) override;
+
+  void files_info () override;
+
+  void kill () override;
+
+  void create_inferior (const char *, const std::string &,
+			char **, int) override;
+
+  void mourn_inferior () override;
+
+  bool thread_alive (ptid_t ptid) override;
+
+  std::string pid_to_str (ptid_t) override;
+
+  void interrupt () override;
+
+  char *pid_to_exec_file (int pid) override;
+
+  ptid_t get_ada_task_ptid (long lwp, long thread) override;
+
+  bool get_tib_address (ptid_t ptid, CORE_ADDR *addr) override;
+
+  const char *thread_name (struct thread_info *) override;
+
+  int get_windows_debug_event (int pid, struct target_waitstatus *ourstatus);
+
+  void do_initial_windows_stuff (DWORD pid, bool attaching);
+};
+
+static windows_nat_target the_windows_nat_target;
 
 /* Set the MAPPINGS static global to OFFSETS.
    See the description of MAPPINGS for more details.  */
 
-void
+static void
 windows_set_context_register_offsets (const int *offsets)
 {
   mappings = offsets;
 }
 
-/* See windows-nat.h.  */
+/* Set the function that should be used by this module to determine
+   whether a given register is a segment register or not.  */
 
-void
+static void
 windows_set_segment_register_p (segment_register_p_ftype *fun)
 {
   segment_register_p = fun;
@@ -325,44 +390,31 @@ check (BOOL ok, const char *file, int line)
 		     (unsigned) GetLastError ());
 }
 
-/* Find a thread record given a thread id.  If GET_CONTEXT is not 0,
-   then also retrieve the context for this thread.  If GET_CONTEXT is
-   negative, then don't suspend the thread.  */
-static windows_thread_info *
-thread_rec (DWORD id, int get_context)
+/* See nat/windows-nat.h.  */
+
+windows_thread_info *
+windows_nat::thread_rec (ptid_t ptid, thread_disposition_type disposition)
 {
-  windows_thread_info *th;
-
-  for (th = &thread_head; (th = th->next) != NULL;)
-    if (th->id == id)
+  for (windows_thread_info *th : thread_list)
+    if (th->tid == ptid.lwp ())
       {
-	if (!th->suspended && get_context)
+	if (!th->suspended)
 	  {
-	    if (get_context > 0 && id != current_event.dwThreadId)
+	    switch (disposition)
 	      {
-		if (SuspendThread (th->h) == (DWORD) -1)
-		  {
-		    DWORD err = GetLastError ();
-
-		    /* We get Access Denied (5) when trying to suspend
-		       threads that Windows started on behalf of the
-		       debuggee, usually when those threads are just
-		       about to exit.
-		       We can get Invalid Handle (6) if the main thread
-		       has exited.  */
-		    if (err != ERROR_INVALID_HANDLE
-			&& err != ERROR_ACCESS_DENIED)
-		      warning (_("SuspendThread (tid=0x%x) failed."
-				 " (winerr %u)"),
-			       (unsigned) id, (unsigned) err);
-		    th->suspended = -1;
-		  }
-		else
-		  th->suspended = 1;
+	      case DONT_INVALIDATE_CONTEXT:
+		/* Nothing.  */
+		break;
+	      case INVALIDATE_CONTEXT:
+		if (ptid.lwp () != current_event.dwThreadId)
+		  th->suspend ();
+		th->reload_context = true;
+		break;
+	      case DONT_SUSPEND:
+		th->reload_context = true;
+		th->suspended = -1;
+		break;
 	      }
-	    else if (get_context < 0)
-	      th->suspended = -1;
-	    th->reload_context = 1;
 	  }
 	return th;
       }
@@ -370,41 +422,77 @@ thread_rec (DWORD id, int get_context)
   return NULL;
 }
 
-/* Add a thread to the thread list.  */
+/* Add a thread to the thread list.
+
+   PTID is the ptid of the thread to be added.
+   H is its Windows handle.
+   TLB is its thread local base.
+   MAIN_THREAD_P should be true if the thread to be added is
+   the main thread, false otherwise.  */
+
 static windows_thread_info *
-windows_add_thread (ptid_t ptid, HANDLE h, void *tlb)
+windows_add_thread (ptid_t ptid, HANDLE h, void *tlb, bool main_thread_p)
 {
   windows_thread_info *th;
-  DWORD id;
 
-  gdb_assert (ptid_get_tid (ptid) != 0);
+  gdb_assert (ptid.lwp () != 0);
 
-  id = ptid_get_tid (ptid);
-
-  if ((th = thread_rec (id, FALSE)))
+  if ((th = thread_rec (ptid, DONT_INVALIDATE_CONTEXT)))
     return th;
 
-  th = XCNEW (windows_thread_info);
-  th->id = id;
-  th->h = h;
-  th->thread_local_base = (CORE_ADDR) (uintptr_t) tlb;
-  th->next = thread_head.next;
-  thread_head.next = th;
-  add_thread (ptid);
+  CORE_ADDR base = (CORE_ADDR) (uintptr_t) tlb;
+#ifdef __x86_64__
+  /* For WOW64 processes, this is actually the pointer to the 64bit TIB,
+     and the 32bit TIB is exactly 2 pages after it.  */
+  if (wow64_process)
+    base += 0x2000;
+#endif
+  th = new windows_thread_info (ptid.lwp (), h, base);
+  thread_list.push_back (th);
+
+  /* Add this new thread to the list of threads.
+
+     To be consistent with what's done on other platforms, we add
+     the main thread silently (in reality, this thread is really
+     more of a process to the user than a thread).  */
+  if (main_thread_p)
+    add_thread_silent (&the_windows_nat_target, ptid);
+  else
+    add_thread (&the_windows_nat_target, ptid);
+
   /* Set the debug registers for the new thread if they are used.  */
   if (debug_registers_used)
     {
-      /* Only change the value of the debug registers.  */
-      th->context.ContextFlags = CONTEXT_DEBUG_REGISTERS;
-      CHECK (GetThreadContext (th->h, &th->context));
-      th->context.Dr0 = dr[0];
-      th->context.Dr1 = dr[1];
-      th->context.Dr2 = dr[2];
-      th->context.Dr3 = dr[3];
-      th->context.Dr6 = DR6_CLEAR_VALUE;
-      th->context.Dr7 = dr[7];
-      CHECK (SetThreadContext (th->h, &th->context));
-      th->context.ContextFlags = 0;
+#ifdef __x86_64__
+      if (wow64_process)
+	{
+	  /* Only change the value of the debug registers.  */
+	  th->wow64_context.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+	  CHECK (Wow64GetThreadContext (th->h, &th->wow64_context));
+	  th->wow64_context.Dr0 = dr[0];
+	  th->wow64_context.Dr1 = dr[1];
+	  th->wow64_context.Dr2 = dr[2];
+	  th->wow64_context.Dr3 = dr[3];
+	  th->wow64_context.Dr6 = DR6_CLEAR_VALUE;
+	  th->wow64_context.Dr7 = dr[7];
+	  CHECK (Wow64SetThreadContext (th->h, &th->wow64_context));
+	  th->wow64_context.ContextFlags = 0;
+	}
+      else
+#endif
+	{
+	  /* Only change the value of the debug registers.  */
+	  th->context.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+	  CHECK (GetThreadContext (th->h, &th->context));
+	  th->context.Dr0 = dr[0];
+	  th->context.Dr1 = dr[1];
+	  th->context.Dr2 = dr[2];
+	  th->context.Dr3 = dr[3];
+	  th->context.Dr6 = DR6_CLEAR_VALUE;
+	  th->context.Dr7 = dr[7];
+	  CHECK (SetThreadContext (th->h, &th->context));
+	  th->context.ContextFlags = 0;
+	}
     }
   return th;
 }
@@ -414,59 +502,147 @@ windows_add_thread (ptid_t ptid, HANDLE h, void *tlb)
 static void
 windows_init_thread_list (void)
 {
-  windows_thread_info *th = &thread_head;
-
   DEBUG_EVENTS (("gdb: windows_init_thread_list\n"));
   init_thread_list ();
-  while (th->next != NULL)
-    {
-      windows_thread_info *here = th->next;
-      th->next = here->next;
-      xfree (here);
-    }
-  thread_head.next = NULL;
+
+  for (windows_thread_info *here : thread_list)
+    delete here;
+
+  thread_list.clear ();
 }
 
-/* Delete a thread from the list of threads.  */
+/* Delete a thread from the list of threads.
+
+   PTID is the ptid of the thread to be deleted.
+   EXIT_CODE is the thread's exit code.
+   MAIN_THREAD_P should be true if the thread to be deleted is
+   the main thread, false otherwise.  */
+
 static void
-windows_delete_thread (ptid_t ptid, DWORD exit_code)
+windows_delete_thread (ptid_t ptid, DWORD exit_code, bool main_thread_p)
 {
-  windows_thread_info *th;
   DWORD id;
 
-  gdb_assert (ptid_get_tid (ptid) != 0);
+  gdb_assert (ptid.lwp () != 0);
 
-  id = ptid_get_tid (ptid);
+  id = ptid.lwp ();
+
+  /* Emit a notification about the thread being deleted.
+
+     Note that no notification was printed when the main thread
+     was created, and thus, unless in verbose mode, we should be
+     symmetrical, and avoid that notification for the main thread
+     here as well.  */
 
   if (info_verbose)
-    printf_unfiltered ("[Deleting %s]\n", target_pid_to_str (ptid));
-  else if (print_thread_events && id != main_thread_id)
+    printf_unfiltered ("[Deleting %s]\n", target_pid_to_str (ptid).c_str ());
+  else if (print_thread_events && !main_thread_p)
     printf_unfiltered (_("[%s exited with code %u]\n"),
-		       target_pid_to_str (ptid), (unsigned) exit_code);
-  delete_thread (ptid);
+		       target_pid_to_str (ptid).c_str (),
+		       (unsigned) exit_code);
 
-  for (th = &thread_head;
-       th->next != NULL && th->next->id != id;
-       th = th->next)
-    continue;
+  delete_thread (find_thread_ptid (&the_windows_nat_target, ptid));
 
-  if (th->next != NULL)
+  auto iter = std::find_if (thread_list.begin (), thread_list.end (),
+			    [=] (windows_thread_info *th)
+			    {
+			      return th->tid == id;
+			    });
+
+  if (iter != thread_list.end ())
     {
-      windows_thread_info *here = th->next;
-      th->next = here->next;
-      xfree (here->name);
-      xfree (here);
+      delete *iter;
+      thread_list.erase (iter);
     }
 }
 
+/* Fetches register number R from the given windows_thread_info,
+   and supplies its value to the given regcache.
+
+   This function assumes that R is non-negative.  A failed assertion
+   is raised if that is not true.
+
+   This function assumes that TH->RELOAD_CONTEXT is not set, meaning
+   that the windows_thread_info has an up-to-date context.  A failed
+   assertion is raised if that assumption is violated.  */
+
 static void
-do_windows_fetch_inferior_registers (struct regcache *regcache,
-				     windows_thread_info *th, int r)
+windows_fetch_one_register (struct regcache *regcache,
+			    windows_thread_info *th, int r)
 {
-  char *context_offset = ((char *) &th->context) + mappings[r];
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  gdb_assert (r >= 0);
+  gdb_assert (!th->reload_context);
+
+  char *context_ptr = (char *) &th->context;
+#ifdef __x86_64__
+  if (wow64_process)
+    context_ptr = (char *) &th->wow64_context;
+#endif
+
+  char *context_offset = context_ptr + mappings[r];
+  struct gdbarch *gdbarch = regcache->arch ();
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-  long l;
+
+  gdb_assert (!gdbarch_read_pc_p (gdbarch));
+  gdb_assert (gdbarch_pc_regnum (gdbarch) >= 0);
+  gdb_assert (!gdbarch_write_pc_p (gdbarch));
+
+  if (r == I387_FISEG_REGNUM (tdep))
+    {
+      long l = *((long *) context_offset) & 0xffff;
+      regcache->raw_supply (r, (char *) &l);
+    }
+  else if (r == I387_FOP_REGNUM (tdep))
+    {
+      long l = (*((long *) context_offset) >> 16) & ((1 << 11) - 1);
+      regcache->raw_supply (r, (char *) &l);
+    }
+  else if (segment_register_p (r))
+    {
+      /* GDB treats segment registers as 32bit registers, but they are
+	 in fact only 16 bits long.  Make sure we do not read extra
+	 bits from our source buffer.  */
+      long l = *((long *) context_offset) & 0xffff;
+      regcache->raw_supply (r, (char *) &l);
+    }
+  else
+    {
+      if (th->stopped_at_software_breakpoint
+	  && !th->pc_adjusted
+	  && r == gdbarch_pc_regnum (gdbarch))
+	{
+	  int size = register_size (gdbarch, r);
+	  if (size == 4)
+	    {
+	      uint32_t value;
+	      memcpy (&value, context_offset, size);
+	      value -= gdbarch_decr_pc_after_break (gdbarch);
+	      memcpy (context_offset, &value, size);
+	    }
+	  else
+	    {
+	      gdb_assert (size == 8);
+	      uint64_t value;
+	      memcpy (&value, context_offset, size);
+	      value -= gdbarch_decr_pc_after_break (gdbarch);
+	      memcpy (context_offset, &value, size);
+	    }
+	  /* Make sure we only rewrite the PC a single time.  */
+	  th->pc_adjusted = true;
+	}
+      regcache->raw_supply (r, context_offset);
+    }
+}
+
+void
+windows_nat_target::fetch_registers (struct regcache *regcache, int r)
+{
+  windows_thread_info *th = thread_rec (regcache->ptid (), INVALIDATE_CONTEXT);
+
+  /* Check if TH exists.  Windows sometimes uses a non-existent
+     thread id in its events.  */
+  if (th == NULL)
+    return;
 
   if (th->reload_context)
     {
@@ -480,6 +656,26 @@ do_windows_fetch_inferior_registers (struct regcache *regcache,
 	  memcpy (&th->context, &saved_context,
 		  __COPY_CONTEXT_SIZE);
 	  have_saved_context = 0;
+	}
+      else
+#endif
+#ifdef __x86_64__
+      if (wow64_process)
+	{
+	  th->wow64_context.ContextFlags = CONTEXT_DEBUGGER_DR;
+	  CHECK (Wow64GetThreadContext (th->h, &th->wow64_context));
+	  /* Copy dr values from that thread.
+	     But only if there were not modified since last stop.
+	     PR gdb/2388 */
+	  if (!debug_registers_changed)
+	    {
+	      dr[0] = th->wow64_context.Dr0;
+	      dr[1] = th->wow64_context.Dr1;
+	      dr[2] = th->wow64_context.Dr2;
+	      dr[3] = th->wow64_context.Dr3;
+	      dr[6] = th->wow64_context.Dr6;
+	      dr[7] = th->wow64_context.Dr7;
+	    }
 	}
       else
 #endif
@@ -499,95 +695,62 @@ do_windows_fetch_inferior_registers (struct regcache *regcache,
 	      dr[7] = th->context.Dr7;
 	    }
 	}
-      th->reload_context = 0;
+      th->reload_context = false;
     }
 
-  if (r == I387_FISEG_REGNUM (tdep))
-    {
-      l = *((long *) context_offset) & 0xffff;
-      regcache_raw_supply (regcache, r, (char *) &l);
-    }
-  else if (r == I387_FOP_REGNUM (tdep))
-    {
-      l = (*((long *) context_offset) >> 16) & ((1 << 11) - 1);
-      regcache_raw_supply (regcache, r, (char *) &l);
-    }
-  else if (segment_register_p (r))
-    {
-      /* GDB treats segment registers as 32bit registers, but they are
-	 in fact only 16 bits long.  Make sure we do not read extra
-	 bits from our source buffer.  */
-      l = *((long *) context_offset) & 0xffff;
-      regcache_raw_supply (regcache, r, (char *) &l);
-    }
-  else if (r >= 0)
-    regcache_raw_supply (regcache, r, context_offset);
+  if (r < 0)
+    for (r = 0; r < gdbarch_num_regs (regcache->arch()); r++)
+      windows_fetch_one_register (regcache, th, r);
   else
-    {
-      for (r = 0; r < gdbarch_num_regs (gdbarch); r++)
-	do_windows_fetch_inferior_registers (regcache, th, r);
-    }
+    windows_fetch_one_register (regcache, th, r);
 }
 
-static void
-windows_fetch_inferior_registers (struct target_ops *ops,
-				  struct regcache *regcache, int r)
-{
-  DWORD pid = ptid_get_tid (regcache_get_ptid (regcache));
-  windows_thread_info *th = thread_rec (pid, TRUE);
+/* Collect the register number R from the given regcache, and store
+   its value into the corresponding area of the given thread's context.
 
-  /* Check if TH exists.  Windows sometimes uses a non-existent
-     thread id in its events.  */
-  if (th != NULL)
-    do_windows_fetch_inferior_registers (regcache, th, r);
-}
+   This function assumes that R is non-negative.  A failed assertion
+   assertion is raised if that is not true.  */
 
 static void
-do_windows_store_inferior_registers (const struct regcache *regcache,
-				     windows_thread_info *th, int r)
+windows_store_one_register (const struct regcache *regcache,
+			    windows_thread_info *th, int r)
 {
-  if (r >= 0)
-    regcache_raw_collect (regcache, r,
-			  ((char *) &th->context) + mappings[r]);
-  else
-    {
-      for (r = 0; r < gdbarch_num_regs (get_regcache_arch (regcache)); r++)
-	do_windows_store_inferior_registers (regcache, th, r);
-    }
+  gdb_assert (r >= 0);
+
+  char *context_ptr = (char *) &th->context;
+#ifdef __x86_64__
+  if (wow64_process)
+    context_ptr = (char *) &th->wow64_context;
+#endif
+
+  regcache->raw_collect (r, context_ptr + mappings[r]);
 }
 
 /* Store a new register value into the context of the thread tied to
    REGCACHE.  */
-static void
-windows_store_inferior_registers (struct target_ops *ops,
-				  struct regcache *regcache, int r)
+
+void
+windows_nat_target::store_registers (struct regcache *regcache, int r)
 {
-  DWORD pid = ptid_get_tid (regcache_get_ptid (regcache));
-  windows_thread_info *th = thread_rec (pid, TRUE);
+  windows_thread_info *th = thread_rec (regcache->ptid (), INVALIDATE_CONTEXT);
 
   /* Check if TH exists.  Windows sometimes uses a non-existent
      thread id in its events.  */
-  if (th != NULL)
-    do_windows_store_inferior_registers (regcache, th, r);
-}
+  if (th == NULL)
+    return;
 
-/* Encapsulate the information required in a call to
-   symbol_file_add_args.  */
-struct safe_symbol_file_add_args
-{
-  char *name;
-  int from_tty;
-  struct section_addr_info *addrs;
-  int mainline;
-  int flags;
-  struct ui_file *err, *out;
-  struct objfile *ret;
-};
+  if (r < 0)
+    for (r = 0; r < gdbarch_num_regs (regcache->arch ()); r++)
+      windows_store_one_register (regcache, th, r);
+  else
+    windows_store_one_register (regcache, th, r);
+}
 
 /* Maintain a linked list of "so" information.  */
 struct lm_info_windows : public lm_info_base
 {
   LPVOID load_addr = 0;
+  CORE_ADDR text_offset = 0;
 };
 
 static struct so_list solib_start, *solib_end;
@@ -664,16 +827,18 @@ windows_make_so (const char *name, LPVOID load_addr)
 	  free (rname);
 	}
       else
-	error (_("dll path too long"));
+	{
+	  warning (_("dll path for \"%s\" too long or inaccessible"), name);
+	  strcpy (so->so_name, so->so_original_name);
+	}
     }
   /* Record cygwin1.dll .text start/end.  */
   p = strchr (so->so_name, '\0') - (sizeof ("/cygwin1.dll") - 1);
   if (p >= so->so_name && strcasecmp (p, "/cygwin1.dll") == 0)
     {
       asection *text = NULL;
-      CORE_ADDR text_vma;
 
-      gdb_bfd_ref_ptr abfd (gdb_bfd_open (so->so_name, "pei-i386", -1));
+      gdb_bfd_ref_ptr abfd (gdb_bfd_open (so->so_name, "pei-i386"));
 
       if (abfd == NULL)
 	return so;
@@ -689,76 +854,20 @@ windows_make_so (const char *name, LPVOID load_addr)
 	 file header and the section alignment.  */
       cygwin_load_start = (CORE_ADDR) (uintptr_t) ((char *)
 						   load_addr + 0x1000);
-      cygwin_load_end = cygwin_load_start + bfd_section_size (abfd.get (),
-							      text);
+      cygwin_load_end = cygwin_load_start + bfd_section_size (text);
     }
 #endif
 
   return so;
 }
 
-static char *
-get_image_name (HANDLE h, void *address, int unicode)
-{
-#ifdef __CYGWIN__
-  static char buf[__PMAX];
-#else
-  static char buf[(2 * __PMAX) + 1];
-#endif
-  DWORD size = unicode ? sizeof (WCHAR) : sizeof (char);
-  char *address_ptr;
-  int len = 0;
-  char b[2];
-  SIZE_T done;
+/* See nat/windows-nat.h.  */
 
-  /* Attempt to read the name of the dll that was detected.
-     This is documented to work only when actively debugging
-     a program.  It will not work for attached processes.  */
-  if (address == NULL)
-    return NULL;
-
-  /* See if we could read the address of a string, and that the
-     address isn't null.  */
-  if (!ReadProcessMemory (h, address,  &address_ptr,
-			  sizeof (address_ptr), &done)
-      || done != sizeof (address_ptr) || !address_ptr)
-    return NULL;
-
-  /* Find the length of the string.  */
-  while (ReadProcessMemory (h, address_ptr + len++ * size, &b, size, &done)
-	 && (b[0] != 0 || b[size - 1] != 0) && done == size)
-    continue;
-
-  if (!unicode)
-    ReadProcessMemory (h, address_ptr, buf, len, &done);
-  else
-    {
-      WCHAR *unicode_address = (WCHAR *) alloca (len * sizeof (WCHAR));
-      ReadProcessMemory (h, address_ptr, unicode_address, len * sizeof (WCHAR),
-			 &done);
-#ifdef __CYGWIN__
-      wcstombs (buf, unicode_address, __PMAX);
-#else
-      WideCharToMultiByte (CP_ACP, 0, unicode_address, len, buf, sizeof buf,
-			   0, 0);
-#endif
-    }
-
-  return buf;
-}
-
-/* Handle a DLL load event, and return 1.
-
-   This function assumes that this event did not occur during inferior
-   initialization, where their event info may be incomplete (see
-   do_initial_windows_stuff and windows_add_all_dlls for more info
-   on how we handle DLL loading during that phase).  */
-
-static int
-handle_load_dll (void *dummy)
+void
+windows_nat::handle_load_dll ()
 {
   LOAD_DLL_DEBUG_INFO *event = &current_event.u.LoadDll;
-  char *dll_name;
+  const char *dll_name;
 
   /* Try getting the DLL name via the lpImageName field of the event.
      Note that Microsoft documents this fields as strictly optional,
@@ -768,7 +877,7 @@ handle_load_dll (void *dummy)
   dll_name = get_image_name (current_process_handle,
 			     event->lpImageName, event->fUnicode);
   if (!dll_name)
-    return 1;
+    return;
 
   solib_end->next = windows_make_so (dll_name, event->lpBaseOfDll);
   solib_end = solib_end->next;
@@ -777,8 +886,6 @@ handle_load_dll (void *dummy)
 
   DEBUG_EVENTS (("gdb: Loading dll \"%s\" at %s.\n", solib_end->so_name,
 		 host_address_to_string (li->load_addr)));
-
-  return 1;
 }
 
 static void
@@ -790,16 +897,10 @@ windows_free_so (struct so_list *so)
   xfree (so);
 }
 
-/* Handle a DLL unload event.
-   Return 1 if successful, or zero otherwise.
+/* See nat/windows-nat.h.  */
 
-   This function assumes that this event did not occur during inferior
-   initialization, where their event info may be incomplete (see
-   do_initial_windows_stuff and windows_add_all_dlls for more info
-   on how we handle DLL loading during that phase).  */
-
-static int
-handle_unload_dll (void *dummy)
+void
+windows_nat::handle_unload_dll ()
 {
   LPVOID lpBaseOfDll = current_event.u.UnloadDll.lpBaseOfDll;
   struct so_list *so;
@@ -818,7 +919,7 @@ handle_unload_dll (void *dummy)
 	  DEBUG_EVENTS (("gdb: Unloading dll \"%s\".\n", sodel->so_name));
 
 	  windows_free_so (sodel);
-	  return 1;
+	  return;
 	}
     }
 
@@ -829,22 +930,43 @@ handle_unload_dll (void *dummy)
      4 mysterious UNLOAD_DLL_DEBUG_EVENTs during the startup phase (these
      events are apparently caused by the WOW layer, the interface between
      32bit and 64bit worlds).  */
-  complaint (&symfile_complaints, _("dll starting at %s not found."),
+  complaint (_("dll starting at %s not found."),
 	     host_address_to_string (lpBaseOfDll));
+}
 
-  return 0;
+/* Call FUNC wrapped in a TRY/CATCH that swallows all GDB
+   exceptions.  */
+
+static void
+catch_errors (void (*func) ())
+{
+  try
+    {
+      func ();
+    }
+  catch (const gdb_exception &ex)
+    {
+      exception_print (gdb_stderr, ex);
+    }
 }
 
 /* Clear list of loaded DLLs.  */
 static void
 windows_clear_solib (void)
 {
-  solib_start.next = NULL;
+  struct so_list *so;
+
+  for (so = solib_start.next; so; so = solib_start.next)
+    {
+      solib_start.next = so->next;
+      windows_free_so (so);
+    }
+
   solib_end = &solib_start;
 }
 
 static void
-signal_event_command (char *args, int from_tty)
+signal_event_command (const char *args, int from_tty)
 {
   uintptr_t event_id = 0;
   char *endargs = NULL;
@@ -862,31 +984,30 @@ signal_event_command (char *args, int from_tty)
   CloseHandle ((HANDLE) event_id);
 }
 
-/* Handle DEBUG_STRING output from child process.
-   Cygwin prepends its messages with a "cygwin:".  Interpret this as
-   a Cygwin signal.  Otherwise just print the string as a warning.  */
-static int
-handle_output_debug_string (struct target_waitstatus *ourstatus)
+/* See nat/windows-nat.h.  */
+
+int
+windows_nat::handle_output_debug_string (struct target_waitstatus *ourstatus)
 {
-  char *s = NULL;
   int retval = 0;
 
-  if (!target_read_string
-	((CORE_ADDR) (uintptr_t) current_event.u.DebugString.lpDebugStringData,
-	&s, 1024, 0)
-      || !s || !*s)
+  gdb::unique_xmalloc_ptr<char> s
+    = (target_read_string
+       ((CORE_ADDR) (uintptr_t) current_event.u.DebugString.lpDebugStringData,
+	1024));
+  if (s == nullptr || !*(s.get ()))
     /* nothing to do */;
-  else if (!startswith (s, _CYGWIN_SIGNAL_STRING))
+  else if (!startswith (s.get (), _CYGWIN_SIGNAL_STRING))
     {
 #ifdef __CYGWIN__
-      if (!startswith (s, "cYg"))
+      if (!startswith (s.get (), "cYg"))
 #endif
 	{
-	  char *p = strchr (s, '\0');
+	  char *p = strchr (s.get (), '\0');
 
-	  if (p > s && *--p == '\n')
+	  if (p > s.get () && *--p == '\n')
 	    *p = '\0';
-	  warning (("%s"), s);
+	  warning (("%s"), s.get ());
 	}
     }
 #ifdef __CYGWIN__
@@ -900,7 +1021,7 @@ handle_output_debug_string (struct target_waitstatus *ourstatus)
 	 to be stored at the given address in the inferior.  Tell gdb
 	 to treat this like a real signal.  */
       char *p;
-      int sig = strtol (s + sizeof (_CYGWIN_SIGNAL_STRING) - 1, &p, 0);
+      int sig = strtol (s.get () + sizeof (_CYGWIN_SIGNAL_STRING) - 1, &p, 0);
       gdb_signal gotasig = gdb_signal_from_host (sig);
 
       ourstatus->value.sig = gotasig;
@@ -912,7 +1033,7 @@ handle_output_debug_string (struct target_waitstatus *ourstatus)
 	  ourstatus->kind = TARGET_WAITKIND_STOPPED;
 	  retval = strtoul (p, &p, 0);
 	  if (!retval)
-	    retval = main_thread_id;
+	    retval = current_event.dwThreadId;
 	  else if ((x = (LPCVOID) (uintptr_t) strtoull (p, NULL, 0))
 		   && ReadProcessMemory (current_process_handle, x,
 					 &saved_context,
@@ -923,8 +1044,6 @@ handle_output_debug_string (struct target_waitstatus *ourstatus)
     }
 #endif
 
-  if (s)
-    xfree (s);
   return retval;
 }
 
@@ -932,7 +1051,14 @@ static int
 display_selector (HANDLE thread, DWORD sel)
 {
   LDT_ENTRY info;
-  if (GetThreadSelectorEntry (thread, sel, &info))
+  BOOL ret;
+#ifdef __x86_64__
+  if (wow64_process)
+    ret = Wow64GetThreadSelectorEntry (thread, sel, &info);
+  else
+#endif
+    ret = GetThreadSelectorEntry (thread, sel, &info);
+  if (ret)
     {
       int base, limit;
       printf_filtered ("0x%03x: ", (unsigned) sel);
@@ -979,14 +1105,16 @@ display_selector (HANDLE thread, DWORD sel)
 	  puts_filtered ("Code (Exec/Read, Conf");
 	  break;
 	default:
-	  printf_filtered ("Unknown type 0x%x",info.HighWord.Bits.Type);
+	  printf_filtered ("Unknown type 0x%lx",
+			   (unsigned long) info.HighWord.Bits.Type);
 	}
       if ((info.HighWord.Bits.Type & 0x1) == 0)
 	puts_filtered(", N.Acc");
       puts_filtered (")\n");
       if ((info.HighWord.Bits.Type & 0x10) == 0)
 	puts_filtered("System selector ");
-      printf_filtered ("Priviledge level = %d. ", info.HighWord.Bits.Dpl);
+      printf_filtered ("Priviledge level = %ld. ",
+		       (unsigned long) info.HighWord.Bits.Dpl);
       if (info.HighWord.Bits.Granularity)
 	puts_filtered ("Page granular.\n");
       else
@@ -1005,211 +1133,135 @@ display_selector (HANDLE thread, DWORD sel)
 }
 
 static void
-display_selectors (char * args, int from_tty)
+display_selectors (const char * args, int from_tty)
 {
-  if (!current_thread)
+  if (inferior_ptid == null_ptid)
     {
       puts_filtered ("Impossible to display selectors now.\n");
       return;
     }
+
+  windows_thread_info *current_windows_thread
+    = thread_rec (inferior_ptid, DONT_INVALIDATE_CONTEXT);
+
   if (!args)
     {
-
-      puts_filtered ("Selector $cs\n");
-      display_selector (current_thread->h,
-	current_thread->context.SegCs);
-      puts_filtered ("Selector $ds\n");
-      display_selector (current_thread->h,
-	current_thread->context.SegDs);
-      puts_filtered ("Selector $es\n");
-      display_selector (current_thread->h,
-	current_thread->context.SegEs);
-      puts_filtered ("Selector $ss\n");
-      display_selector (current_thread->h,
-	current_thread->context.SegSs);
-      puts_filtered ("Selector $fs\n");
-      display_selector (current_thread->h,
-	current_thread->context.SegFs);
-      puts_filtered ("Selector $gs\n");
-      display_selector (current_thread->h,
-	current_thread->context.SegGs);
+#ifdef __x86_64__
+      if (wow64_process)
+	{
+	  puts_filtered ("Selector $cs\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->wow64_context.SegCs);
+	  puts_filtered ("Selector $ds\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->wow64_context.SegDs);
+	  puts_filtered ("Selector $es\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->wow64_context.SegEs);
+	  puts_filtered ("Selector $ss\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->wow64_context.SegSs);
+	  puts_filtered ("Selector $fs\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->wow64_context.SegFs);
+	  puts_filtered ("Selector $gs\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->wow64_context.SegGs);
+	}
+      else
+#endif
+	{
+	  puts_filtered ("Selector $cs\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->context.SegCs);
+	  puts_filtered ("Selector $ds\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->context.SegDs);
+	  puts_filtered ("Selector $es\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->context.SegEs);
+	  puts_filtered ("Selector $ss\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->context.SegSs);
+	  puts_filtered ("Selector $fs\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->context.SegFs);
+	  puts_filtered ("Selector $gs\n");
+	  display_selector (current_windows_thread->h,
+			    current_windows_thread->context.SegGs);
+	}
     }
   else
     {
       int sel;
       sel = parse_and_eval_long (args);
       printf_filtered ("Selector \"%s\"\n",args);
-      display_selector (current_thread->h, sel);
+      display_selector (current_windows_thread->h, sel);
     }
 }
 
-#define DEBUG_EXCEPTION_SIMPLE(x)       if (debug_exceptions) \
-  printf_unfiltered ("gdb: Target exception %s at %s\n", x, \
-    host_address_to_string (\
-      current_event.u.Exception.ExceptionRecord.ExceptionAddress))
+/* See nat/windows-nat.h.  */
 
-static handle_exception_result
-handle_exception (struct target_waitstatus *ourstatus)
+bool
+windows_nat::handle_ms_vc_exception (const EXCEPTION_RECORD *rec)
 {
-  EXCEPTION_RECORD *rec = &current_event.u.Exception.ExceptionRecord;
-  DWORD code = rec->ExceptionCode;
-  handle_exception_result result = HANDLE_EXCEPTION_HANDLED;
-
-  ourstatus->kind = TARGET_WAITKIND_STOPPED;
-
-  /* Record the context of the current thread.  */
-  thread_rec (current_event.dwThreadId, -1);
-
-  switch (code)
+  if (rec->NumberParameters >= 3
+      && (rec->ExceptionInformation[0] & 0xffffffff) == 0x1000)
     {
-    case EXCEPTION_ACCESS_VIOLATION:
-      DEBUG_EXCEPTION_SIMPLE ("EXCEPTION_ACCESS_VIOLATION");
-      ourstatus->value.sig = GDB_SIGNAL_SEGV;
-#ifdef __CYGWIN__
-      {
-	/* See if the access violation happened within the cygwin DLL
-	   itself.  Cygwin uses a kind of exception handling to deal
-	   with passed-in invalid addresses.  gdb should not treat
-	   these as real SEGVs since they will be silently handled by
-	   cygwin.  A real SEGV will (theoretically) be caught by
-	   cygwin later in the process and will be sent as a
-	   cygwin-specific-signal.  So, ignore SEGVs if they show up
-	   within the text segment of the DLL itself.  */
-	const char *fn;
-	CORE_ADDR addr = (CORE_ADDR) (uintptr_t) rec->ExceptionAddress;
+      DWORD named_thread_id;
+      windows_thread_info *named_thread;
+      CORE_ADDR thread_name_target;
 
-	if ((!cygwin_exceptions && (addr >= cygwin_load_start
-				    && addr < cygwin_load_end))
-	    || (find_pc_partial_function (addr, &fn, NULL, NULL)
-		&& startswith (fn, "KERNEL32!IsBad")))
-	  return HANDLE_EXCEPTION_UNHANDLED;
-      }
-#endif
-      break;
-    case STATUS_STACK_OVERFLOW:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_STACK_OVERFLOW");
-      ourstatus->value.sig = GDB_SIGNAL_SEGV;
-      break;
-    case STATUS_FLOAT_DENORMAL_OPERAND:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_FLOAT_DENORMAL_OPERAND");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
-      DEBUG_EXCEPTION_SIMPLE ("EXCEPTION_ARRAY_BOUNDS_EXCEEDED");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_FLOAT_INEXACT_RESULT:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_FLOAT_INEXACT_RESULT");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_FLOAT_INVALID_OPERATION:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_FLOAT_INVALID_OPERATION");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_FLOAT_OVERFLOW:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_FLOAT_OVERFLOW");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_FLOAT_STACK_CHECK:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_FLOAT_STACK_CHECK");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_FLOAT_UNDERFLOW:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_FLOAT_UNDERFLOW");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_FLOAT_DIVIDE_BY_ZERO:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_FLOAT_DIVIDE_BY_ZERO");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_INTEGER_DIVIDE_BY_ZERO:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_INTEGER_DIVIDE_BY_ZERO");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case STATUS_INTEGER_OVERFLOW:
-      DEBUG_EXCEPTION_SIMPLE ("STATUS_INTEGER_OVERFLOW");
-      ourstatus->value.sig = GDB_SIGNAL_FPE;
-      break;
-    case EXCEPTION_BREAKPOINT:
-      DEBUG_EXCEPTION_SIMPLE ("EXCEPTION_BREAKPOINT");
-      ourstatus->value.sig = GDB_SIGNAL_TRAP;
-      break;
-    case DBG_CONTROL_C:
-      DEBUG_EXCEPTION_SIMPLE ("DBG_CONTROL_C");
-      ourstatus->value.sig = GDB_SIGNAL_INT;
-      break;
-    case DBG_CONTROL_BREAK:
-      DEBUG_EXCEPTION_SIMPLE ("DBG_CONTROL_BREAK");
-      ourstatus->value.sig = GDB_SIGNAL_INT;
-      break;
-    case EXCEPTION_SINGLE_STEP:
-      DEBUG_EXCEPTION_SIMPLE ("EXCEPTION_SINGLE_STEP");
-      ourstatus->value.sig = GDB_SIGNAL_TRAP;
-      break;
-    case EXCEPTION_ILLEGAL_INSTRUCTION:
-      DEBUG_EXCEPTION_SIMPLE ("EXCEPTION_ILLEGAL_INSTRUCTION");
-      ourstatus->value.sig = GDB_SIGNAL_ILL;
-      break;
-    case EXCEPTION_PRIV_INSTRUCTION:
-      DEBUG_EXCEPTION_SIMPLE ("EXCEPTION_PRIV_INSTRUCTION");
-      ourstatus->value.sig = GDB_SIGNAL_ILL;
-      break;
-    case EXCEPTION_NONCONTINUABLE_EXCEPTION:
-      DEBUG_EXCEPTION_SIMPLE ("EXCEPTION_NONCONTINUABLE_EXCEPTION");
-      ourstatus->value.sig = GDB_SIGNAL_ILL;
-      break;
-    case MS_VC_EXCEPTION:
-      if (rec->NumberParameters >= 3
-	  && (rec->ExceptionInformation[0] & 0xffffffff) == 0x1000)
+      thread_name_target = rec->ExceptionInformation[1];
+      named_thread_id = (DWORD) (0xffffffff & rec->ExceptionInformation[2]);
+
+      if (named_thread_id == (DWORD) -1)
+	named_thread_id = current_event.dwThreadId;
+
+      named_thread = thread_rec (ptid_t (current_event.dwProcessId,
+					 named_thread_id, 0),
+				 DONT_INVALIDATE_CONTEXT);
+      if (named_thread != NULL)
 	{
-	  DWORD named_thread_id;
-	  windows_thread_info *named_thread;
-	  CORE_ADDR thread_name_target;
-
-	  DEBUG_EXCEPTION_SIMPLE ("MS_VC_EXCEPTION");
-
-	  thread_name_target = rec->ExceptionInformation[1];
-	  named_thread_id = (DWORD) (0xffffffff & rec->ExceptionInformation[2]);
-
-	  if (named_thread_id == (DWORD) -1)
-	    named_thread_id = current_event.dwThreadId;
-
-	  named_thread = thread_rec (named_thread_id, 0);
-	  if (named_thread != NULL)
+	  int thread_name_len;
+	  gdb::unique_xmalloc_ptr<char> thread_name
+	    = target_read_string (thread_name_target, 1025, &thread_name_len);
+	  if (thread_name_len > 0)
 	    {
-	      int thread_name_len;
-	      char *thread_name;
-
-	      thread_name_len = target_read_string (thread_name_target,
-						    &thread_name, 1025, NULL);
-	      if (thread_name_len > 0)
-		{
-		  thread_name[thread_name_len - 1] = '\0';
-		  xfree (named_thread->name);
-		  named_thread->name = thread_name;
-		}
-	      else
-		xfree (thread_name);
+	      thread_name.get ()[thread_name_len - 1] = '\0';
+	      named_thread->name = std::move (thread_name);
 	    }
-	  ourstatus->value.sig = GDB_SIGNAL_TRAP;
-	  result = HANDLE_EXCEPTION_IGNORED;
-	  break;
 	}
-	/* treat improperly formed exception as unknown, fallthrough */
-    default:
-      /* Treat unhandled first chance exceptions specially.  */
-      if (current_event.u.Exception.dwFirstChance)
-	return HANDLE_EXCEPTION_UNHANDLED;
-      printf_unfiltered ("gdb: unknown target exception 0x%08x at %s\n",
-	(unsigned) current_event.u.Exception.ExceptionRecord.ExceptionCode,
-	host_address_to_string (
-	  current_event.u.Exception.ExceptionRecord.ExceptionAddress));
-      ourstatus->value.sig = GDB_SIGNAL_UNKNOWN;
-      break;
+
+      return true;
     }
-  exception_count++;
-  last_sig = ourstatus->value.sig;
-  return result;
+
+  return false;
+}
+
+/* See nat/windows-nat.h.  */
+
+bool
+windows_nat::handle_access_violation (const EXCEPTION_RECORD *rec)
+{
+#ifdef __CYGWIN__
+  /* See if the access violation happened within the cygwin DLL
+     itself.  Cygwin uses a kind of exception handling to deal with
+     passed-in invalid addresses.  gdb should not treat these as real
+     SEGVs since they will be silently handled by cygwin.  A real SEGV
+     will (theoretically) be caught by cygwin later in the process and
+     will be sent as a cygwin-specific-signal.  So, ignore SEGVs if
+     they show up within the text segment of the DLL itself.  */
+  const char *fn;
+  CORE_ADDR addr = (CORE_ADDR) (uintptr_t) rec->ExceptionAddress;
+
+  if ((!cygwin_exceptions && (addr >= cygwin_load_start
+			      && addr < cygwin_load_end))
+      || (find_pc_partial_function (addr, &fn, NULL, NULL)
+	  && startswith (fn, "KERNEL32!IsBad")))
+    return true;
+#endif
+  return false;
 }
 
 /* Resume thread specified by ID, or all artificially suspended
@@ -1219,52 +1271,85 @@ handle_exception (struct target_waitstatus *ourstatus)
 static BOOL
 windows_continue (DWORD continue_status, int id, int killed)
 {
-  int i;
-  windows_thread_info *th;
   BOOL res;
 
-  DEBUG_EVENTS (("ContinueDebugEvent (cpid=%d, ctid=0x%x, %s);\n",
-		  (unsigned) current_event.dwProcessId,
-		  (unsigned) current_event.dwThreadId,
-		  continue_status == DBG_CONTINUE ?
-		  "DBG_CONTINUE" : "DBG_EXCEPTION_NOT_HANDLED"));
+  desired_stop_thread_id = id;
 
-  for (th = &thread_head; (th = th->next) != NULL;)
-    if ((id == -1 || id == (int) th->id)
-	&& th->suspended)
+  if (matching_pending_stop (debug_events))
+    return TRUE;
+
+  for (windows_thread_info *th : thread_list)
+    if (id == -1 || id == (int) th->tid)
       {
-	if (debug_registers_changed)
+	if (!th->suspended)
+	  continue;
+#ifdef __x86_64__
+	if (wow64_process)
 	  {
-	    th->context.ContextFlags |= CONTEXT_DEBUG_REGISTERS;
-	    th->context.Dr0 = dr[0];
-	    th->context.Dr1 = dr[1];
-	    th->context.Dr2 = dr[2];
-	    th->context.Dr3 = dr[3];
-	    th->context.Dr6 = DR6_CLEAR_VALUE;
-	    th->context.Dr7 = dr[7];
-	  }
-	if (th->context.ContextFlags)
-	  {
-	    DWORD ec = 0;
-
-	    if (GetExitCodeThread (th->h, &ec)
-		&& ec == STILL_ACTIVE)
+	    if (debug_registers_changed)
 	      {
-		BOOL status = SetThreadContext (th->h, &th->context);
-
-		if (!killed)
-		  CHECK (status);
+		th->wow64_context.ContextFlags |= CONTEXT_DEBUG_REGISTERS;
+		th->wow64_context.Dr0 = dr[0];
+		th->wow64_context.Dr1 = dr[1];
+		th->wow64_context.Dr2 = dr[2];
+		th->wow64_context.Dr3 = dr[3];
+		th->wow64_context.Dr6 = DR6_CLEAR_VALUE;
+		th->wow64_context.Dr7 = dr[7];
 	      }
-	    th->context.ContextFlags = 0;
+	    if (th->wow64_context.ContextFlags)
+	      {
+		DWORD ec = 0;
+
+		if (GetExitCodeThread (th->h, &ec)
+		    && ec == STILL_ACTIVE)
+		  {
+		    BOOL status = Wow64SetThreadContext (th->h,
+							 &th->wow64_context);
+
+		    if (!killed)
+		      CHECK (status);
+		  }
+		th->wow64_context.ContextFlags = 0;
+	      }
 	  }
-	if (th->suspended > 0)
-	  (void) ResumeThread (th->h);
-	th->suspended = 0;
+	else
+#endif
+	  {
+	    if (debug_registers_changed)
+	      {
+		th->context.ContextFlags |= CONTEXT_DEBUG_REGISTERS;
+		th->context.Dr0 = dr[0];
+		th->context.Dr1 = dr[1];
+		th->context.Dr2 = dr[2];
+		th->context.Dr3 = dr[3];
+		th->context.Dr6 = DR6_CLEAR_VALUE;
+		th->context.Dr7 = dr[7];
+	      }
+	    if (th->context.ContextFlags)
+	      {
+		DWORD ec = 0;
+
+		if (GetExitCodeThread (th->h, &ec)
+		    && ec == STILL_ACTIVE)
+		  {
+		    BOOL status = SetThreadContext (th->h, &th->context);
+
+		    if (!killed)
+		      CHECK (status);
+		  }
+		th->context.ContextFlags = 0;
+	      }
+	  }
+	th->resume ();
+      }
+    else
+      {
+	/* When single-stepping a specific thread, other threads must
+	   be suspended.  */
+	th->suspend ();
       }
 
-  res = ContinueDebugEvent (current_event.dwProcessId,
-			    current_event.dwThreadId,
-			    continue_status);
+  res = continue_last_debug_event (continue_status, debug_events);
 
   if (!res)
     error (_("Failed to resume program execution"
@@ -1290,24 +1375,22 @@ fake_create_process (void)
        (unsigned) GetLastError ());
       /*  We can not debug anything in that case.  */
     }
-  main_thread_id = current_event.dwThreadId;
-  current_thread = windows_add_thread (
-		     ptid_build (current_event.dwProcessId, 0,
-				 current_event.dwThreadId),
-		     current_event.u.CreateThread.hThread,
-		     current_event.u.CreateThread.lpThreadLocalBase);
-  return main_thread_id;
+  windows_add_thread (ptid_t (current_event.dwProcessId, 0,
+			      current_event.dwThreadId),
+		      current_event.u.CreateThread.hThread,
+		      current_event.u.CreateThread.lpThreadLocalBase,
+		      true /* main_thread_p */);
+  return current_event.dwThreadId;
 }
 
-static void
-windows_resume (struct target_ops *ops,
-		ptid_t ptid, int step, enum gdb_signal sig)
+void
+windows_nat_target::resume (ptid_t ptid, int step, enum gdb_signal sig)
 {
   windows_thread_info *th;
   DWORD continue_status = DBG_CONTINUE;
 
   /* A specific PTID means `step only this thread id'.  */
-  int resume_all = ptid_equal (ptid, minus_one_ptid);
+  int resume_all = ptid == minus_one_ptid;
 
   /* If we're continuing all threads, it's the current inferior that
      should be handled specially.  */
@@ -1329,12 +1412,11 @@ windows_resume (struct target_ops *ops,
   structure when passing the exception to the inferior.
   Note that this seems possible in the exception handler itself.  */
 	{
-	  int i;
-	  for (i = 0; xlate[i].them != -1; i++)
-	    if (xlate[i].us == sig)
+	  for (const xlate_exception &x : xlate)
+	    if (x.us == sig)
 	      {
 		current_event.u.Exception.ExceptionRecord.ExceptionCode
-		  = xlate[i].them;
+		  = x.them;
 		continue_status = DBG_EXCEPTION_NOT_HANDLED;
 		break;
 	      }
@@ -1350,36 +1432,66 @@ windows_resume (struct target_ops *ops,
 
   last_sig = GDB_SIGNAL_0;
 
-  DEBUG_EXEC (("gdb: windows_resume (pid=%d, tid=%ld, step=%d, sig=%d);\n",
-	       ptid_get_pid (ptid), ptid_get_tid (ptid), step, sig));
+  DEBUG_EXEC (("gdb: windows_resume (pid=%d, tid=0x%x, step=%d, sig=%d);\n",
+	       ptid.pid (), (unsigned) ptid.lwp (), step, sig));
 
   /* Get context for currently selected thread.  */
-  th = thread_rec (ptid_get_tid (inferior_ptid), FALSE);
+  th = thread_rec (inferior_ptid, DONT_INVALIDATE_CONTEXT);
   if (th)
     {
-      if (step)
+#ifdef __x86_64__
+      if (wow64_process)
 	{
-	  /* Single step by setting t bit.  */
-	  struct regcache *regcache = get_current_regcache ();
-	  struct gdbarch *gdbarch = get_regcache_arch (regcache);
-	  windows_fetch_inferior_registers (ops, regcache,
-					    gdbarch_ps_regnum (gdbarch));
-	  th->context.EFlags |= FLAG_TRACE_BIT;
-	}
-
-      if (th->context.ContextFlags)
-	{
-	  if (debug_registers_changed)
+	  if (step)
 	    {
-	      th->context.Dr0 = dr[0];
-	      th->context.Dr1 = dr[1];
-	      th->context.Dr2 = dr[2];
-	      th->context.Dr3 = dr[3];
-	      th->context.Dr6 = DR6_CLEAR_VALUE;
-	      th->context.Dr7 = dr[7];
+	      /* Single step by setting t bit.  */
+	      struct regcache *regcache = get_current_regcache ();
+	      struct gdbarch *gdbarch = regcache->arch ();
+	      fetch_registers (regcache, gdbarch_ps_regnum (gdbarch));
+	      th->wow64_context.EFlags |= FLAG_TRACE_BIT;
 	    }
-	  CHECK (SetThreadContext (th->h, &th->context));
-	  th->context.ContextFlags = 0;
+
+	  if (th->wow64_context.ContextFlags)
+	    {
+	      if (debug_registers_changed)
+		{
+		  th->wow64_context.Dr0 = dr[0];
+		  th->wow64_context.Dr1 = dr[1];
+		  th->wow64_context.Dr2 = dr[2];
+		  th->wow64_context.Dr3 = dr[3];
+		  th->wow64_context.Dr6 = DR6_CLEAR_VALUE;
+		  th->wow64_context.Dr7 = dr[7];
+		}
+	      CHECK (Wow64SetThreadContext (th->h, &th->wow64_context));
+	      th->wow64_context.ContextFlags = 0;
+	    }
+	}
+      else
+#endif
+	{
+	  if (step)
+	    {
+	      /* Single step by setting t bit.  */
+	      struct regcache *regcache = get_current_regcache ();
+	      struct gdbarch *gdbarch = regcache->arch ();
+	      fetch_registers (regcache, gdbarch_ps_regnum (gdbarch));
+	      th->context.EFlags |= FLAG_TRACE_BIT;
+	    }
+
+	  if (th->context.ContextFlags)
+	    {
+	      if (debug_registers_changed)
+		{
+		  th->context.Dr0 = dr[0];
+		  th->context.Dr1 = dr[1];
+		  th->context.Dr2 = dr[2];
+		  th->context.Dr3 = dr[3];
+		  th->context.Dr6 = DR6_CLEAR_VALUE;
+		  th->context.Dr7 = dr[7];
+		}
+	      CHECK (SetThreadContext (th->h, &th->context));
+	      th->context.ContextFlags = 0;
+	    }
 	}
     }
 
@@ -1389,7 +1501,7 @@ windows_resume (struct target_ops *ops,
   if (resume_all)
     windows_continue (continue_status, -1, 0);
   else
-    windows_continue (continue_status, ptid_get_tid (ptid), 0);
+    windows_continue (continue_status, ptid.lwp (), 0);
 }
 
 /* Ctrl-C handler used when the inferior is not run in the same console.  The
@@ -1420,27 +1532,40 @@ ctrl_c_handler (DWORD event_type)
 
 /* Get the next event from the child.  Returns a non-zero thread id if the event
    requires handling by WFI (or whatever).  */
-static int
-get_windows_debug_event (struct target_ops *ops,
-			 int pid, struct target_waitstatus *ourstatus)
+
+int
+windows_nat_target::get_windows_debug_event (int pid,
+					     struct target_waitstatus *ourstatus)
 {
   BOOL debug_event;
   DWORD continue_status, event_code;
-  windows_thread_info *th;
-  static windows_thread_info dummy_thread_info;
   DWORD thread_id = 0;
+
+  /* If there is a relevant pending stop, report it now.  See the
+     comment by the definition of "pending_stops" for details on why
+     this is needed.  */
+  gdb::optional<pending_stop> stop = fetch_pending_stop (debug_events);
+  if (stop.has_value ())
+    {
+      thread_id = stop->thread_id;
+      *ourstatus = stop->status;
+
+      ptid_t ptid (current_event.dwProcessId, thread_id);
+      windows_thread_info *th = thread_rec (ptid, INVALIDATE_CONTEXT);
+      th->reload_context = 1;
+
+      return thread_id;
+    }
 
   last_sig = GDB_SIGNAL_0;
 
-  if (!(debug_event = WaitForDebugEvent (&current_event, 1000)))
+  if (!(debug_event = wait_for_debug_event (&current_event, 1000)))
     goto out;
 
-  event_count++;
   continue_status = DBG_CONTINUE;
 
   event_code = current_event.dwDebugEventCode;
   ourstatus->kind = TARGET_WAITKIND_SPURIOUS;
-  th = NULL;
   have_saved_context = 0;
 
   switch (event_code)
@@ -1452,8 +1577,7 @@ get_windows_debug_event (struct target_ops *ops,
 		     "CREATE_THREAD_DEBUG_EVENT"));
       if (saw_create != 1)
 	{
-	  struct inferior *inf;
-	  inf = find_inferior_pid (current_event.dwProcessId);
+	  inferior *inf = find_inferior_pid (this, current_event.dwProcessId);
 	  if (!saw_create && inf->attach_flag)
 	    {
 	      /* Kludge around a Windows bug where first event is a create
@@ -1467,10 +1591,11 @@ get_windows_debug_event (struct target_ops *ops,
 	}
       /* Record the existence of this thread.  */
       thread_id = current_event.dwThreadId;
-      th = windows_add_thread (ptid_build (current_event.dwProcessId, 0,
-					 current_event.dwThreadId),
-			     current_event.u.CreateThread.hThread,
-			     current_event.u.CreateThread.lpThreadLocalBase);
+      windows_add_thread
+        (ptid_t (current_event.dwProcessId, current_event.dwThreadId, 0),
+	 current_event.u.CreateThread.hThread,
+	 current_event.u.CreateThread.lpThreadLocalBase,
+	 false /* main_thread_p */);
 
       break;
 
@@ -1479,14 +1604,10 @@ get_windows_debug_event (struct target_ops *ops,
 		     (unsigned) current_event.dwProcessId,
 		     (unsigned) current_event.dwThreadId,
 		     "EXIT_THREAD_DEBUG_EVENT"));
-
-      if (current_event.dwThreadId != main_thread_id)
-	{
-	  windows_delete_thread (ptid_build (current_event.dwProcessId, 0,
-					     current_event.dwThreadId),
-				 current_event.u.ExitThread.dwExitCode);
-	  th = &dummy_thread_info;
-	}
+      windows_delete_thread (ptid_t (current_event.dwProcessId,
+				     current_event.dwThreadId, 0),
+			     current_event.u.ExitThread.dwExitCode,
+			     false /* main_thread_p */);
       break;
 
     case CREATE_PROCESS_DEBUG_EVENT:
@@ -1499,16 +1620,13 @@ get_windows_debug_event (struct target_ops *ops,
 	break;
 
       current_process_handle = current_event.u.CreateProcessInfo.hProcess;
-      if (main_thread_id)
-	windows_delete_thread (ptid_build (current_event.dwProcessId, 0,
-					   main_thread_id),
-			       0);
-      main_thread_id = current_event.dwThreadId;
       /* Add the main thread.  */
-      th = windows_add_thread (ptid_build (current_event.dwProcessId, 0,
-					   current_event.dwThreadId),
-	     current_event.u.CreateProcessInfo.hThread,
-	     current_event.u.CreateProcessInfo.lpThreadLocalBase);
+      windows_add_thread
+        (ptid_t (current_event.dwProcessId,
+		 current_event.dwThreadId, 0),
+	 current_event.u.CreateProcessInfo.hThread,
+	 current_event.u.CreateProcessInfo.lpThreadLocalBase,
+	 true /* main_thread_p */);
       thread_id = current_event.dwThreadId;
       break;
 
@@ -1519,16 +1637,34 @@ get_windows_debug_event (struct target_ops *ops,
 		     "EXIT_PROCESS_DEBUG_EVENT"));
       if (!windows_initialization_done)
 	{
-	  target_terminal_ours ();
+	  target_terminal::ours ();
 	  target_mourn_inferior (inferior_ptid);
 	  error (_("During startup program exited with code 0x%x."),
 		 (unsigned int) current_event.u.ExitProcess.dwExitCode);
 	}
       else if (saw_create == 1)
 	{
-	  ourstatus->kind = TARGET_WAITKIND_EXITED;
-	  ourstatus->value.integer = current_event.u.ExitProcess.dwExitCode;
-	  thread_id = main_thread_id;
+	  windows_delete_thread (ptid_t (current_event.dwProcessId,
+					 current_event.dwThreadId, 0),
+				 0, true /* main_thread_p */);
+	  DWORD exit_status = current_event.u.ExitProcess.dwExitCode;
+	  /* If the exit status looks like a fatal exception, but we
+	     don't recognize the exception's code, make the original
+	     exit status value available, to avoid losing
+	     information.  */
+	  int exit_signal
+	    = WIFSIGNALED (exit_status) ? WTERMSIG (exit_status) : -1;
+	  if (exit_signal == -1)
+	    {
+	      ourstatus->kind = TARGET_WAITKIND_EXITED;
+	      ourstatus->value.integer = exit_status;
+	    }
+	  else
+	    {
+	      ourstatus->kind = TARGET_WAITKIND_SIGNALLED;
+	      ourstatus->value.sig = gdb_signal_from_host (exit_signal);
+	    }
+	  thread_id = current_event.dwThreadId;
 	}
       break;
 
@@ -1540,10 +1676,10 @@ get_windows_debug_event (struct target_ops *ops,
       CloseHandle (current_event.u.LoadDll.hFile);
       if (saw_create != 1 || ! windows_initialization_done)
 	break;
-      catch_errors (handle_load_dll, NULL, (char *) "", RETURN_MASK_ALL);
+      catch_errors (handle_load_dll);
       ourstatus->kind = TARGET_WAITKIND_LOADED;
       ourstatus->value.integer = 0;
-      thread_id = main_thread_id;
+      thread_id = current_event.dwThreadId;
       break;
 
     case UNLOAD_DLL_DEBUG_EVENT:
@@ -1553,10 +1689,10 @@ get_windows_debug_event (struct target_ops *ops,
 		     "UNLOAD_DLL_DEBUG_EVENT"));
       if (saw_create != 1 || ! windows_initialization_done)
 	break;
-      catch_errors (handle_unload_dll, NULL, (char *) "", RETURN_MASK_ALL);
+      catch_errors (handle_unload_dll);
       ourstatus->kind = TARGET_WAITKIND_LOADED;
       ourstatus->value.integer = 0;
-      thread_id = main_thread_id;
+      thread_id = current_event.dwThreadId;
       break;
 
     case EXCEPTION_DEBUG_EVENT:
@@ -1566,7 +1702,7 @@ get_windows_debug_event (struct target_ops *ops,
 		     "EXCEPTION_DEBUG_EVENT"));
       if (saw_create != 1)
 	break;
-      switch (handle_exception (ourstatus))
+      switch (handle_exception (ourstatus, debug_exceptions))
 	{
 	case HANDLE_EXCEPTION_UNHANDLED:
 	default:
@@ -1604,15 +1740,31 @@ get_windows_debug_event (struct target_ops *ops,
 
   if (!thread_id || saw_create != 1)
     {
-      CHECK (windows_continue (continue_status, -1, 0));
+      CHECK (windows_continue (continue_status, desired_stop_thread_id, 0));
     }
-  else
+  else if (desired_stop_thread_id != -1 && desired_stop_thread_id != thread_id)
     {
-      inferior_ptid = ptid_build (current_event.dwProcessId, 0,
-				  thread_id);
-      current_thread = th;
-      if (!current_thread)
-	current_thread = thread_rec (thread_id, TRUE);
+      /* Pending stop.  See the comment by the definition of
+	 "pending_stops" for details on why this is needed.  */
+      DEBUG_EVENTS (("get_windows_debug_event - "
+		     "unexpected stop in 0x%x (expecting 0x%x)\n",
+		     thread_id, desired_stop_thread_id));
+
+      if (current_event.dwDebugEventCode == EXCEPTION_DEBUG_EVENT
+	  && ((current_event.u.Exception.ExceptionRecord.ExceptionCode
+	       == EXCEPTION_BREAKPOINT)
+	      || (current_event.u.Exception.ExceptionRecord.ExceptionCode
+		  == STATUS_WX86_BREAKPOINT))
+	  && windows_initialization_done)
+	{
+	  ptid_t ptid = ptid_t (current_event.dwProcessId, thread_id, 0);
+	  windows_thread_info *th = thread_rec (ptid, INVALIDATE_CONTEXT);
+	  th->stopped_at_software_breakpoint = true;
+	  th->pc_adjusted = false;
+	}
+      pending_stops.push_back ({thread_id, *ourstatus, current_event});
+      thread_id = 0;
+      CHECK (windows_continue (continue_status, desired_stop_thread_id, 0));
     }
 
 out:
@@ -1620,13 +1772,11 @@ out:
 }
 
 /* Wait for interesting events to occur in the target process.  */
-static ptid_t
-windows_wait (struct target_ops *ops,
-	      ptid_t ptid, struct target_waitstatus *ourstatus, int options)
+ptid_t
+windows_nat_target::wait (ptid_t ptid, struct target_waitstatus *ourstatus,
+			  int options)
 {
   int pid = -1;
-
-  target_terminal_ours ();
 
   /* We loop when we get a non-standard exception rather than return
      with a SPURIOUS because resume can try and step or modify things,
@@ -1665,11 +1815,36 @@ windows_wait (struct target_ops *ops,
 	     the user tries to resume the execution in the inferior.
 	     This is a classic race that we should try to fix one day.  */
       SetConsoleCtrlHandler (&ctrl_c_handler, TRUE);
-      retval = get_windows_debug_event (ops, pid, ourstatus);
+      retval = get_windows_debug_event (pid, ourstatus);
       SetConsoleCtrlHandler (&ctrl_c_handler, FALSE);
 
       if (retval)
-	return ptid_build (current_event.dwProcessId, 0, retval);
+	{
+	  ptid_t result = ptid_t (current_event.dwProcessId, retval, 0);
+
+	  if (ourstatus->kind != TARGET_WAITKIND_EXITED
+	      && ourstatus->kind !=  TARGET_WAITKIND_SIGNALLED)
+	    {
+	      windows_thread_info *th = thread_rec (result, INVALIDATE_CONTEXT);
+
+	      if (th != nullptr)
+		{
+		  th->stopped_at_software_breakpoint = false;
+		  if (current_event.dwDebugEventCode == EXCEPTION_DEBUG_EVENT
+		      && ((current_event.u.Exception.ExceptionRecord.ExceptionCode
+			   == EXCEPTION_BREAKPOINT)
+			  || (current_event.u.Exception.ExceptionRecord.ExceptionCode
+			      == STATUS_WX86_BREAKPOINT))
+		      && windows_initialization_done)
+		    {
+		      th->stopped_at_software_breakpoint = true;
+		      th->pc_adjusted = false;
+		    }
+		}
+	    }
+
+	  return result;
+	}
       else
 	{
 	  int detach = 0;
@@ -1678,7 +1853,7 @@ windows_wait (struct target_ops *ops,
 	    detach = deprecated_ui_loop_hook (0);
 
 	  if (detach)
-	    windows_kill_inferior (ops);
+	    kill ();
 	}
     }
 }
@@ -1689,34 +1864,87 @@ windows_wait (struct target_ops *ops,
 static void
 windows_add_all_dlls (void)
 {
-  struct so_list *so;
   HMODULE dummy_hmodule;
   DWORD cb_needed;
   HMODULE *hmodules;
   int i;
 
-  if (EnumProcessModules (current_process_handle, &dummy_hmodule,
-			  sizeof (HMODULE), &cb_needed) == 0)
-    return;
+#ifdef __x86_64__
+  if (wow64_process)
+    {
+      if (EnumProcessModulesEx (current_process_handle, &dummy_hmodule,
+				sizeof (HMODULE), &cb_needed,
+				LIST_MODULES_32BIT) == 0)
+	return;
+    }
+  else
+#endif
+    {
+      if (EnumProcessModules (current_process_handle, &dummy_hmodule,
+			      sizeof (HMODULE), &cb_needed) == 0)
+	return;
+    }
 
   if (cb_needed < 1)
     return;
 
   hmodules = (HMODULE *) alloca (cb_needed);
-  if (EnumProcessModules (current_process_handle, hmodules,
-			  cb_needed, &cb_needed) == 0)
-    return;
+#ifdef __x86_64__
+  if (wow64_process)
+    {
+      if (EnumProcessModulesEx (current_process_handle, hmodules,
+				cb_needed, &cb_needed,
+				LIST_MODULES_32BIT) == 0)
+	return;
+    }
+  else
+#endif
+    {
+      if (EnumProcessModules (current_process_handle, hmodules,
+			      cb_needed, &cb_needed) == 0)
+	return;
+    }
 
+  char system_dir[__PMAX];
+  char syswow_dir[__PMAX];
+  size_t system_dir_len = 0;
+  bool convert_syswow_dir = false;
+#ifdef __x86_64__
+  if (wow64_process)
+#endif
+    {
+      /* This fails on 32bit Windows because it has no SysWOW64 directory,
+	 and in this case a path conversion isn't necessary.  */
+      UINT len = GetSystemWow64DirectoryA (syswow_dir, sizeof (syswow_dir));
+      if (len > 0)
+	{
+	  /* Check that we have passed a large enough buffer.  */
+	  gdb_assert (len < sizeof (syswow_dir));
+
+	  len = GetSystemDirectoryA (system_dir, sizeof (system_dir));
+	  /* Error check.  */
+	  gdb_assert (len != 0);
+	  /* Check that we have passed a large enough buffer.  */
+	  gdb_assert (len < sizeof (system_dir));
+
+	  strcat (system_dir, "\\");
+	  strcat (syswow_dir, "\\");
+	  system_dir_len = strlen (system_dir);
+
+	  convert_syswow_dir = true;
+	}
+
+    }
   for (i = 1; i < (int) (cb_needed / sizeof (HMODULE)); i++)
     {
       MODULEINFO mi;
 #ifdef __USEWIDE
       wchar_t dll_name[__PMAX];
-      char name[__PMAX];
+      char dll_name_mb[__PMAX];
 #else
       char dll_name[__PMAX];
-      char *name;
 #endif
+      const char *name;
       if (GetModuleInformation (current_process_handle, hmodules[i],
 				&mi, sizeof (mi)) == 0)
 	continue;
@@ -1724,26 +1952,36 @@ windows_add_all_dlls (void)
 			       dll_name, sizeof (dll_name)) == 0)
 	continue;
 #ifdef __USEWIDE
-      wcstombs (name, dll_name, __PMAX);
+      wcstombs (dll_name_mb, dll_name, __PMAX);
+      name = dll_name_mb;
 #else
       name = dll_name;
 #endif
+      /* Convert the DLL path of 32bit processes returned by
+	 GetModuleFileNameEx from the 64bit system directory to the
+	 32bit syswow64 directory if necessary.  */
+      std::string syswow_dll_path;
+      if (convert_syswow_dir
+	  && strncasecmp (name, system_dir, system_dir_len) == 0
+	  && strchr (name + system_dir_len, '\\') == nullptr)
+	{
+	  syswow_dll_path = syswow_dir;
+	  syswow_dll_path += name + system_dir_len;
+	  name = syswow_dll_path.c_str();
+	}
 
       solib_end->next = windows_make_so (name, mi.lpBaseOfDll);
       solib_end = solib_end->next;
     }
 }
 
-static void
-do_initial_windows_stuff (struct target_ops *ops, DWORD pid, int attaching)
+void
+windows_nat_target::do_initial_windows_stuff (DWORD pid, bool attaching)
 {
   int i;
   struct inferior *inf;
-  struct thread_info *tp;
 
   last_sig = GDB_SIGNAL_0;
-  event_count = 0;
-  exception_count = 0;
   open_process_used = 0;
   debug_registers_changed = 0;
   debug_registers_used = 0;
@@ -1754,33 +1992,44 @@ do_initial_windows_stuff (struct target_ops *ops, DWORD pid, int attaching)
 #endif
   current_event.dwProcessId = pid;
   memset (&current_event, 0, sizeof (current_event));
-  if (!target_is_pushed (ops))
-    push_target (ops);
+  if (!target_is_pushed (this))
+    push_target (this);
   disable_breakpoints_in_shlibs ();
   windows_clear_solib ();
   clear_proceed_status (0);
   init_wait_for_inferior ();
 
+#ifdef __x86_64__
+  ignore_first_breakpoint = !attaching && wow64_process;
+
+  if (!wow64_process)
+    {
+      windows_set_context_register_offsets (amd64_mappings);
+      windows_set_segment_register_p (amd64_windows_segment_register_p);
+    }
+  else
+#endif
+    {
+      windows_set_context_register_offsets (i386_mappings);
+      windows_set_segment_register_p (i386_windows_segment_register_p);
+    }
+
   inf = current_inferior ();
   inferior_appeared (inf, pid);
   inf->attach_flag = attaching;
 
-  /* Make the new process the current inferior, so terminal handling
-     can rely on it.  When attaching, we don't know about any thread
-     id here, but that's OK --- nothing should be referencing the
-     current thread until we report an event out of windows_wait.  */
-  inferior_ptid = pid_to_ptid (pid);
-
-  target_terminal_init ();
-  target_terminal_inferior ();
+  target_terminal::init ();
+  target_terminal::inferior ();
 
   windows_initialization_done = 0;
+
+  ptid_t last_ptid;
 
   while (1)
     {
       struct target_waitstatus status;
 
-      windows_wait (ops, minus_one_ptid, &status, 0);
+      last_ptid = this->wait (minus_one_ptid, &status, 0);
 
       /* Note windows_wait returns TARGET_WAITKIND_SPURIOUS for thread
 	 events.  */
@@ -1788,8 +2037,10 @@ do_initial_windows_stuff (struct target_ops *ops, DWORD pid, int attaching)
 	  && status.kind != TARGET_WAITKIND_SPURIOUS)
 	break;
 
-      windows_resume (ops, minus_one_ptid, 0, GDB_SIGNAL_0);
+      this->resume (minus_one_ptid, 0, GDB_SIGNAL_0);
     }
+
+  switch_to_thread (find_thread_ptid (this, last_ptid));
 
   /* Now that the inferior has been started and all DLLs have been mapped,
      we can iterate over all DLLs and load them in.
@@ -1862,8 +2113,9 @@ out:
 }
 
 /* Attach to process PID, then initialize for debugging it.  */
-static void
-windows_attach (struct target_ops *ops, const char *args, int from_tty)
+
+void
+windows_nat_target::attach (const char *args, int from_tty)
 {
   BOOL ok;
   DWORD pid;
@@ -1893,35 +2145,45 @@ windows_attach (struct target_ops *ops, const char *args, int from_tty)
 #endif
 
   if (!ok)
-    error (_("Can't attach to process."));
+    error (_("Can't attach to process %u (error %u)"),
+	   (unsigned) pid, (unsigned) GetLastError ());
 
   DebugSetProcessKillOnExit (FALSE);
 
   if (from_tty)
     {
-      char *exec_file = (char *) get_exec_file (0);
+      const char *exec_file = get_exec_file (0);
 
       if (exec_file)
 	printf_unfiltered ("Attaching to program `%s', %s\n", exec_file,
-			   target_pid_to_str (pid_to_ptid (pid)));
+			   target_pid_to_str (ptid_t (pid)).c_str ());
       else
 	printf_unfiltered ("Attaching to %s\n",
-			   target_pid_to_str (pid_to_ptid (pid)));
-
-      gdb_flush (gdb_stdout);
+			   target_pid_to_str (ptid_t (pid)).c_str ());
     }
 
-  do_initial_windows_stuff (ops, pid, 1);
-  target_terminal_ours ();
+#ifdef __x86_64__
+  HANDLE h = OpenProcess (PROCESS_QUERY_INFORMATION, FALSE, pid);
+  if (h != NULL)
+    {
+      BOOL wow64;
+      if (IsWow64Process (h, &wow64))
+	wow64_process = wow64;
+      CloseHandle (h);
+    }
+#endif
+
+  do_initial_windows_stuff (pid, 1);
+  target_terminal::ours ();
 }
 
-static void
-windows_detach (struct target_ops *ops, const char *args, int from_tty)
+void
+windows_nat_target::detach (inferior *inf, int from_tty)
 {
   int detached = 1;
 
   ptid_t ptid = minus_one_ptid;
-  windows_resume (ops, ptid, 0, GDB_SIGNAL_0);
+  resume (ptid, 0, GDB_SIGNAL_0);
 
   if (!DebugActiveProcessStop (current_event.dwProcessId))
     {
@@ -1938,14 +2200,13 @@ windows_detach (struct target_ops *ops, const char *args, int from_tty)
 	exec_file = "";
       printf_unfiltered ("Detaching from program: %s, Pid %u\n", exec_file,
 			 (unsigned) current_event.dwProcessId);
-      gdb_flush (gdb_stdout);
     }
 
   x86_cleanup_dregs ();
-  inferior_ptid = null_ptid;
-  detach_inferior (current_event.dwProcessId);
+  switch_to_no_thread ();
+  detach_inferior (inf);
 
-  inf_child_maybe_unpush_target (ops);
+  maybe_unpush_target ();
 }
 
 /* Try to determine the executable filename.
@@ -1966,9 +2227,21 @@ windows_get_exec_module_filename (char *exe_name_ret, size_t exe_name_max_len)
   DWORD cbNeeded;
 
   cbNeeded = 0;
-  if (!EnumProcessModules (current_process_handle, &dh_buf,
-			   sizeof (HMODULE), &cbNeeded) || !cbNeeded)
-    return 0;
+#ifdef __x86_64__
+  if (wow64_process)
+    {
+      if (!EnumProcessModulesEx (current_process_handle, &dh_buf,
+				 sizeof (HMODULE), &cbNeeded,
+				 LIST_MODULES_32BIT) || !cbNeeded)
+	return 0;
+    }
+  else
+#endif
+    {
+      if (!EnumProcessModules (current_process_handle, &dh_buf,
+			       sizeof (HMODULE), &cbNeeded) || !cbNeeded)
+	return 0;
+    }
 
   /* We know the executable is always first in the list of modules,
      which we just fetched.  So no need to fetch more.  */
@@ -2002,8 +2275,8 @@ windows_get_exec_module_filename (char *exe_name_ret, size_t exe_name_max_len)
 
 /* The pid_to_exec_file target_ops method for this platform.  */
 
-static char *
-windows_pid_to_exec_file (struct target_ops *self, int pid)
+char *
+windows_nat_target::pid_to_exec_file (int pid)
 {
   static char path[__PMAX];
 #ifdef __CYGWIN__
@@ -2030,14 +2303,14 @@ windows_pid_to_exec_file (struct target_ops *self, int pid)
 
 /* Print status information about what we're accessing.  */
 
-static void
-windows_files_info (struct target_ops *ignore)
+void
+windows_nat_target::files_info ()
 {
   struct inferior *inf = current_inferior ();
 
   printf_unfiltered ("\tUsing the running image of %s %s.\n",
 		     inf->attach_flag ? "attached" : "child",
-		     target_pid_to_str (inferior_ptid));
+		     target_pid_to_str (inferior_ptid).c_str ());
 }
 
 /* Modify CreateProcess parameters for use of a new separate console.
@@ -2419,15 +2692,16 @@ redirect_inferior_handles (const char *cmd_orig, char *cmd,
    ALLARGS is a string containing the arguments to the program.
    ENV is the environment vector to pass.  Errors reported with error().  */
 
-static void
-windows_create_inferior (struct target_ops *ops, const char *exec_file,
-			 const std::string &origallargs, char **in_env,
-			 int from_tty)
+void
+windows_nat_target::create_inferior (const char *exec_file,
+				     const std::string &origallargs,
+				     char **in_env, int from_tty)
 {
   STARTUPINFO si;
 #ifdef __CYGWIN__
   cygwin_buf_t real_path[__PMAX];
   cygwin_buf_t shell[__PMAX]; /* Path to shell */
+  cygwin_buf_t infcwd[__PMAX];
   const char *sh;
   cygwin_buf_t *toexec;
   cygwin_buf_t *cygallargs;
@@ -2438,16 +2712,12 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
   int tty;
   int ostdin, ostdout, ostderr;
 #else  /* !__CYGWIN__ */
-  char real_path[__PMAX];
   char shell[__PMAX]; /* Path to shell */
   const char *toexec;
   char *args, *allargs_copy;
   size_t args_len, allargs_len;
   int fd_inp = -1, fd_out = -1, fd_err = -1;
   HANDLE tty = INVALID_HANDLE_VALUE;
-  HANDLE inf_stdin = INVALID_HANDLE_VALUE;
-  HANDLE inf_stdout = INVALID_HANDLE_VALUE;
-  HANDLE inf_stderr = INVALID_HANDLE_VALUE;
   bool redirected = false;
   char *w32env;
   char *temp;
@@ -2460,10 +2730,21 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
   PROCESS_INFORMATION pi;
   BOOL ret;
   DWORD flags = 0;
-  const char *inferior_io_terminal = get_inferior_io_terminal ();
+  const char *inferior_tty = current_inferior ()->tty ();
 
   if (!exec_file)
     error (_("No executable specified, use `target exec'."));
+
+  const char *inferior_cwd = get_inferior_cwd ();
+  std::string expanded_infcwd;
+  if (inferior_cwd != NULL)
+    {
+      expanded_infcwd = gdb_tilde_expand (inferior_cwd);
+      /* Mirror slashes on inferior's cwd.  */
+      std::replace (expanded_infcwd.begin (), expanded_infcwd.end (),
+		    '/', '\\');
+      inferior_cwd = expanded_infcwd.c_str ();
+    }
 
   memset (&si, 0, sizeof (si));
   si.cb = sizeof (si);
@@ -2494,9 +2775,7 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
     }
   else
     {
-      sh = getenv ("SHELL");
-      if (!sh)
-	sh = "/bin/sh";
+      sh = get_shell ();
       if (cygwin_conv_path (CCP_POSIX_TO_WIN_W, sh, shell, __PMAX) < 0)
       	error (_("Error starting executable via shell: %d"), errno);
 #ifdef __USEWIDE
@@ -2513,6 +2792,11 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
       toexec = shell;
       flags |= DEBUG_PROCESS;
     }
+
+  if (inferior_cwd != NULL
+      && cygwin_conv_path (CCP_POSIX_TO_WIN_W, inferior_cwd,
+			   infcwd, strlen (inferior_cwd)) < 0)
+    error (_("Error converting inferior cwd: %d"), errno);
 
 #ifdef __USEWIDE
   args = (cygwin_buf_t *) alloca ((wcslen (toexec) + wcslen (cygallargs) + 2)
@@ -2545,14 +2829,14 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
       w32_env = NULL;
     }
 
-  if (!inferior_io_terminal)
+  if (inferior_tty == nullptr)
     tty = ostdin = ostdout = ostderr = -1;
   else
     {
-      tty = open (inferior_io_terminal, O_RDWR | O_NOCTTY);
+      tty = open (inferior_tty, O_RDWR | O_NOCTTY);
       if (tty < 0)
 	{
-	  print_sys_errmsg (inferior_io_terminal, errno);
+	  print_sys_errmsg (inferior_tty, errno);
 	  ostdin = ostdout = ostderr = -1;
 	}
       else
@@ -2574,7 +2858,8 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
 		       TRUE,	/* inherit handles */
 		       flags,	/* start flags */
 		       w32_env,	/* environment */
-		       NULL,	/* current directory */
+		       inferior_cwd != NULL ? infcwd : NULL, /* current
+								directory */
 		       &si,
 		       &pi);
   if (w32_env)
@@ -2591,13 +2876,13 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
 
   if (tty >= 0)
     {
-      close (tty);
+      ::close (tty);
       dup2 (ostdin, 0);
       dup2 (ostdout, 1);
       dup2 (ostderr, 2);
-      close (ostdin);
-      close (ostdout);
-      close (ostderr);
+      ::close (ostdin);
+      ::close (ostdout);
+      ::close (ostderr);
     }
 #else  /* !__CYGWIN__ */
   allargs_len = strlen (allargs);
@@ -2610,25 +2895,25 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
 	redirect_inferior_handles (allargs, allargs_copy,
 				   &fd_inp, &fd_out, &fd_err);
       if (errno)
-	warning (_("Error in redirection: %s."), strerror (errno));
+	warning (_("Error in redirection: %s."), safe_strerror (errno));
       else
 	errno = e;
       allargs_len = strlen (allargs_copy);
     }
   /* If not all the standard streams are redirected by the command
-     line, use inferior_io_terminal for those which aren't.  */
-  if (inferior_io_terminal
+     line, use INFERIOR_TTY for those which aren't.  */
+  if (inferior_tty != nullptr
       && !(fd_inp >= 0 && fd_out >= 0 && fd_err >= 0))
     {
       SECURITY_ATTRIBUTES sa;
       sa.nLength = sizeof(sa);
       sa.lpSecurityDescriptor = 0;
       sa.bInheritHandle = TRUE;
-      tty = CreateFileA (inferior_io_terminal, GENERIC_READ | GENERIC_WRITE,
+      tty = CreateFileA (inferior_tty, GENERIC_READ | GENERIC_WRITE,
 			 0, &sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
       if (tty == INVALID_HANDLE_VALUE)
 	warning (_("Warning: Failed to open TTY %s, error %#x."),
-		 inferior_io_terminal, (unsigned) GetLastError ());
+		 inferior_tty, (unsigned) GetLastError ());
     }
   if (redirected || tty != INVALID_HANDLE_VALUE)
     {
@@ -2697,7 +2982,7 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
 			TRUE,	/* inherit handles */
 			flags,	/* start flags */
 			w32env,	/* environment */
-			NULL,	/* current directory */
+			inferior_cwd, /* current directory */
 			&si,
 			&pi);
   if (tty != INVALID_HANDLE_VALUE)
@@ -2714,6 +2999,12 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
     error (_("Error creating process %s, (error %u)."),
 	   exec_file, (unsigned) GetLastError ());
 
+#ifdef __x86_64__
+  BOOL wow64;
+  if (IsWow64Process (pi.hProcess, &wow64))
+    wow64_process = wow64;
+#endif
+
   CloseHandle (pi.hThread);
   CloseHandle (pi.hProcess);
 
@@ -2722,13 +3013,13 @@ windows_create_inferior (struct target_ops *ops, const char *exec_file,
   else
     saw_create = 0;
 
-  do_initial_windows_stuff (ops, pi.dwProcessId, 0);
+  do_initial_windows_stuff (pi.dwProcessId, 0);
 
   /* windows_continue (DBG_CONTINUE, -1, 0); */
 }
 
-static void
-windows_mourn_inferior (struct target_ops *ops)
+void
+windows_nat_target::mourn_inferior ()
 {
   (void) windows_continue (DBG_CONTINUE, -1, 0);
   x86_cleanup_dregs();
@@ -2737,14 +3028,15 @@ windows_mourn_inferior (struct target_ops *ops)
       CHECK (CloseHandle (current_process_handle));
       open_process_used = 0;
     }
-  inf_child_mourn_inferior (ops);
+  siginfo_er.ExceptionCode = 0;
+  inf_child_target::mourn_inferior ();
 }
 
 /* Send a SIGINT to the process group.  This acts just like the user typed a
    ^C on the controlling terminal.  */
 
-static void
-windows_interrupt (struct target_ops *self, ptid_t ptid)
+void
+windows_nat_target::interrupt ()
 {
   DEBUG_EVENTS (("gdb: GenerateConsoleCtrlEvent (CTRLC_EVENT, 0)\n"));
   CHECK (GenerateConsoleCtrlEvent (CTRL_C_EVENT, current_event.dwProcessId));
@@ -2791,8 +3083,8 @@ windows_xfer_memory (gdb_byte *readbuf, const gdb_byte *writebuf,
     return success ? TARGET_XFER_OK : TARGET_XFER_E_IO;
 }
 
-static void
-windows_kill_inferior (struct target_ops *ops)
+void
+windows_nat_target::kill ()
 {
   CHECK (TerminateProcess (current_process_handle, 0));
 
@@ -2800,7 +3092,7 @@ windows_kill_inferior (struct target_ops *ops)
     {
       if (!windows_continue (DBG_CONTINUE, -1, 1))
 	break;
-      if (!WaitForDebugEvent (&current_event, INFINITE))
+      if (!wait_for_debug_event (&current_event, INFINITE))
 	break;
       if (current_event.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT)
 	break;
@@ -2809,25 +3101,19 @@ windows_kill_inferior (struct target_ops *ops)
   target_mourn_inferior (inferior_ptid);	/* Or just windows_mourn_inferior?  */
 }
 
-static void
-windows_close (struct target_ops *self)
+void
+windows_nat_target::close ()
 {
   DEBUG_EVENTS (("gdb: windows_close, inferior_ptid=%d\n",
-		ptid_get_pid (inferior_ptid)));
+		inferior_ptid.pid ()));
 }
 
 /* Convert pid to printable format.  */
-static const char *
-windows_pid_to_str (struct target_ops *ops, ptid_t ptid)
+std::string
+windows_nat_target::pid_to_str (ptid_t ptid)
 {
-  static char buf[80];
-
-  if (ptid_get_tid (ptid) != 0)
-    {
-      snprintf (buf, sizeof (buf), "Thread %d.0x%lx",
-		ptid_get_pid (ptid), ptid_get_tid (ptid));
-      return buf;
-    }
+  if (ptid.lwp () != 0)
+    return string_printf ("Thread %d.0x%lx", ptid.pid (), ptid.lwp ());
 
   return normal_pid_to_str (ptid);
 }
@@ -2855,6 +3141,7 @@ windows_xfer_shared_libraries (struct target_ops *ops,
 
       windows_xfer_shared_library (so->so_name, (CORE_ADDR)
 				   (uintptr_t) li->load_addr,
+				   &li->text_offset,
 				   target_gdbarch (), &obstack);
     }
   obstack_grow_str0 (&obstack, "</library-list>\n");
@@ -2875,11 +3162,56 @@ windows_xfer_shared_libraries (struct target_ops *ops,
   return len != 0 ? TARGET_XFER_OK : TARGET_XFER_EOF;
 }
 
+/* Helper for windows_nat_target::xfer_partial that handles signal info.  */
+
 static enum target_xfer_status
-windows_xfer_partial (struct target_ops *ops, enum target_object object,
-		      const char *annex, gdb_byte *readbuf,
-		      const gdb_byte *writebuf, ULONGEST offset, ULONGEST len,
+windows_xfer_siginfo (gdb_byte *readbuf, ULONGEST offset, ULONGEST len,
 		      ULONGEST *xfered_len)
+{
+  char *buf = (char *) &siginfo_er;
+  size_t bufsize = sizeof (siginfo_er);
+
+#ifdef __x86_64__
+  EXCEPTION_RECORD32 er32;
+  if (wow64_process)
+    {
+      buf = (char *) &er32;
+      bufsize = sizeof (er32);
+
+      er32.ExceptionCode = siginfo_er.ExceptionCode;
+      er32.ExceptionFlags = siginfo_er.ExceptionFlags;
+      er32.ExceptionRecord = (uintptr_t) siginfo_er.ExceptionRecord;
+      er32.ExceptionAddress = (uintptr_t) siginfo_er.ExceptionAddress;
+      er32.NumberParameters = siginfo_er.NumberParameters;
+      int i;
+      for (i = 0; i < EXCEPTION_MAXIMUM_PARAMETERS; i++)
+	er32.ExceptionInformation[i] = siginfo_er.ExceptionInformation[i];
+    }
+#endif
+
+  if (siginfo_er.ExceptionCode == 0)
+    return TARGET_XFER_E_IO;
+
+  if (readbuf == nullptr)
+    return TARGET_XFER_E_IO;
+
+  if (offset > bufsize)
+    return TARGET_XFER_E_IO;
+
+  if (offset + len > bufsize)
+    len = bufsize - offset;
+
+  memcpy (readbuf, buf + offset, len);
+  *xfered_len = len;
+
+  return TARGET_XFER_OK;
+}
+
+enum target_xfer_status
+windows_nat_target::xfer_partial (enum target_object object,
+				  const char *annex, gdb_byte *readbuf,
+				  const gdb_byte *writebuf, ULONGEST offset,
+				  ULONGEST len, ULONGEST *xfered_len)
 {
   switch (object)
     {
@@ -2887,90 +3219,63 @@ windows_xfer_partial (struct target_ops *ops, enum target_object object,
       return windows_xfer_memory (readbuf, writebuf, offset, len, xfered_len);
 
     case TARGET_OBJECT_LIBRARIES:
-      return windows_xfer_shared_libraries (ops, object, annex, readbuf,
+      return windows_xfer_shared_libraries (this, object, annex, readbuf,
 					    writebuf, offset, len, xfered_len);
 
+    case TARGET_OBJECT_SIGNAL_INFO:
+      return windows_xfer_siginfo (readbuf, offset, len, xfered_len);
+
     default:
-      return ops->beneath->to_xfer_partial (ops->beneath, object, annex,
-					    readbuf, writebuf, offset, len,
-					    xfered_len);
+      if (beneath () == NULL)
+	{
+	  /* This can happen when requesting the transfer of unsupported
+	     objects before a program has been started (and therefore
+	     with the current_target having no target beneath).  */
+	  return TARGET_XFER_E_IO;
+	}
+      return beneath ()->xfer_partial (object, annex,
+				       readbuf, writebuf, offset, len,
+				       xfered_len);
     }
 }
 
 /* Provide thread local base, i.e. Thread Information Block address.
    Returns 1 if ptid is found and sets *ADDR to thread_local_base.  */
 
-static int
-windows_get_tib_address (struct target_ops *self,
-			 ptid_t ptid, CORE_ADDR *addr)
+bool
+windows_nat_target::get_tib_address (ptid_t ptid, CORE_ADDR *addr)
 {
   windows_thread_info *th;
 
-  th = thread_rec (ptid_get_tid (ptid), 0);
+  th = thread_rec (ptid, DONT_INVALIDATE_CONTEXT);
   if (th == NULL)
-    return 0;
+    return false;
 
   if (addr != NULL)
     *addr = th->thread_local_base;
 
-  return 1;
+  return true;
 }
 
-static ptid_t
-windows_get_ada_task_ptid (struct target_ops *self, long lwp, long thread)
+ptid_t
+windows_nat_target::get_ada_task_ptid (long lwp, long thread)
 {
-  return ptid_build (ptid_get_pid (inferior_ptid), 0, lwp);
+  return ptid_t (inferior_ptid.pid (), lwp, 0);
 }
 
 /* Implementation of the to_thread_name method.  */
 
-static const char *
-windows_thread_name (struct target_ops *self, struct thread_info *thr)
+const char *
+windows_nat_target::thread_name (struct thread_info *thr)
 {
-  return thread_rec (ptid_get_tid (thr->ptid), 0)->name;
+  return thread_rec (thr->ptid, DONT_INVALIDATE_CONTEXT)->name.get ();
 }
 
-static struct target_ops *
-windows_target (void)
-{
-  struct target_ops *t = inf_child_target ();
 
-  t->to_close = windows_close;
-  t->to_attach = windows_attach;
-  t->to_attach_no_wait = 1;
-  t->to_detach = windows_detach;
-  t->to_resume = windows_resume;
-  t->to_wait = windows_wait;
-  t->to_fetch_registers = windows_fetch_inferior_registers;
-  t->to_store_registers = windows_store_inferior_registers;
-  t->to_xfer_partial = windows_xfer_partial;
-  t->to_files_info = windows_files_info;
-  t->to_kill = windows_kill_inferior;
-  t->to_create_inferior = windows_create_inferior;
-  t->to_mourn_inferior = windows_mourn_inferior;
-  t->to_thread_alive = windows_thread_alive;
-  t->to_pid_to_str = windows_pid_to_str;
-  t->to_interrupt = windows_interrupt;
-  t->to_pid_to_exec_file = windows_pid_to_exec_file;
-  t->to_get_ada_task_ptid = windows_get_ada_task_ptid;
-  t->to_get_tib_address = windows_get_tib_address;
-  t->to_thread_name = windows_thread_name;
-
-  return t;
-}
-
-/* -Wmissing-prototypes */
-extern initialize_file_ftype _initialize_windows_nat;
-
+void _initialize_windows_nat ();
 void
-_initialize_windows_nat (void)
+_initialize_windows_nat ()
 {
-  struct target_ops *t;
-
-  t = windows_target ();
-
-  x86_use_watchpoints (t);
-
   x86_dr_low.set_control = cygwin_set_dr7;
   x86_dr_low.set_addr = cygwin_set_dr;
   x86_dr_low.get_addr = cygwin_get_dr;
@@ -2981,7 +3286,7 @@ _initialize_windows_nat (void)
      calling x86_set_debug_register_length function
      in processor windows specific native file.  */
 
-  add_target (t);
+  add_inf_child_target (&the_windows_nat_target);
 
 #ifdef __CYGWIN__
   cygwin_internal (CW_SET_DOS_FILE_WARNING, 0);
@@ -3118,23 +3423,19 @@ cygwin_get_dr7 (void)
 /* Determine if the thread referenced by "ptid" is alive
    by "polling" it.  If WaitForSingleObject returns WAIT_OBJECT_0
    it means that the thread has died.  Otherwise it is assumed to be alive.  */
-static int
-windows_thread_alive (struct target_ops *ops, ptid_t ptid)
+
+bool
+windows_nat_target::thread_alive (ptid_t ptid)
 {
-  int tid;
+  gdb_assert (ptid.lwp () != 0);
 
-  gdb_assert (ptid_get_tid (ptid) != 0);
-  tid = ptid_get_tid (ptid);
-
-  return WaitForSingleObject (thread_rec (tid, FALSE)->h, 0) == WAIT_OBJECT_0
-    ? FALSE : TRUE;
+  return (WaitForSingleObject (thread_rec (ptid, DONT_INVALIDATE_CONTEXT)->h, 0)
+	  != WAIT_OBJECT_0);
 }
 
-/* -Wmissing-prototypes */
-extern initialize_file_ftype _initialize_check_for_gdb_ini;
-
+void _initialize_check_for_gdb_ini ();
 void
-_initialize_check_for_gdb_ini (void)
+_initialize_check_for_gdb_ini ()
 {
   char *homedir;
   if (inhibit_gdbinit)
@@ -3227,14 +3528,12 @@ bad_GetConsoleFontSize (HANDLE w, DWORD nFont)
   return size;
 }
  
-/* -Wmissing-prototypes */
-extern initialize_file_ftype _initialize_loadable;
-
 /* Load any functions which may not be available in ancient versions
    of Windows.  */
 
+void _initialize_loadable ();
 void
-_initialize_loadable (void)
+_initialize_loadable ()
 {
   HMODULE hm = NULL;
 
@@ -3250,6 +3549,12 @@ _initialize_loadable (void)
       GPA (hm, GetConsoleFontSize);
       GPA (hm, DebugActiveProcessStop);
       GPA (hm, GetCurrentConsoleFont);
+#ifdef __x86_64__
+      GPA (hm, Wow64SuspendThread);
+      GPA (hm, Wow64GetThreadContext);
+      GPA (hm, Wow64SetThreadContext);
+      GPA (hm, Wow64GetThreadSelectorEntry);
+#endif
     }
 
   /* Set variables to dummy versions of these processes if the function
@@ -3272,6 +3577,9 @@ _initialize_loadable (void)
   if (hm)
     {
       GPA (hm, EnumProcessModules);
+#ifdef __x86_64__
+      GPA (hm, EnumProcessModulesEx);
+#endif
       GPA (hm, GetModuleInformation);
       GetModuleFileNameEx = (GetModuleFileNameEx_ftype *)
         GetProcAddress (hm, GetModuleFileNameEx_name);

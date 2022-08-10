@@ -1,6 +1,6 @@
 /* Native-dependent code for FreeBSD/mips.
 
-   Copyright (C) 2017 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -31,6 +31,14 @@
 #include "mips-fbsd-tdep.h"
 #include "inf-ptrace.h"
 
+struct mips_fbsd_nat_target final : public fbsd_nat_target
+{
+  void fetch_registers (struct regcache *, int) override;
+  void store_registers (struct regcache *, int) override;
+};
+
+static mips_fbsd_nat_target the_mips_fbsd_nat_target;
+
 /* Determine if PT_GETREGS fetches REGNUM.  */
 
 static bool
@@ -46,19 +54,18 @@ static bool
 getfpregs_supplies (struct gdbarch *gdbarch, int regnum)
 {
   return (regnum >= mips_regnum (gdbarch)->fp0
-	  && regnum < mips_regnum (gdbarch)->fp_implementation_revision);
+	  && regnum <= mips_regnum (gdbarch)->fp_implementation_revision);
 }
 
 /* Fetch register REGNUM from the inferior.  If REGNUM is -1, do this
    for all registers.  */
 
-static void
-mips_fbsd_fetch_inferior_registers (struct target_ops *ops,
-				    struct regcache *regcache, int regnum)
+void
+mips_fbsd_nat_target::fetch_registers (struct regcache *regcache, int regnum)
 {
-  pid_t pid = get_ptrace_pid (regcache_get_ptid (regcache));
+  pid_t pid = get_ptrace_pid (regcache->ptid ());
 
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   if (regnum == -1 || getregs_supplies (gdbarch, regnum))
     {
       struct reg regs;
@@ -84,13 +91,12 @@ mips_fbsd_fetch_inferior_registers (struct target_ops *ops,
 /* Store register REGNUM back into the inferior.  If REGNUM is -1, do
    this for all registers.  */
 
-static void
-mips_fbsd_store_inferior_registers (struct target_ops *ops,
-				    struct regcache *regcache, int regnum)
+void
+mips_fbsd_nat_target::store_registers (struct regcache *regcache, int regnum)
 {
-  pid_t pid = get_ptrace_pid (regcache_get_ptid (regcache));
+  pid_t pid = get_ptrace_pid (regcache->ptid ());
 
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   if (regnum == -1 || getregs_supplies (gdbarch, regnum))
     {
       struct reg regs;
@@ -119,18 +125,10 @@ mips_fbsd_store_inferior_registers (struct target_ops *ops,
 	perror_with_name (_("Couldn't write floating point status"));
     }
 }
-
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-void _initialize_mips_fbsd_nat (void);
-
+void _initialize_mips_fbsd_nat ();
 void
-_initialize_mips_fbsd_nat (void)
+_initialize_mips_fbsd_nat ()
 {
-  struct target_ops *t;
-
-  t = inf_ptrace_target ();
-  t->to_fetch_registers = mips_fbsd_fetch_inferior_registers;
-  t->to_store_registers = mips_fbsd_store_inferior_registers;
-  fbsd_nat_add_target (t);
+  add_inf_child_target (&the_mips_fbsd_nat_target);
 }

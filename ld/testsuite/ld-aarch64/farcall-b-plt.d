@@ -1,5 +1,6 @@
 #name: aarch64-farcall-b-plt
 #source: farcall-b-plt.s
+#target: [check_shared_lib_support]
 #as:
 #ld: -shared
 #objdump: -dr
@@ -29,7 +30,9 @@ Disassembly of section .text:
 	...
 .*:	.* 	b	.* <__foo_veneer>
 .*:	d65f03c0 	ret
+.*:	.* 	nop
 .*:	.* 	b	.* <__foo_veneer\+.*>
+.*:	.* 	nop
 
 .* <__foo_veneer>:
 .*:	.* 	adrp	x16, 0 <.*>

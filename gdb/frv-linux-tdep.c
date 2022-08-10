@@ -1,7 +1,7 @@
 /* Target-dependent code for GNU/Linux running on the Fujitsu FR-V,
    for GDB.
 
-   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+   Copyright (C) 2004-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -31,6 +31,7 @@
 #include "frame-unwind.h"
 #include "regset.h"
 #include "linux-tdep.h"
+#include "gdbarch.h"
 
 /* Define the size (in bytes) of an FR-V instruction.  */
 static const int frv_instr_size = 4;
@@ -445,10 +446,10 @@ frv_linux_iterate_over_regset_sections (struct gdbarch *gdbarch,
 					void *cb_data,
 					const struct regcache *regcache)
 {
-  cb (".reg", sizeof (frv_elf_gregset_t), &frv_linux_gregset,
-      NULL, cb_data);
-  cb (".reg2", sizeof (frv_elf_fpregset_t), &frv_linux_fpregset,
-      NULL, cb_data);
+  cb (".reg", sizeof (frv_elf_gregset_t), sizeof (frv_elf_gregset_t),
+      &frv_linux_gregset, NULL, cb_data);
+  cb (".reg2", sizeof (frv_elf_fpregset_t), sizeof (frv_elf_fpregset_t),
+      &frv_linux_fpregset, NULL, cb_data);
 }
 
 
@@ -480,11 +481,9 @@ frv_linux_elf_osabi_sniffer (bfd *abfd)
     return GDB_OSABI_UNKNOWN;
 }
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-void _initialize_frv_linux_tdep (void);
-
+void _initialize_frv_linux_tdep ();
 void
-_initialize_frv_linux_tdep (void)
+_initialize_frv_linux_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_frv, 0, GDB_OSABI_LINUX,
 			  frv_linux_init_abi);

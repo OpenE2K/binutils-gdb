@@ -1,6 +1,6 @@
 /* Target-dependent code for NetBSD/sparc64.
 
-   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
    Based on code contributed by Wasabi Systems, Inc.
 
    This file is part of GDB.
@@ -249,6 +249,8 @@ sparc64nbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
+  nbsd_init_abi (info, gdbarch);
+
   tdep->gregset = &sparc64nbsd_gregset;
   tdep->sizeof_gregset = 160;
 
@@ -267,13 +269,10 @@ sparc64nbsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_solib_svr4_fetch_link_map_offsets
     (gdbarch, svr4_lp64_fetch_link_map_offsets);
 }
-
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-void _initialize_sparc64nbsd_tdep (void);
-
+void _initialize_sparc64nbsd_tdep ();
 void
-_initialize_sparc64nbsd_tdep (void)
+_initialize_sparc64nbsd_tdep ()
 {
   gdbarch_register_osabi (bfd_arch_sparc, bfd_mach_sparc_v9,
 			  GDB_OSABI_NETBSD, sparc64nbsd_init_abi);

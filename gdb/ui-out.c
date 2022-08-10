@@ -1,6 +1,6 @@
 /* Output generating routines for GDB.
 
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions.
    Written by Fernando Nasser for Cygnus.
@@ -24,11 +24,13 @@
 #include "expression.h"		/* For language.h */
 #include "language.h"
 #include "ui-out.h"
+#include "gdbsupport/format.h"
+#include "cli/cli-style.h"
+#include "diagnostics.h"
 
 #include <vector>
 #include <memory>
 #include <string>
-#include <memory>
 
 namespace {
 
@@ -400,22 +402,6 @@ ui_out::table_end ()
   m_table_up = nullptr;
 }
 
-static void
-do_cleanup_table_end (void *data)
-{
-  ui_out *uiout = (ui_out *) data;
-
-  uiout->table_end ();
-}
-
-struct cleanup *
-make_cleanup_ui_out_table_begin_end (ui_out *uiout, int nr_cols, int nr_rows,
-				     const char *tblid)
-{
-  uiout->table_begin (nr_cols, nr_rows, tblid);
-  return make_cleanup (do_cleanup_table_end, uiout);
-}
-
 void
 ui_out::begin (ui_out_type type, const char *id)
 {
@@ -454,52 +440,8 @@ ui_out::end (ui_out_type type)
   do_end (type);
 }
 
-struct ui_out_end_cleanup_data
-{
-  struct ui_out *uiout;
-  enum ui_out_type type;
-};
-
-static void
-do_cleanup_end (void *data)
-{
-  struct ui_out_end_cleanup_data *end_cleanup_data
-    = (struct ui_out_end_cleanup_data *) data;
-
-  end_cleanup_data->uiout->end (end_cleanup_data->type);
-  xfree (end_cleanup_data);
-}
-
-static struct cleanup *
-make_cleanup_ui_out_end (struct ui_out *uiout,
-			 enum ui_out_type type)
-{
-  struct ui_out_end_cleanup_data *end_cleanup_data;
-
-  end_cleanup_data = XNEW (struct ui_out_end_cleanup_data);
-  end_cleanup_data->uiout = uiout;
-  end_cleanup_data->type = type;
-  return make_cleanup (do_cleanup_end, end_cleanup_data);
-}
-
-struct cleanup *
-make_cleanup_ui_out_tuple_begin_end (struct ui_out *uiout,
-				     const char *id)
-{
-  uiout->begin (ui_out_type_tuple, id);
-  return make_cleanup_ui_out_end (uiout, ui_out_type_tuple);
-}
-
-struct cleanup *
-make_cleanup_ui_out_list_begin_end (struct ui_out *uiout,
-				    const char *id)
-{
-  uiout->begin (ui_out_type_list, id);
-  return make_cleanup_ui_out_end (uiout, ui_out_type_list);
-}
-
 void
-ui_out::field_int (const char *fldname, int value)
+ui_out::field_signed (const char *fldname, LONGEST value)
 {
   int fldno;
   int width;
@@ -507,12 +449,12 @@ ui_out::field_int (const char *fldname, int value)
 
   verify_field (&fldno, &width, &align);
 
-  do_field_int (fldno, width, align, fldname, value);
+  do_field_signed (fldno, width, align, fldname, value);
 }
 
 void
-ui_out::field_fmt_int (int input_width, ui_align input_align,
-		       const char *fldname, int value)
+ui_out::field_fmt_signed (int input_width, ui_align input_align,
+			  const char *fldname, LONGEST value)
 {
   int fldno;
   int width;
@@ -520,7 +462,21 @@ ui_out::field_fmt_int (int input_width, ui_align input_align,
 
   verify_field (&fldno, &width, &align);
 
-  do_field_int (fldno, input_width, input_align, fldname, value);
+  do_field_signed (fldno, input_width, input_align, fldname, value);
+}
+
+/* See ui-out.h.  */
+
+void
+ui_out::field_unsigned (const char *fldname, ULONGEST value)
+{
+  int fldno;
+  int width;
+  ui_align align;
+
+  verify_field (&fldno, &width, &align);
+
+  do_field_unsigned (fldno, width, align, fldname, value);
 }
 
 /* Documented in ui-out.h.  */
@@ -529,14 +485,16 @@ void
 ui_out::field_core_addr (const char *fldname, struct gdbarch *gdbarch,
 			 CORE_ADDR address)
 {
-  field_string (fldname, print_core_address (gdbarch, address));
+  field_string (fldname, print_core_address (gdbarch, address),
+		address_style.style ());
 }
 
 void
-ui_out::field_stream (const char *fldname, string_file &stream)
+ui_out::field_stream (const char *fldname, string_file &stream,
+		      const ui_file_style &style)
 {
   if (!stream.empty ())
-    field_string (fldname, stream.c_str ());
+    field_string (fldname, stream.c_str (), style);
   else
     field_skip (fldname);
   stream.clear ();
@@ -557,7 +515,8 @@ ui_out::field_skip (const char *fldname)
 }
 
 void
-ui_out::field_string (const char *fldname, const char *string)
+ui_out::field_string (const char *fldname, const char *string,
+		      const ui_file_style &style)
 {
   int fldno;
   int width;
@@ -565,7 +524,13 @@ ui_out::field_string (const char *fldname, const char *string)
 
   verify_field (&fldno, &width, &align);
 
-  do_field_string (fldno, width, align, fldname, string);
+  do_field_string (fldno, width, align, fldname, string, style);
+}
+
+void
+ui_out::field_string (const char *fldname, const std::string &string)
+{
+  field_string (fldname, string.c_str ());
 }
 
 /* VARARGS */
@@ -577,12 +542,29 @@ ui_out::field_fmt (const char *fldname, const char *format, ...)
   int width;
   ui_align align;
 
-  /* Will not align, but has to call anyway.  */
   verify_field (&fldno, &width, &align);
 
   va_start (args, format);
 
-  do_field_fmt (fldno, width, align, fldname, format, args);
+  do_field_fmt (fldno, width, align, fldname, ui_file_style (), format, args);
+
+  va_end (args);
+}
+
+void
+ui_out::field_fmt (const char *fldname, const ui_file_style &style,
+		   const char *format, ...)
+{
+  va_list args;
+  int fldno;
+  int width;
+  ui_align align;
+
+  verify_field (&fldno, &width, &align);
+
+  va_start (args, format);
+
+  do_field_fmt (fldno, width, align, fldname, style, format, args);
 
   va_end (args);
 }
@@ -600,12 +582,216 @@ ui_out::text (const char *string)
 }
 
 void
-ui_out::message (const char *format, ...)
+ui_out::call_do_message (const ui_file_style &style, const char *format,
+			 ...)
 {
   va_list args;
 
   va_start (args, format);
-  do_message (format, args);
+
+  /* Since call_do_message is only used as a helper of vmessage, silence the
+     warning here once instead of at all call sites in vmessage, if we were
+     to put a "format" attribute on call_do_message.  */
+  DIAGNOSTIC_PUSH
+  DIAGNOSTIC_IGNORE_FORMAT_NONLITERAL
+  do_message (style, format, args);
+  DIAGNOSTIC_POP
+
+  va_end (args);
+}
+
+void
+ui_out::vmessage (const ui_file_style &in_style, const char *format,
+		  va_list args)
+{
+  format_pieces fpieces (&format, true);
+
+  ui_file_style style = in_style;
+
+  for (auto &&piece : fpieces)
+    {
+      const char *current_substring = piece.string;
+
+      gdb_assert (piece.n_int_args >= 0 && piece.n_int_args <= 2);
+      int intvals[2] = { 0, 0 };
+      for (int i = 0; i < piece.n_int_args; ++i)
+	intvals[i] = va_arg (args, int);
+
+      /* The only ones we support for now.  */
+      gdb_assert (piece.n_int_args == 0
+		  || piece.argclass == string_arg
+		  || piece.argclass == int_arg
+		  || piece.argclass == long_arg);
+
+      switch (piece.argclass)
+	{
+	case string_arg:
+	  {
+	    const char *str = va_arg (args, const char *);
+	    switch (piece.n_int_args)
+	      {
+	      case 0:
+		call_do_message (style, current_substring, str);
+		break;
+	      case 1:
+		call_do_message (style, current_substring, intvals[0], str);
+		break;
+	      case 2:
+		call_do_message (style, current_substring,
+				 intvals[0], intvals[1], str);
+		break;
+	      }
+	  }
+	  break;
+	case wide_string_arg:
+	  gdb_assert_not_reached (_("wide_string_arg not supported in vmessage"));
+	  break;
+	case wide_char_arg:
+	  gdb_assert_not_reached (_("wide_char_arg not supported in vmessage"));
+	  break;
+	case long_long_arg:
+	  call_do_message (style, current_substring, va_arg (args, long long));
+	  break;
+	case int_arg:
+	  {
+	    int val = va_arg (args, int);
+	    switch (piece.n_int_args)
+	      {
+	      case 0:
+		call_do_message (style, current_substring, val);
+		break;
+	      case 1:
+		call_do_message (style, current_substring, intvals[0], val);
+		break;
+	      case 2:
+		call_do_message (style, current_substring,
+				 intvals[0], intvals[1], val);
+		break;
+	      }
+	  }
+	  break;
+	case long_arg:
+	  {
+	    long val = va_arg (args, long);
+	    switch (piece.n_int_args)
+	      {
+	      case 0:
+		call_do_message (style, current_substring, val);
+		break;
+	      case 1:
+		call_do_message (style, current_substring, intvals[0], val);
+		break;
+	      case 2:
+		call_do_message (style, current_substring,
+				 intvals[0], intvals[1], val);
+		break;
+	      }
+	  }
+	  break;
+	case size_t_arg:
+	  {
+	    size_t val = va_arg (args, size_t);
+	    switch (piece.n_int_args)
+	      {
+	      case 0:
+		call_do_message (style, current_substring, val);
+		break;
+	      case 1:
+		call_do_message (style, current_substring, intvals[0], val);
+		break;
+	      case 2:
+		call_do_message (style, current_substring,
+				 intvals[0], intvals[1], val);
+		break;
+	      }
+	  }
+	  break;
+	case double_arg:
+	  call_do_message (style, current_substring, va_arg (args, double));
+	  break;
+	case long_double_arg:
+	  gdb_assert_not_reached (_("long_double_arg not supported in vmessage"));
+	  break;
+	case dec32float_arg:
+	  gdb_assert_not_reached (_("dec32float_arg not supported in vmessage"));
+	  break;
+	case dec64float_arg:
+	  gdb_assert_not_reached (_("dec64float_arg not supported in vmessage"));
+	  break;
+	case dec128float_arg:
+	  gdb_assert_not_reached (_("dec128float_arg not supported in vmessage"));
+	  break;
+	case ptr_arg:
+	  switch (current_substring[2])
+	    {
+	    case 'F':
+	      {
+		gdb_assert (!test_flags (disallow_ui_out_field));
+		base_field_s *bf = va_arg (args, base_field_s *);
+		switch (bf->kind)
+		  {
+		  case field_kind::FIELD_SIGNED:
+		    {
+		      auto *f = (signed_field_s *) bf;
+		      field_signed (f->name, f->val);
+		    }
+		    break;
+		  case field_kind::FIELD_STRING:
+		    {
+		      auto *f = (string_field_s *) bf;
+		      field_string (f->name, f->str);
+		    }
+		    break;
+		  }
+	      }
+	      break;
+	    case 's':
+	      {
+		styled_string_s *ss = va_arg (args, styled_string_s *);
+		call_do_message (ss->style, "%s", ss->str);
+	      }
+	      break;
+	    case '[':
+	      style = *va_arg (args, const ui_file_style *);
+	      break;
+	    case ']':
+	      {
+		void *arg = va_arg (args, void *);
+		gdb_assert (arg == nullptr);
+
+		style = {};
+	      }
+	      break;
+	    default:
+	      call_do_message (style, current_substring, va_arg (args, void *));
+	      break;
+	    }
+	  break;
+	case literal_piece:
+	  /* Print a portion of the format string that has no
+	     directives.  Note that this will not include any ordinary
+	     %-specs, but it might include "%%".  That is why we use
+	     call_do_message here.  Also, we pass a dummy argument
+	     because some platforms have modified GCC to include
+	     -Wformat-security by default, which will warn here if
+	     there is no argument.  */
+	  call_do_message (style, current_substring, 0);
+	  break;
+	default:
+	  internal_error (__FILE__, __LINE__,
+			  _("failed internal consistency check"));
+	}
+    }
+}
+
+void
+ui_out::message (const char *format, ...)
+{
+  va_list args;
+  va_start (args, format);
+
+  vmessage (ui_file_style (), format, args);
+
   va_end (args);
 }
 
@@ -635,7 +821,7 @@ ui_out::test_flags (ui_out_flags mask)
 }
 
 bool
-ui_out::is_mi_like_p ()
+ui_out::is_mi_like_p () const
 {
   return do_is_mi_like_p ();
 }

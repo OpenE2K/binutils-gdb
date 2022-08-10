@@ -1,5 +1,5 @@
 /* SPARC-specific support for 32-bit ELF
-   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -75,13 +75,6 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
   /* FIXME: This should not be static.  */
   static unsigned long previous_ibfd_e_flags = (unsigned long) -1;
 
-  /* No matter whether the output BFD is ELF or not, check magic in the input
-     one provided that it is.  */
-  if (bfd_get_flavour (ibfd) == bfd_target_elf_flavour
-      && ! _bfd_sparc_elf_check_magic (ibfd))
-    return FALSE;
-
-
   if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
       || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
     return TRUE;
@@ -93,7 +86,7 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
     {
       error = TRUE;
       _bfd_error_handler
-	(_("%B: compiled for a 64 bit system and target is 32 bit"), ibfd);
+	(_("%pB: compiled for a 64 bit system and target is 32 bit"), ibfd);
     }
   else if ((ibfd->flags & DYNAMIC) == 0)
     {
@@ -106,7 +99,7 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
       && previous_ibfd_e_flags != (unsigned long) -1)
     {
       _bfd_error_handler
-	(_("%B: linking little endian files with big endian files"), ibfd);
+	(_("%pB: linking little endian files with big endian files"), ibfd);
       error = TRUE;
     }
   previous_ibfd_e_flags = elf_elfheader (ibfd)->e_flags & EF_SPARC_LEDATA;
@@ -124,62 +117,94 @@ elf32_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
    We need to set the e_machine field appropriately.  */
 
 static void
-elf32_sparc_final_write_processing (bfd *abfd,
-				    bfd_boolean linker ATTRIBUTE_UNUSED)
+sparc_final_write_processing (bfd *abfd)
 {
   switch (bfd_get_mach (abfd))
     {
-    case bfd_mach_sparc :
-    case bfd_mach_sparc_sparclet :
-    case bfd_mach_sparc_sparclite :
+    case bfd_mach_sparc:
+    case bfd_mach_sparc_sparclet:
+    case bfd_mach_sparc_sparclite:
       break; /* nothing to do */
-    case bfd_mach_sparc_v8plus :
+    case bfd_mach_sparc_v8plus:
       elf_elfheader (abfd)->e_machine = EM_SPARC32PLUS;
       elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
       elf_elfheader (abfd)->e_flags |= EF_SPARC_32PLUS;
       break;
-    case bfd_mach_sparc_v8plusa :
+    case bfd_mach_sparc_v8plusa:
       elf_elfheader (abfd)->e_machine = EM_SPARC32PLUS;
       elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
       elf_elfheader (abfd)->e_flags |= EF_SPARC_32PLUS | EF_SPARC_SUN_US1;
       break;
-    case bfd_mach_sparc_v8plusb :
-    case bfd_mach_sparc_v8plusc :
-    case bfd_mach_sparc_v8plusd :
-    case bfd_mach_sparc_v8pluse :
-    case bfd_mach_sparc_v8plusv :
-    case bfd_mach_sparc_v8plusm :
-    case bfd_mach_sparc_v8plusm8 :
+    case bfd_mach_sparc_v8plusb:
+    case bfd_mach_sparc_v8plusc:
+    case bfd_mach_sparc_v8plusd:
+    case bfd_mach_sparc_v8pluse:
+    case bfd_mach_sparc_v8plusv:
+    case bfd_mach_sparc_v8plusm:
+    case bfd_mach_sparc_v8plusm8:
       elf_elfheader (abfd)->e_machine = EM_SPARC32PLUS;
       elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
       elf_elfheader (abfd)->e_flags |= EF_SPARC_32PLUS | EF_SPARC_SUN_US1
 				       | EF_SPARC_SUN_US3;
       break;
-      /* I cannot understand why in 32-bit mode the same functionality as in
-         (sparc_elf_final_processing (), tc-sparc.c) is DUPLICATED here. In fact
-         we set the same value of `e_flags' both there and here.  */
-    case bfd_mach_sparc_v8plus_mcst :
-      elf_elfheader (abfd)->e_machine = EM_SPARC32PLUS;
-      elf_elfheader (abfd)->e_flags &=~ EF_SPARC_32PLUS_MASK;
-      elf_elfheader (abfd)->e_flags |= (EF_SPARC_32PLUS | EF_SPARC_SUN_US1
-                                        | EF_SPARC_SUN_US3 | EF_SPARC_MCST);
-      break;
-    case bfd_mach_sparc_sparclite_le :
+    case bfd_mach_sparc_sparclite_le:
       elf_elfheader (abfd)->e_flags |= EF_SPARC_LEDATA;
       break;
-    default :
-      abort ();
+    case 0: /* A non-sparc architecture - ignore.  */
+      break;
+    default:
+      _bfd_error_handler
+	(_("%pB: unhandled sparc machine value '%lu' detected during write processing"),
+	 abfd, (long) bfd_get_mach (abfd));
       break;
     }
 }
 
+static bfd_boolean
+elf32_sparc_final_write_processing (bfd *abfd)
+{
+  sparc_final_write_processing (abfd);
+  return _bfd_elf_final_write_processing (abfd);
+}
+
+/* Used to decide how to sort relocs in an optimal manner for the
+   dynamic linker, before writing them out.  */
+
 static enum elf_reloc_type_class
-elf32_sparc_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
+elf32_sparc_reloc_type_class (const struct bfd_link_info *info,
 			      const asection *rel_sec ATTRIBUTE_UNUSED,
 			      const Elf_Internal_Rela *rela)
 {
+  bfd *abfd = info->output_bfd;
+  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
+  struct _bfd_sparc_elf_link_hash_table *htab
+    = _bfd_sparc_elf_hash_table (info);
+  BFD_ASSERT (htab != NULL);
+
+  if (htab->elf.dynsym != NULL
+      && htab->elf.dynsym->contents != NULL)
+    {
+      /* Check relocation against STT_GNU_IFUNC symbol if there are
+	 dynamic symbols.  */
+      unsigned long r_symndx = htab->r_symndx (rela->r_info);
+      if (r_symndx != STN_UNDEF)
+	{
+	  Elf_Internal_Sym sym;
+	  if (!bed->s->swap_symbol_in (abfd,
+				       (htab->elf.dynsym->contents
+					+ r_symndx * bed->s->sizeof_sym),
+				       0, &sym))
+	    abort ();
+
+	  if (ELF_ST_TYPE (sym.st_info) == STT_GNU_IFUNC)
+	    return reloc_class_ifunc;
+	}
+    }
+
   switch ((int) ELF32_R_TYPE (rela->r_info))
     {
+    case R_SPARC_IRELATIVE:
+      return reloc_class_ifunc;
     case R_SPARC_RELATIVE:
       return reloc_class_relative;
     case R_SPARC_JMP_SLOT:
@@ -189,25 +214,6 @@ elf32_sparc_reloc_type_class (const struct bfd_link_info *info ATTRIBUTE_UNUSED,
     default:
       return reloc_class_normal;
     }
-}
-
-/* Hook called by the linker routine which adds symbols from an object
-   file.  */
-
-static bfd_boolean
-elf32_sparc_add_symbol_hook (bfd * abfd,
-			     struct bfd_link_info * info,
-			     Elf_Internal_Sym * sym,
-			     const char ** namep ATTRIBUTE_UNUSED,
-			     flagword * flagsp ATTRIBUTE_UNUSED,
-			     asection ** secp ATTRIBUTE_UNUSED,
-			     bfd_vma * valp ATTRIBUTE_UNUSED)
-{
-  if (ELF_ST_TYPE (sym->st_info) == STT_GNU_IFUNC
-      && (abfd->flags & DYNAMIC) == 0
-      && bfd_get_flavour (info->output_bfd) == bfd_target_elf_flavour)
-    elf_tdata (info->output_bfd)->has_gnu_symbols |= elf_gnu_symbol_ifunc;
-  return TRUE;
 }
 
 #define TARGET_BIG_SYM	sparc_elf32_vec
@@ -252,10 +258,9 @@ elf32_sparc_add_symbol_hook (bfd * abfd,
 #define bfd_elf32_mkobject		_bfd_sparc_elf_mkobject
 #define elf_backend_object_p		_bfd_sparc_elf_object_p
 #define elf_backend_gc_mark_hook	_bfd_sparc_elf_gc_mark_hook
-#define elf_backend_gc_sweep_hook       _bfd_sparc_elf_gc_sweep_hook
 #define elf_backend_plt_sym_val		_bfd_sparc_elf_plt_sym_val
 #define elf_backend_init_index_section	_bfd_elf_init_1_index_section
-#define elf_backend_fixup_symbol        _bfd_sparc_elf_fixup_symbol
+#define elf_backend_fixup_symbol	_bfd_sparc_elf_fixup_symbol
 
 #define elf_backend_can_gc_sections 1
 #define elf_backend_can_refcount 1
@@ -266,19 +271,7 @@ elf32_sparc_add_symbol_hook (bfd * abfd,
 #define elf_backend_want_dynrelro 1
 #define elf_backend_rela_normal 1
 
-#define elf_backend_add_symbol_hook		elf32_sparc_add_symbol_hook
-
-/* EIR-specific hacks.  */
-#define bfd_elf32_bfd_link_add_symbols          _bfd_sparc_elf_link_add_symbols
-#define bfd_elf32_bfd_final_link                _bfd_sparc_elf_final_link
-#define elf_backend_ignore_discarded_relocs     _bfd_sparc_elf_ignore_discarded_relocs
-#define elf_backend_hide_symbol                 _bfd_sparc_elf_hide_symbol
-#define bfd_elf32_write_object_contents         _bfd_sparc_elf_write_object_contents
-
-/* Let `.magic' section be `SHT_NOTE'.  */
-#define elf_backend_special_sections    _bfd_sparc_elf_special_sections
-
-#define elf_backend_extern_protected_data       1
+#define elf_backend_linux_prpsinfo32_ugid16	TRUE
 
 #include "elf32-target.h"
 
@@ -294,10 +287,10 @@ elf32_sparc_add_symbol_hook (bfd * abfd,
 
 /* The 32-bit static TLS arena size is rounded to the nearest 8-byte
    boundary.  */
-#undef  elf_backend_static_tls_alignment
+#undef	elf_backend_static_tls_alignment
 #define elf_backend_static_tls_alignment	8
 
-#undef  elf_backend_strtab_flags
+#undef	elf_backend_strtab_flags
 #define elf_backend_strtab_flags	SHF_STRINGS
 
 static bfd_boolean
@@ -316,33 +309,14 @@ elf32_sparc_copy_solaris_special_section_fields (const bfd *ibfd ATTRIBUTE_UNUSE
 
 #include "elf32-target.h"
 
-/* A wrapper around _bfd_sparc_elf_link_hash_table_create that identifies
-   the target system as VxWorks.  */
-
-static struct bfd_link_hash_table *
-elf32_sparc_vxworks_link_hash_table_create (bfd *abfd)
-{
-  struct bfd_link_hash_table *ret;
-
-  ret = _bfd_sparc_elf_link_hash_table_create (abfd);
-  if (ret)
-    {
-      struct _bfd_sparc_elf_link_hash_table *htab;
-
-      htab = (struct _bfd_sparc_elf_link_hash_table *) ret;
-      htab->is_vxworks = 1;
-    }
-  return ret;
-}
-
 /* A final_write_processing hook that does both the SPARC- and VxWorks-
    specific handling.  */
 
-static void
-elf32_sparc_vxworks_final_write_processing (bfd *abfd, bfd_boolean linker)
+static bfd_boolean
+elf32_sparc_vxworks_final_write_processing (bfd *abfd)
 {
-  elf32_sparc_final_write_processing (abfd, linker);
-  elf_vxworks_final_write_processing (abfd, linker);
+  sparc_final_write_processing (abfd);
+  return elf_vxworks_final_write_processing (abfd);
 }
 
 #undef  TARGET_BIG_SYM
@@ -353,9 +327,8 @@ elf32_sparc_vxworks_final_write_processing (bfd *abfd, bfd_boolean linker)
 #undef  ELF_MINPAGESIZE
 #define ELF_MINPAGESIZE	0x1000
 
-#undef bfd_elf32_bfd_link_hash_table_create
-#define bfd_elf32_bfd_link_hash_table_create \
-  elf32_sparc_vxworks_link_hash_table_create
+#undef	ELF_TARGET_OS
+#define	ELF_TARGET_OS	is_vxworks
 
 #undef  elf_backend_want_got_plt
 #define elf_backend_want_got_plt		1

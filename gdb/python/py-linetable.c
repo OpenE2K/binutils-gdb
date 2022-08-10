@@ -1,6 +1,6 @@
 /* Python interface to line tables.
 
-   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+   Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,7 +19,6 @@
 
 #include "defs.h"
 #include "python-internal.h"
-#include "py-ref.h"
 
 typedef struct {
   PyObject_HEAD
@@ -165,15 +164,14 @@ ltpy_get_pcs_for_line (PyObject *self, PyObject *args)
   if (! PyArg_ParseTuple (args, GDB_PY_LL_ARG, &py_line))
     return NULL;
 
-  TRY
+  try
     {
       pcs = find_pcs_for_symtab_line (symtab, py_line, &best_entry);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  catch (const gdb_exception &except)
     {
       GDB_PY_HANDLE_EXCEPTION (except);
     }
-  END_CATCH
 
   return build_line_table_tuple_from_pcs (py_line, pcs);
 }
@@ -244,7 +242,7 @@ ltpy_get_all_source_lines (PyObject *self, PyObject *args)
 	 include in the source set. */
       if (item->line > 0)
 	{
-	  gdbpy_ref<> line (gdb_py_object_from_longest (item->line));
+	  gdbpy_ref<> line = gdb_py_object_from_longest (item->line);
 
 	  if (line == NULL)
 	    return NULL;
@@ -327,7 +325,7 @@ ltpy_entry_get_line (PyObject *self, void *closure)
 {
   linetable_entry_object *obj = (linetable_entry_object *) self;
 
-  return gdb_py_object_from_longest (obj->line);
+  return gdb_py_object_from_longest (obj->line).release ();
 }
 
 /* Implementation of gdb.LineTableEntry.pc (self) -> Long.  Returns a
@@ -338,7 +336,7 @@ ltpy_entry_get_pc (PyObject *self, void *closure)
 {
   linetable_entry_object *obj = (linetable_entry_object *) self;
 
-  return  gdb_py_object_from_longest (obj->pc);
+  return  gdb_py_object_from_longest (obj->pc).release ();
 }
 
 /* LineTable iterator functions.  */
@@ -371,6 +369,7 @@ ltpy_iterator_dealloc (PyObject *obj)
   ltpy_iterator_object *iter_obj = (ltpy_iterator_object *) obj;
 
   Py_DECREF (iter_obj->source);
+  Py_TYPE (obj)->tp_free (obj);
 }
 
 /* Return a reference to the line table iterator.  */

@@ -1,6 +1,6 @@
 /* Target-dependent code for the i386.
 
-   Copyright (C) 2001-2017 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,6 +19,9 @@
 
 #ifndef I386_TDEP_H
 #define I386_TDEP_H
+
+#include "gdbarch.h"
+#include "infrun.h"
 
 struct frame_info;
 struct gdbarch;
@@ -198,6 +201,10 @@ struct gdbarch_tdep
   /* PKEYS register names.  */
   const char **pkeys_register_names;
 
+  /* Register number for %fsbase.  Set this to -1 to indicate the
+     absence of segment base registers.  */
+  int fsbase_regnum;
+
   /* Target description.  */
   const struct target_desc *tdesc;
 
@@ -253,7 +260,7 @@ struct gdbarch_tdep
 
 /* Floating-point registers.  */
 
-/* All FPU control regusters (except for FIOFF and FOOFF) are 16-bit
+/* All FPU control registers (except for FIOFF and FOOFF) are 16-bit
    (at most) in the FPU, but are zero-extended to 32 bits in GDB's
    register cache.  */
 
@@ -294,7 +301,9 @@ enum i386_regnum
   I386_K7_REGNUM = I386_K0_REGNUM + 7,
   I386_ZMM0H_REGNUM,		/* %zmm0h */
   I386_ZMM7H_REGNUM = I386_ZMM0H_REGNUM + 7,
-  I386_PKRU_REGNUM
+  I386_PKRU_REGNUM,
+  I386_FSBASE_REGNUM,
+  I386_GSBASE_REGNUM
 };
 
 /* Register numbers of RECORD_REGMAP.  */
@@ -335,12 +344,10 @@ enum record_i386_regnum
 #define I386_MPX_NUM_REGS	(I386_BNDSTATUS_REGNUM + 1)
 #define I386_AVX512_NUM_REGS	(I386_ZMM7H_REGNUM + 1)
 #define I386_PKEYS_NUM_REGS	(I386_PKRU_REGNUM + 1)
+#define I386_NUM_REGS		(I386_GSBASE_REGNUM + 1)
 
 /* Size of the largest register.  */
 #define I386_MAX_REGISTER_SIZE	64
-
-extern struct target_desc *tdesc_i386;
-extern struct target_desc *tdesc_i386_mmx;
 
 /* Types for i386-specific registers.  */
 extern struct type *i387_ext_type (struct gdbarch *gdbarch);
@@ -365,7 +372,7 @@ extern struct type *i386_pseudo_register_type (struct gdbarch *gdbarch,
 					       int regnum);
 
 extern void i386_pseudo_register_read_into_value (struct gdbarch *gdbarch,
-						  struct regcache *regcache,
+						  readable_regcache *regcache,
 						  int regnum,
 						  struct value *result);
 
@@ -391,6 +398,19 @@ extern CORE_ADDR i386_pe_skip_trampoline_code (struct frame_info *frame,
 					       CORE_ADDR pc, char *name);
 extern CORE_ADDR i386_skip_main_prologue (struct gdbarch *gdbarch,
 					  CORE_ADDR pc);
+
+/* The "push_dummy_call" gdbarch method, optionally with the thiscall
+   calling convention.  */
+extern CORE_ADDR i386_thiscall_push_dummy_call (struct gdbarch *gdbarch,
+						struct value *function,
+						struct regcache *regcache,
+						CORE_ADDR bp_addr,
+						int nargs, struct value **args,
+						CORE_ADDR sp,
+						function_call_return_method
+						return_method,
+						CORE_ADDR struct_addr,
+						bool thiscall);
 
 /* Return whether the THIS_FRAME corresponds to a sigtramp routine.  */
 extern int i386_sigtramp_p (struct frame_info *this_frame);
@@ -419,7 +439,9 @@ extern void
 				     void *cb_data,
 				     const struct regcache *regcache);
 
-extern struct displaced_step_closure *i386_displaced_step_copy_insn
+typedef buf_displaced_step_closure i386_displaced_step_closure;
+
+extern displaced_step_closure_up i386_displaced_step_copy_insn
   (struct gdbarch *gdbarch, CORE_ADDR from, CORE_ADDR to,
    struct regcache *regs);
 extern void i386_displaced_step_fixup (struct gdbarch *gdbarch,
@@ -439,7 +461,8 @@ extern int i386_svr4_reg_to_regnum (struct gdbarch *gdbarch, int reg);
 
 extern int i386_process_record (struct gdbarch *gdbarch,
                                 struct regcache *regcache, CORE_ADDR addr);
-extern const struct target_desc *i386_target_description (uint64_t xcr0);
+extern const struct target_desc *i386_target_description (uint64_t xcr0,
+							  bool segments);
 
 /* Return true iff the current target is MPX enabled.  */
 extern int i386_mpx_enabled (void);

@@ -1,6 +1,6 @@
 /* Target-dependent code for Atmel AVR, for GDB.
 
-   Copyright (C) 1996-2017 Free Software Foundation, Inc.
+   Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -314,8 +314,8 @@ avr_address_to_pointer (struct gdbarch *gdbarch,
 			      avr_convert_iaddr_to_raw (addr));
     }
   /* Is it a code address?  */
-  else if (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_FUNC
-	   || TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_METHOD)
+  else if (TYPE_TARGET_TYPE (type)->code () == TYPE_CODE_FUNC
+	   || TYPE_TARGET_TYPE (type)->code () == TYPE_CODE_METHOD)
     {
       /* A code pointer is word (16 bits) addressed.  We shift the address down
 	 by 1 bit to convert it to a pointer.  */
@@ -345,8 +345,8 @@ avr_pointer_to_address (struct gdbarch *gdbarch,
       return avr_make_iaddr (addr);
     }
   /* Is it a code address?  */
-  else if (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_FUNC
-	   || TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_METHOD
+  else if (TYPE_TARGET_TYPE (type)->code () == TYPE_CODE_FUNC
+	   || TYPE_TARGET_TYPE (type)->code () == TYPE_CODE_METHOD
 	   || TYPE_CODE_SPACE (TYPE_TARGET_TYPE (type)))
     {
       /* A code pointer is word (16 bits) addressed so we shift it up
@@ -363,14 +363,18 @@ avr_integer_to_address (struct gdbarch *gdbarch,
 {
   ULONGEST addr = unpack_long (type, buf);
 
-  return avr_make_saddr (addr);
+  if (TYPE_DATA_SPACE (type))
+    return avr_make_saddr (addr);
+  else
+    return avr_make_iaddr (addr);
 }
 
 static CORE_ADDR
-avr_read_pc (struct regcache *regcache)
+avr_read_pc (readable_regcache *regcache)
 {
   ULONGEST pc;
-  regcache_cooked_read_unsigned (regcache, AVR_PC_REGNUM, &pc);
+
+  regcache->cooked_read (AVR_PC_REGNUM, &pc);
   return avr_make_iaddr (pc);
 }
 
@@ -382,7 +386,7 @@ avr_write_pc (struct regcache *regcache, CORE_ADDR val)
 }
 
 static enum register_status
-avr_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
+avr_pseudo_register_read (struct gdbarch *gdbarch, readable_regcache *regcache,
                           int regnum, gdb_byte *buf)
 {
   ULONGEST val;
@@ -391,7 +395,7 @@ avr_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
   switch (regnum)
     {
     case AVR_PSEUDO_PC_REGNUM:
-      status = regcache_raw_read_unsigned (regcache, AVR_PC_REGNUM, &val);
+      status = regcache->raw_read (AVR_PC_REGNUM, &val);
       if (status != REG_VALID)
 	return status;
       val >>= 1;
@@ -934,9 +938,9 @@ avr_return_value (struct gdbarch *gdbarch, struct value *function,
      register holds the LSB.  */
   int lsb_reg;
 
-  if ((TYPE_CODE (valtype) == TYPE_CODE_STRUCT
-       || TYPE_CODE (valtype) == TYPE_CODE_UNION
-       || TYPE_CODE (valtype) == TYPE_CODE_ARRAY)
+  if ((valtype->code () == TYPE_CODE_STRUCT
+       || valtype->code () == TYPE_CODE_UNION
+       || valtype->code () == TYPE_CODE_ARRAY)
       && TYPE_LENGTH (valtype) > 8)
     return RETURN_VALUE_STRUCT_CONVENTION;
 
@@ -952,13 +956,13 @@ avr_return_value (struct gdbarch *gdbarch, struct value *function,
   if (writebuf != NULL)
     {
       for (i = 0; i < TYPE_LENGTH (valtype); i++)
-        regcache_cooked_write (regcache, lsb_reg + i, writebuf + i);
+	regcache->cooked_write (lsb_reg + i, writebuf + i);
     }
 
   if (readbuf != NULL)
     {
       for (i = 0; i < TYPE_LENGTH (valtype); i++)
-        regcache_cooked_read (regcache, lsb_reg + i, readbuf + i);
+	regcache->cooked_read (lsb_reg + i, readbuf + i);
     }
 
   return RETURN_VALUE_REGISTER_CONVENTION;
@@ -1262,7 +1266,8 @@ static CORE_ADDR
 avr_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
                      struct regcache *regcache, CORE_ADDR bp_addr,
                      int nargs, struct value **args, CORE_ADDR sp,
-                     int struct_return, CORE_ADDR struct_addr)
+		     function_call_return_method return_method,
+		     CORE_ADDR struct_addr)
 {
   int i;
   gdb_byte buf[3];
@@ -1271,7 +1276,7 @@ avr_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int regnum = AVR_ARGN_REGNUM;
   struct stack_item *si = NULL;
 
-  if (struct_return)
+  if (return_method == return_method_struct)
     {
       regcache_cooked_write_unsigned
         (regcache, regnum--, (struct_addr >> 8) & 0xff);
@@ -1460,7 +1465,8 @@ avr_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Create a type for PC.  We can't use builtin types here, as they may not
      be defined.  */
-  tdep->void_type = arch_type (gdbarch, TYPE_CODE_VOID, 1, "void");
+  tdep->void_type = arch_type (gdbarch, TYPE_CODE_VOID, TARGET_CHAR_BIT,
+			       "void");
   tdep->func_void_type = make_function_type (tdep->void_type, NULL);
   tdep->pc_type = arch_pointer_type (gdbarch, 4 * TARGET_CHAR_BIT, NULL,
 				     tdep->func_void_type);
@@ -1545,23 +1551,17 @@ avr_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
    All io registers are 8-bit.  */
 
 static void
-avr_io_reg_read_command (char *args, int from_tty)
+avr_io_reg_read_command (const char *args, int from_tty)
 {
-  LONGEST bufsiz = 0;
-  gdb_byte *buf;
-  const char *bufstr;
   char query[400];
-  const char *p;
   unsigned int nreg = 0;
   unsigned int val;
-  int i, j, k, step;
 
   /* Find out how many io registers the target has.  */
-  bufsiz = target_read_alloc (&current_target, TARGET_OBJECT_AVR,
-			      "avr.io_reg", &buf);
-  bufstr = (const char *) buf;
+  gdb::optional<gdb::byte_vector> buf
+    = target_read_alloc (current_top_target (), TARGET_OBJECT_AVR, "avr.io_reg");
 
-  if (bufsiz <= 0)
+  if (!buf)
     {
       fprintf_unfiltered (gdb_stderr,
 			  _("ERR: info io_registers NOT supported "
@@ -1569,36 +1569,42 @@ avr_io_reg_read_command (char *args, int from_tty)
       return;
     }
 
+  const char *bufstr = (const char *) buf->data ();
+
   if (sscanf (bufstr, "%x", &nreg) != 1)
     {
       fprintf_unfiltered (gdb_stderr,
 			  _("Error fetching number of io registers\n"));
-      xfree (buf);
       return;
     }
-
-  xfree (buf);
 
   reinitialize_more_filter ();
 
   printf_unfiltered (_("Target has %u io registers:\n\n"), nreg);
 
   /* only fetch up to 8 registers at a time to keep the buffer small */
-  step = 8;
+  int step = 8;
 
-  for (i = 0; i < nreg; i += step)
+  for (int i = 0; i < nreg; i += step)
     {
       /* how many registers this round? */
-      j = step;
+      int j = step;
       if ((i+j) >= nreg)
         j = nreg - i;           /* last block is less than 8 registers */
 
       snprintf (query, sizeof (query) - 1, "avr.io_reg:%x,%x", i, j);
-      bufsiz = target_read_alloc (&current_target, TARGET_OBJECT_AVR,
-				  query, &buf);
+      buf = target_read_alloc (current_top_target (), TARGET_OBJECT_AVR, query);
 
-      p = (const char *) buf;
-      for (k = i; k < (i + j); k++)
+      if (!buf)
+        {
+          fprintf_unfiltered (gdb_stderr,
+			      _("ERR: error reading avr.io_reg:%x,%x\n"),
+			      i, j);
+          return;
+        }
+
+      const char *p = (const char *) buf->data ();
+      for (int k = i; k < (i + j); k++)
 	{
 	  if (sscanf (p, "%[^,],%x;", query, &val) == 2)
 	    {
@@ -1610,15 +1616,12 @@ avr_io_reg_read_command (char *args, int from_tty)
 		break;
 	    }
 	}
-
-      xfree (buf);
     }
 }
 
-extern initialize_file_ftype _initialize_avr_tdep; /* -Wmissing-prototypes */
-
+void _initialize_avr_tdep ();
 void
-_initialize_avr_tdep (void)
+_initialize_avr_tdep ()
 {
   register_gdbarch_init (bfd_arch_avr, avr_gdbarch_init);
 
@@ -1630,5 +1633,5 @@ _initialize_avr_tdep (void)
      io_registers' to signify it is not available on other platforms.  */
 
   add_info ("io_registers", avr_io_reg_read_command,
-	    _("query remote avr target for io space register values"));
+	    _("Query remote AVR target for I/O space register values."));
 }

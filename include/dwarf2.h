@@ -1,6 +1,6 @@
 /* Declarations and definitions of codes relating to the DWARF2 and
    DWARF3 symbolic debugging information formats.
-   Copyright (C) 1992-2017 Free Software Foundation, Inc.
+   Copyright (C) 1992-2020 Free Software Foundation, Inc.
 
    Written by Gary Funck (gary@intrepid.com) The Ada Joint Program
    Office (AJPO), Florida State University and Silicon Graphics Inc.
@@ -52,6 +52,7 @@
 #define DW_ATE(name, value) , name = value
 #define DW_ATE_DUP(name, value) , name = value
 #define DW_CFA(name, value) , name = value
+#define DW_CFA_DUP(name, value) , name = value
 #define DW_IDX(name, value) , name = value
 #define DW_IDX_DUP(name, value) , name = value
 
@@ -104,6 +105,7 @@
 #undef DW_ATE
 #undef DW_ATE_DUP
 #undef DW_CFA
+#undef DW_CFA_DUP
 #undef DW_IDX
 #undef DW_IDX_DUP
 
@@ -296,6 +298,14 @@ enum dwarf_location_list_entry_type
     DW_LLE_start_end = 0x07,
     DW_LLE_start_length = 0x08,
 
+    /* <http://lists.dwarfstd.org/private.cgi/dwarf-discuss-dwarfstd.org/2017-April/004347.html>
+       has the proposal for now; only available to list members.
+
+       A (possibly updated) copy of the proposal is available at
+       <http://people.redhat.com/aoliva/papers/sfn/dwarf6-sfn-lvu.txt>.  */
+    DW_LLE_GNU_view_pair = 0x09,
+#define DW_LLE_view_pair DW_LLE_GNU_view_pair
+
     /* Former extension for Fission.
        See http://gcc.gnu.org/wiki/DebugFission.  */
     DW_LLE_GNU_end_of_list_entry = 0x00,
@@ -306,7 +316,6 @@ enum dwarf_location_list_entry_type
 
 #define DW_CIE_ID	  0xffffffff
 #define DW64_CIE_ID	  0xffffffffffffffffULL
-#define DW_CIE_VERSION	  1
 
 #define DW_CFA_extended   0
 

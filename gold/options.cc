@@ -1,6 +1,6 @@
 // options.c -- handle command line options for gold
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2020 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -448,7 +448,6 @@ General_options::parse_library(const char*, const char* arg,
   cmdline->inputs().add_file(file);
 }
 
-#ifdef ENABLE_PLUGINS
 void
 General_options::parse_plugin(const char*, const char* arg,
 			      Command_line*)
@@ -464,7 +463,6 @@ General_options::parse_plugin_opt(const char*, const char* arg,
 {
   this->add_plugin_option(arg);
 }
-#endif // ENABLE_PLUGINS
 
 void
 General_options::parse_R(const char* option, const char* arg,
@@ -999,7 +997,8 @@ General_options::General_options()
     fix_v4bx_(FIX_V4BX_NONE),
     endianness_(ENDIANNESS_NOT_SET),
     discard_locals_(DISCARD_SEC_MERGE),
-    orphan_handling_enum_(ORPHAN_PLACE)
+    orphan_handling_enum_(ORPHAN_PLACE),
+    start_stop_visibility_enum_(elfcpp::STV_PROTECTED)
 {
   // Turn off option registration once construction is complete.
   gold::options::ready_to_register = false;
@@ -1171,6 +1170,19 @@ General_options::finalize()
         this->set_orphan_handling_enum(ORPHAN_ERROR);
     }
 
+  // Parse the -z start-stop-visibility argument.
+  if (this->user_set_start_stop_visibility())
+    {
+      if (strcmp(this->start_stop_visibility(), "default") == 0)
+        this->set_start_stop_visibility_enum(elfcpp::STV_DEFAULT);
+      else if (strcmp(this->start_stop_visibility(), "internal") == 0)
+        this->set_start_stop_visibility_enum(elfcpp::STV_INTERNAL);
+      else if (strcmp(this->start_stop_visibility(), "hidden") == 0)
+        this->set_start_stop_visibility_enum(elfcpp::STV_HIDDEN);
+      else if (strcmp(this->start_stop_visibility(), "protected") == 0)
+        this->set_start_stop_visibility_enum(elfcpp::STV_PROTECTED);
+    }
+
   // -M is equivalent to "-Map -".
   if (this->print_map() && !this->user_set_Map())
     {
@@ -1206,6 +1218,13 @@ General_options::finalize()
     gold_warning(_("ignoring --thread-count: "
 		   "%s was compiled without thread support"),
 		 program_name);
+#endif
+
+#ifndef ENABLE_PLUGINS
+  if (this->has_plugins())
+    gold_fatal(_("cannot use --plugin: "
+		 "%s was compiled without plugin support"),
+	       program_name);
 #endif
 
   std::string libpath;
@@ -1343,6 +1362,8 @@ General_options::finalize()
 	gold_fatal(_("incremental linking is not compatible with --plugin"));
       if (this->relro())
 	gold_fatal(_("incremental linking is not compatible with -z relro"));
+      if (this->pie())
+	gold_fatal(_("incremental linking is not compatible with -pie"));
       if (this->gc_sections())
 	{
 	  gold_warning(_("ignoring --gc-sections for an incremental link"));
@@ -1566,6 +1587,12 @@ Command_line::process(int argc, const char** argv)
   if (this->inputs_.in_group())
     {
       fprintf(stderr, _("%s: missing group end\n"), program_name);
+      usage();
+    }
+
+  if (this->inputs_.in_lib())
+    {
+      fprintf(stderr, _("%s: missing lib end\n"), program_name);
       usage();
     }
 

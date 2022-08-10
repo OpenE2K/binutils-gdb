@@ -1,6 +1,6 @@
 // dwarf_reader.h -- parse dwarf2/3 debug information for gold  -*- C++ -*-
 
-// Copyright (C) 2007-2017 Free Software Foundation, Inc.
+// Copyright (C) 2007-2020 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -1070,7 +1070,8 @@ class Sized_dwarf_line_info : public Dwarf_line_info
     off_t total_length;
     int version;
     off_t prologue_length;
-    int min_insn_length; // insn stands for instructin
+    int min_insn_length; // insn stands for instruction
+    int max_ops_per_insn; // Added in DWARF-4.
     bool default_is_stmt; // stmt stands for statement
     signed char line_base;
     int line_range;

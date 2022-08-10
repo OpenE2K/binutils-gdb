@@ -1,5 +1,5 @@
 /* MI Command Set - environment commands.
-   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    Contributed by Red Hat Inc.
 
@@ -26,15 +26,12 @@
 #include "mi-getopt.h"
 #include "symtab.h"
 #include "target.h"
-#include "environ.h"
+#include "gdbsupport/environ.h"
 #include "command.h"
 #include "ui-out.h"
 #include "top.h"
 #include <sys/stat.h>
-
-static void env_mod_path (char *dirname, char **which_path);
-
-extern void _initialize_mi_cmd_env (void);
+#include "source.h"
 
 static const char path_var_name[] = "PATH";
 static char *orig_path = NULL;
@@ -48,17 +45,13 @@ env_execute_cli_command (const char *cmd, const char *args)
 {
   if (cmd != 0)
     {
-      struct cleanup *old_cleanups;
-      char *run;
+      gdb::unique_xmalloc_ptr<char> run;
 
       if (args != NULL)
-	run = xstrprintf ("%s %s", cmd, args);
+	run.reset (xstrprintf ("%s %s", cmd, args));
       else
-	run = xstrdup (cmd);
-      old_cleanups = make_cleanup (xfree, run);
-      execute_command ( /*ui */ run, 0 /*from_tty */ );
-      do_cleanups (old_cleanups);
-      return;
+	run.reset (xstrdup (cmd));
+      execute_command ( /*ui */ run.get (), 0 /*from_tty */ );
     }
 }
 
@@ -80,11 +73,12 @@ mi_cmd_env_pwd (const char *command, char **argv, int argc)
      
   /* Otherwise the mi level is 2 or higher.  */
 
-  if (! getcwd (gdb_dirbuf, sizeof (gdb_dirbuf)))
+  gdb::unique_xmalloc_ptr<char> cwd (getcwd (NULL, 0));
+  if (cwd == NULL)
     error (_("-environment-pwd: error finding name of working directory: %s"),
            safe_strerror (errno));
-    
-  uiout->field_string ("cwd", gdb_dirbuf);
+
+  uiout->field_string ("cwd", cwd.get ());
 }
 
 /* Change working directory.  */
@@ -99,7 +93,7 @@ mi_cmd_env_cd (const char *command, char **argv, int argc)
 }
 
 static void
-env_mod_path (char *dirname, char **which_path)
+env_mod_path (const char *dirname, char **which_path)
 {
   if (dirname == 0 || dirname[0] == '\0')
     return;
@@ -250,7 +244,7 @@ mi_cmd_env_dir (const char *command, char **argv, int argc)
 void
 mi_cmd_inferior_tty_set (const char *command, char **argv, int argc)
 {
-  set_inferior_io_terminal (argv[0]);
+  current_inferior ()->set_tty (argv[0]);
 }
 
 /* Print the inferior terminal device name.  */
@@ -258,17 +252,17 @@ mi_cmd_inferior_tty_set (const char *command, char **argv, int argc)
 void
 mi_cmd_inferior_tty_show (const char *command, char **argv, int argc)
 {
-  const char *inferior_io_terminal = get_inferior_io_terminal ();
-  
   if ( !mi_valid_noargs ("-inferior-tty-show", argc, argv))
     error (_("-inferior-tty-show: Usage: No args"));
 
-  if (inferior_io_terminal)
-    current_uiout->field_string ("inferior_tty_terminal", inferior_io_terminal);
+  const char *inferior_tty = current_inferior ()->tty ();
+  if (inferior_tty != NULL)
+    current_uiout->field_string ("inferior_tty_terminal", inferior_tty);
 }
 
+void _initialize_mi_cmd_env ();
 void 
-_initialize_mi_cmd_env (void)
+_initialize_mi_cmd_env ()
 {
   const char *env;
 

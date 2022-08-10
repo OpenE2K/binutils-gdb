@@ -1,5 +1,5 @@
 /* s390-opc.c -- S390 opcode list
-   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+   Copyright (C) 2000-2020 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of the GNU opcodes library.
@@ -359,6 +359,7 @@ const struct s390_operand s390_operands[] =
 #define INSTR_RRF_RURR2    4, { R_24,R_16,R_28,U4_20,0,0 }       /* e.g. lptea */
 #define INSTR_RRF_R0RR     4, { R_24,R_16,R_28,0,0,0 }           /* e.g. idte  */
 #define INSTR_RRF_R0RR2    4, { R_24,R_28,R_16,0,0,0 }           /* e.g. ark   */
+#define INSTR_RRF_R0RR3    4, { R_24,R_28,R_16,0,0,0 }           /* e.g. selrz */
 #define INSTR_RRF_U0FF     4, { F_24,U4_16,F_28,0,0,0 }          /* e.g. fidbr */
 #define INSTR_RRF_U0FEFE   4, { FE_24,U4_16,FE_28,0,0,0 }        /* e.g. fixbr */
 #define INSTR_RRF_U0RF     4, { R_24,U4_16,F_28,0,0,0 }          /* e.g. cfebr */
@@ -436,6 +437,7 @@ const struct s390_operand s390_operands[] =
 #define INSTR_RX_RRRD      4, { R_8,D_20,X_12,B_16,0,0 }         /* e.g. l     */
 #define INSTR_RX_RERRD     4, { RE_8,D_20,X_12,B_16,0,0 }        /* e.g. d     */
 #define INSTR_RX_URRD      4, { U4_8,D_20,X_12,B_16,0,0 }        /* e.g. bc    */
+#define INSTR_SI_RD        4, { D_20,B_16,0,0,0,0 }              /* e.g. lpsw  */
 #define INSTR_SI_URD       4, { D_20,B_16,U8_8,0,0,0 }           /* e.g. cli   */
 #define INSTR_SIY_URD      6, { D20_20,B_16,U8_8,0,0,0 }         /* e.g. tmy   */
 #define INSTR_SIY_IRD      6, { D20_20,B_16,I8_8,0,0,0 }         /* e.g. asi   */
@@ -453,7 +455,7 @@ const struct s390_operand s390_operands[] =
 #define INSTR_SSF_RRDRD    6, { D_20,B_16,D_36,B_32,R_8,0 }      /* e.g. mvcos */
 #define INSTR_SSF_RERDRD2  6, { RE_8,D_20,B_16,D_36,B_32,0 }     /* e.g. lpd   */
 #define INSTR_S_00         4, { 0,0,0,0,0,0 }                    /* e.g. hsch  */
-#define INSTR_S_RD         4, { D_20,B_16,0,0,0,0 }              /* e.g. lpsw  */
+#define INSTR_S_RD         4, { D_20,B_16,0,0,0,0 }              /* e.g. stck  */
 #define INSTR_VRV_VVXRDU   6, { V_8,D_20,VX_12,B_16,U4_32,0 }    /* e.g. vgef  */
 #define INSTR_VRI_V0U      6, { V_8,U16_16,0,0,0,0 }             /* e.g. vgbm  */
 #define INSTR_VRI_V        6, { V_8,0,0,0,0,0 }                  /* e.g. vzero */
@@ -512,6 +514,7 @@ const struct s390_operand s390_operands[] =
 #define INSTR_VRR_VV0U0U   6, { V_8,V_12,U4_32,U4_24,0,0 }       /* e.g. vistr */
 #define INSTR_VRR_0VV0U    6, { V_12,V_16,U4_24,0,0,0 }          /* e.g. vcp   */
 #define INSTR_VRR_RV0U     6, { R_8,V_12,U4_24,0,0,0 }           /* e.g. vcvb  */
+#define INSTR_VRR_RV0UU    6, { R_8,V_12,U4_24,U4_28,0,0 }       /* e.g. vcvb  */
 #define INSTR_VSI_URDV     6, { V_32,D_20,B_16,U8_8,0,0 }        /* e.g. vlrl  */
 
 #define MASK_E            { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
@@ -577,6 +580,7 @@ const struct s390_operand s390_operands[] =
 #define MASK_RRF_RURR2    { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RRF_R0RR     { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RRF_R0RR2    { 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 }
+#define MASK_RRF_R0RR3    { 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00 }
 #define MASK_RRF_U0FF     { 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00 }
 #define MASK_RRF_U0FEFE   { 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00 }
 #define MASK_RRF_U0RF     { 0xff, 0xff, 0x0f, 0x00, 0x00, 0x00 }
@@ -654,6 +658,7 @@ const struct s390_operand s390_operands[] =
 #define MASK_RX_RRRD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RX_RERRD     { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_RX_URRD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
+#define MASK_SI_RD        { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_SI_URD       { 0xff, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define MASK_SIY_URD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
 #define MASK_SIY_IRD      { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
@@ -730,6 +735,7 @@ const struct s390_operand s390_operands[] =
 #define MASK_VRR_VV0U0U   { 0xff, 0x00, 0xff, 0x0f, 0x00, 0xff }
 #define MASK_VRR_0VV0U    { 0xff, 0xf0, 0x0f, 0x0f, 0xf0, 0xff }
 #define MASK_VRR_RV0U     { 0xff, 0x00, 0xff, 0x0f, 0xf0, 0xff }
+#define MASK_VRR_RV0UU    { 0xff, 0x00, 0xff, 0x00, 0xf0, 0xff }
 #define MASK_VSI_URDV     { 0xff, 0x00, 0x00, 0x00, 0x00, 0xff }
 
 

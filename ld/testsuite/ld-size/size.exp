@@ -1,6 +1,6 @@
 # Expect script for linker support of size relocations.
 #
-#   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2020 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -21,16 +21,14 @@
 #
 
 
-# Size relications have only been implemented for the ix86 and x86_64,
+# Size relocations have only been implemented for the ix86 and x86_64,
 # so far.
 if {!(([istarget "i?86-*-*"]
        || [istarget "x86_64-*-*"])
       && ([istarget "*-*-elf*"]
 	  || [istarget "*-*-nacl*"]
-	  || (([istarget "*-*-linux*"]
-	       || [istarget "*-*-gnu*"])
-	      && ![istarget "*-*-*aout*"]
-	      && ![istarget "*-*-*oldld*"]))) } {
+	  || [istarget "*-*-linux*"]
+	  || [istarget "*-*-gnu*"])) } {
     verbose "Size relocations tests not run - no target support"
     return
 }
@@ -50,13 +48,10 @@ foreach t $test_list {
 }
 
 # We need a working compiler.
-if { [which $CC] == 0 } {
+if { ![check_compiler_available] } {
     verbose "Native size relocation tests not run - no compiler available"
     return
 }
-
-# Add $NOPIE_CFLAGS and $NOPIE_LDFLAGS if non-PIE is required.
-global NOPIE_CFLAGS NOPIE_LDFLAGS
 
 run_cc_link_tests [list \
     [list \
@@ -116,7 +111,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build size-7" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libsize-7.so" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,notext tmpdir/libsize-7.so" \
 	"$NOPIE_CFLAGS" \
 	{size-7a.c} \
 	{{readelf -rW size-7.rd}} \
@@ -131,7 +126,7 @@ run_cc_link_tests [list \
     ] \
     [list \
 	"Build size-8" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed tmpdir/libsize-8.so" \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,-z,notext tmpdir/libsize-8.so" \
 	"$NOPIE_CFLAGS" \
 	{size-8a.c} \
 	{{readelf -rW size-8.rd}} \
@@ -228,9 +223,9 @@ run_ld_link_exec_tests [list \
 	"size-3.out" \
     ] \
     [list \
-    {"Run size-3e"
-     "-Wl,--no-as-needed tmpdir/libsize-3c.so" ""
-     {size-3.c} "size-3e" "size-3.out"}
+    {"Run size-3e" \
+     "-Wl,--no-as-needed tmpdir/libsize-3c.so" "" \
+     {size-3.c} "size-3e" "size-3.out"} \
     ] \
     [list \
 	"Run size-4a" \
@@ -279,7 +274,7 @@ run_ld_link_exec_tests [list \
     ] \
     [list \
 	"Run size-8" \
-	"$NOPIE_LDFLAGS -Wl,--no-as-needed,--hash-styl=gnu \
+	"$NOPIE_LDFLAGS -Wl,--no-as-needed,--hash-styl=gnu,-z,notext \
 	 tmpdir/libsize-8.so" \
 	"" \
 	{size-8a.c} \

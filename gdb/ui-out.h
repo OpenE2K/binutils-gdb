@@ -1,6 +1,6 @@
 /* Output generating routines for GDB.
 
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions.
    Written by Fernando Nasser for Cygnus.
@@ -25,7 +25,8 @@
 
 #include <vector>
 
-#include "common/enum-flags.h"
+#include "gdbsupport/enum-flags.h"
+#include "ui-style.h"
 
 class ui_out_level;
 class ui_out_table;
@@ -49,9 +50,16 @@ enum ui_align
 
 /* flags enum */
 enum ui_out_flag
-  {
-    ui_source_list = (1 << 0),
-  };
+{
+  ui_source_list = (1 << 0),
+  fix_multi_location_breakpoint_output = (1 << 1),
+  /* For CLI output, this flag is set if unfiltered output is desired.
+     This should only be used by low-level formatting functions.  */
+  unfiltered_output = (1 << 2),
+  /* This indicates that %pF should be disallowed in a printf format
+     string.  */
+  disallow_ui_out_field = (1 << 3)
+};
 
 DEF_ENUM_FLAGS_TYPE (ui_out_flag, ui_out_flags);
 
@@ -66,17 +74,89 @@ enum ui_out_type
     ui_out_type_list
   };
 
-extern struct cleanup *make_cleanup_ui_out_table_begin_end (struct ui_out *ui_out,
-                                                            int nr_cols,
-							    int nr_rows,
-							    const char *tblid);
-/* Compatibility wrappers.  */
+/* The possible kinds of fields.  */
+enum class field_kind
+  {
+    /* "FIELD_STRING" needs a funny name to avoid clashes with tokens
+       named "STRING".  See PR build/25250.  FIELD_SIGNED is given a
+       similar name for consistency.  */
+    FIELD_SIGNED,
+    FIELD_STRING,
+  };
 
-extern struct cleanup *make_cleanup_ui_out_list_begin_end (struct ui_out *uiout,
-							   const char *id);
+/* The base type of all fields that can be emitted using %pF.  */
 
-extern struct cleanup *make_cleanup_ui_out_tuple_begin_end (struct ui_out *uiout,
-							    const char *id);
+struct base_field_s
+{
+  const char *name;
+  field_kind kind;
+};
+
+/* A signed integer field, to be passed to %pF in format strings.  */
+
+struct signed_field_s : base_field_s
+{
+  LONGEST val;
+};
+
+/* Construct a temporary signed_field_s on the caller's stack and
+   return a pointer to the constructed object.  We use this because
+   it's not possible to pass a reference via va_args.  */
+
+static inline signed_field_s *
+signed_field (const char *name, LONGEST val,
+	      signed_field_s &&tmp = {})
+{
+  tmp.name = name;
+  tmp.kind = field_kind::FIELD_SIGNED;
+  tmp.val = val;
+  return &tmp;
+}
+
+/* A string field, to be passed to %pF in format strings.  */
+
+struct string_field_s : base_field_s
+{
+  const char *str;
+};
+
+/* Construct a temporary string_field_s on the caller's stack and
+   return a pointer to the constructed object.  We use this because
+   it's not possible to pass a reference via va_args.  */
+
+static inline string_field_s *
+string_field (const char *name, const char *str,
+	      string_field_s &&tmp = {})
+{
+  tmp.name = name;
+  tmp.kind = field_kind::FIELD_STRING;
+  tmp.str = str;
+  return &tmp;
+}
+
+/* A styled string.  */
+
+struct styled_string_s
+{
+  /* The style.  */
+  ui_file_style style;
+
+  /* The string.  */
+  const char *str;
+};
+
+/* Construct a temporary styled_string_s on the caller's stack and
+   return a pointer to the constructed object.  We use this because
+   it's not possible to pass a reference via va_args.  */
+
+static inline styled_string_s *
+styled_string (const ui_file_style &style, const char *str,
+	       styled_string_s &&tmp = {})
+{
+  tmp.style = style;
+  tmp.str = str;
+  return &tmp;
+}
 
 class ui_out
 {
@@ -102,20 +182,76 @@ class ui_out
   void begin (ui_out_type type, const char *id);
   void end (ui_out_type type);
 
-  void field_int (const char *fldname, int value);
-  void field_fmt_int (int width, ui_align align, const char *fldname,
-		      int value);
+  void field_signed (const char *fldname, LONGEST value);
+  void field_fmt_signed (int width, ui_align align, const char *fldname,
+			 LONGEST value);
+  /* Like field_signed, but print an unsigned value.  */
+  void field_unsigned (const char *fldname, ULONGEST value);
   void field_core_addr (const char *fldname, struct gdbarch *gdbarch,
 			CORE_ADDR address);
-  void field_string (const char *fldname, const char *string);
-  void field_stream (const char *fldname, string_file &stream);
+  void field_string (const char *fldname, const char *string,
+		     const ui_file_style &style = ui_file_style ());
+  void field_string (const char *fldname, const std::string &string);
+  void field_stream (const char *fldname, string_file &stream,
+		     const ui_file_style &style = ui_file_style ());
   void field_skip (const char *fldname);
   void field_fmt (const char *fldname, const char *format, ...)
     ATTRIBUTE_PRINTF (3, 4);
+  void field_fmt (const char *fldname, const ui_file_style &style,
+		  const char *format, ...)
+    ATTRIBUTE_PRINTF (4, 5);
 
   void spaces (int numspaces);
   void text (const char *string);
+
+  /* Output a printf-style formatted string.  In addition to the usual
+     printf format specs, this supports a few GDB-specific
+     formatters:
+
+     - '%pF' - output a field.
+
+       The argument is a field, wrapped in any of the base_field_s
+       subclasses.  signed_field for integer fields, string_field for
+       string fields.  This is preferred over separate
+       uiout->field_signed(), uiout_>field_string() etc. calls when
+       the formatted message is translatable.  E.g.:
+
+         uiout->message (_("\nWatchpoint %pF deleted because the program has "
+                         "left the block in\n"
+                         "which its expression is valid.\n"),
+                         signed_field ("wpnum", b->number));
+
+     - '%p[' - output the following text in a specified style.
+       '%p]' - output the following text in the default style.
+
+       The argument to '%p[' is a ui_file_style pointer.  The argument
+       to '%p]' must be nullptr.
+
+       This is useful when you want to output some portion of a string
+       literal in some style.  E.g.:
+
+	 uiout->message (_(" %p[<repeats %u times>%p]"),
+			 metadata_style.style ().ptr (),
+			 reps, repeats, nullptr);
+
+     - '%ps' - output a styled string.
+
+       The argument is the result of a call to styled_string.  This is
+       useful when you want to output some runtime-generated string in
+       some style.  E.g.:
+
+	 uiout->message (_("this is a target address %ps.\n"),
+			 styled_string (address_style.style (),
+					paddress (gdbarch, pc)));
+
+     Note that these all "abuse" the %p printf format spec, in order
+     to be compatible with GCC's printf format checking.  This is OK
+     because code in GDB that wants to print a host address should use
+     host_address_to_string instead of %p.  */
   void message (const char *format, ...) ATTRIBUTE_PRINTF (2, 3);
+  void vmessage (const ui_file_style &in_style,
+		 const char *format, va_list args) ATTRIBUTE_PRINTF (3, 0);
+
   void wrap_hint (const char *identstring);
 
   void flush ();
@@ -130,10 +266,14 @@ class ui_out
      a hack to encapsulate that test.  Once GDB manages to separate the
      CLI/MI from the core of GDB the problem should just go away ....  */
 
-  bool is_mi_like_p ();
+  bool is_mi_like_p () const;
 
   bool query_table_field (int colno, int *width, int *alignment,
 			  const char **col_name);
+
+  /* Return true if this stream is prepared to handle style
+     escapes.  */
+  virtual bool can_emit_style_escape () const = 0;
 
  protected:
 
@@ -147,20 +287,24 @@ class ui_out
 
   virtual void do_begin (ui_out_type type, const char *id) = 0;
   virtual void do_end (ui_out_type type) = 0;
-  virtual void do_field_int (int fldno, int width, ui_align align,
-			     const char *fldname, int value) = 0;
+  virtual void do_field_signed (int fldno, int width, ui_align align,
+				const char *fldname, LONGEST value) = 0;
+  virtual void do_field_unsigned (int fldno, int width, ui_align align,
+				  const char *fldname, ULONGEST value) = 0;
   virtual void do_field_skip (int fldno, int width, ui_align align,
 			      const char *fldname) = 0;
   virtual void do_field_string (int fldno, int width, ui_align align,
-				const char *fldname, const char *string) = 0;
+				const char *fldname, const char *string,
+				const ui_file_style &style) = 0;
   virtual void do_field_fmt (int fldno, int width, ui_align align,
-			     const char *fldname, const char *format,
-			     va_list args)
-    ATTRIBUTE_PRINTF (6,0) = 0;
+			     const char *fldname, const ui_file_style &style,
+			     const char *format, va_list args)
+    ATTRIBUTE_PRINTF (7, 0) = 0;
   virtual void do_spaces (int numspaces) = 0;
   virtual void do_text (const char *string) = 0;
-  virtual void do_message (const char *format, va_list args)
-    ATTRIBUTE_PRINTF (2,0) = 0;
+  virtual void do_message (const ui_file_style &style,
+			   const char *format, va_list args)
+    ATTRIBUTE_PRINTF (3,0) = 0;
   virtual void do_wrap_hint (const char *identstring) = 0;
   virtual void do_flush () = 0;
   virtual void do_redirect (struct ui_file *outstream) = 0;
@@ -168,10 +312,12 @@ class ui_out
   /* Set as not MI-like by default.  It is overridden in subclasses if
      necessary.  */
 
-  virtual bool do_is_mi_like_p ()
+  virtual bool do_is_mi_like_p () const
   { return false; }
 
  private:
+  void call_do_message (const ui_file_style &style, const char *format,
+			...);
 
   ui_out_flags m_flags;
 
@@ -187,11 +333,9 @@ class ui_out
   ui_out_level *current_level () const;
 };
 
-/* This is similar to make_cleanup_ui_out_tuple_begin_end and
-   make_cleanup_ui_out_list_begin_end, but written as an RAII template
-   class.  It takes the ui_out_type as a template parameter.  Normally
-   this is used via the typedefs ui_out_emit_tuple and
-   ui_out_emit_list.  */
+/* Start a new tuple or list on construction, and end it on
+   destruction.  Normally this is used via the typedefs
+   ui_out_emit_tuple and ui_out_emit_list.  */
 template<ui_out_type Type>
 class ui_out_emit_type
 {
@@ -208,9 +352,7 @@ public:
     m_uiout->end (Type);
   }
 
-  ui_out_emit_type (const ui_out_emit_type<Type> &) = delete;
-  ui_out_emit_type<Type> &operator= (const ui_out_emit_type<Type> &)
-      = delete;
+  DISABLE_COPY_AND_ASSIGN (ui_out_emit_type<Type>);
 
 private:
 
@@ -219,5 +361,54 @@ private:
 
 typedef ui_out_emit_type<ui_out_type_tuple> ui_out_emit_tuple;
 typedef ui_out_emit_type<ui_out_type_list> ui_out_emit_list;
+
+/* Start a new table on construction, and end the table on
+   destruction.  */
+class ui_out_emit_table
+{
+public:
+
+  ui_out_emit_table (struct ui_out *uiout, int nr_cols, int nr_rows,
+		     const char *tblid)
+    : m_uiout (uiout)
+  {
+    m_uiout->table_begin (nr_cols, nr_rows, tblid);
+  }
+
+  ~ui_out_emit_table ()
+  {
+    m_uiout->table_end ();
+  }
+
+  ui_out_emit_table (const ui_out_emit_table &) = delete;
+  ui_out_emit_table &operator= (const ui_out_emit_table &) = delete;
+
+private:
+
+  struct ui_out *m_uiout;
+};
+
+/* On destruction, pop the last redirection by calling the uiout's
+   redirect method with a NULL parameter.  */
+class ui_out_redirect_pop
+{
+public:
+
+  ui_out_redirect_pop (ui_out *uiout)
+    : m_uiout (uiout)
+  {
+  }
+
+  ~ui_out_redirect_pop ()
+  {
+    m_uiout->redirect (NULL);
+  }
+
+  ui_out_redirect_pop (const ui_out_redirect_pop &) = delete;
+  ui_out_redirect_pop &operator= (const ui_out_redirect_pop &) = delete;
+
+private:
+  struct ui_out *m_uiout;
+};
 
 #endif /* UI_OUT_H */

@@ -1,9 +1,9 @@
-/* DO NOT EDIT!  -*- buffer-read-only: t -*-  This file is automatically 
+/* DO NOT EDIT!  -*- buffer-read-only: t -*-  This file is automatically
    generated from "libcoff-in.h" and "coffcode.h".
    Run "make headers" in your build bfd/ to regenerate.  */
 
 /* BFD COFF object file private structure.
-   Copyright (C) 1990-2017 Free Software Foundation, Inc.
+   Copyright (C) 1990-2020 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -23,6 +23,9 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
+#ifndef _LIBCOFF_H
+#define _LIBCOFF_H 1
+
 #include "bfdlink.h"
 #include "coff-bfd.h"
 
@@ -33,9 +36,10 @@ extern "C" {
 /* Object file tdata; access macros.  */
 
 #define coff_data(bfd)		      ((bfd)->tdata.coff_obj_data)
-#define obj_pe(bfd)                   (coff_data (bfd)->pe)
+#define obj_pe(bfd)		      (coff_data (bfd)->pe)
+#define obj_go32(bfd)		      (coff_data (bfd)->go32)
 #define obj_symbols(bfd)	      (coff_data (bfd)->symbols)
-#define	obj_sym_filepos(bfd)	      (coff_data (bfd)->sym_filepos)
+#define obj_sym_filepos(bfd)	      (coff_data (bfd)->sym_filepos)
 #define obj_relocbase(bfd)	      (coff_data (bfd)->relocbase)
 #define obj_raw_syments(bfd)	      (coff_data (bfd)->raw_syments)
 #define obj_raw_syment_count(bfd)     (coff_data (bfd)->raw_syment_count)
@@ -115,9 +119,14 @@ typedef struct coff_tdata
      used by ARM code.  */
   flagword flags;
 
-  /* coff-stgo32 EXE stub header after BFD tdata has been allocated.  Its data
-     is kept in internal_filehdr.go32stub beforehand.  */
-  char *go32stub;
+  /* Is this a GO32 coff file?  */
+  bfd_boolean go32;
+
+  /* A stub (extra data prepended before the COFF image) and its size.
+     Used by coff-go32-exe, it contains executable data that loads the
+     COFF object into memory.  */
+  char * stub;
+  bfd_size_type stub_size;
 } coff_data_type;
 
 /* Tdata for pe image files.  */
@@ -128,7 +137,10 @@ typedef struct pe_tdata
   int dll;
   int has_reloc_section;
   int dont_strip_reloc;
-  bfd_boolean insert_timestamp;
+  int dos_message[16];
+  /* The timestamp to insert into the output file.
+     If the timestamp is -1 then the current time is used.  */
+  int timestamp;
   bfd_boolean (*in_reloc_p) (bfd *, reloc_howto_type *);
   flagword real_flags;
 
@@ -235,8 +247,9 @@ struct coff_link_hash_entry
 {
   struct bfd_link_hash_entry root;
 
-  /* Symbol index in output file.  Set to -1 initially.  Set to -2 if
-     there is a reloc against this symbol.  */
+  /* Symbol index in output file.  This is initialized to -1.  It is
+     set to -2 if the symbol is used by a reloc.  It is set to -3 if
+     this symbol is defined in a discarded section.  */
   long indx;
 
   /* Symbol type.  */
@@ -271,11 +284,11 @@ struct coff_link_hash_table
 
 struct coff_reloc_cookie
 {
-  struct internal_reloc *         rels;
-  struct internal_reloc *         rel;
-  struct internal_reloc *         relend;
-  struct coff_symbol_struct *     symbols;	/* Symtab for input bfd.  */
-  bfd *                           abfd;
+  struct internal_reloc *	  rels;
+  struct internal_reloc *	  rel;
+  struct internal_reloc *	  relend;
+  struct coff_symbol_struct *	  symbols;	/* Symtab for input bfd.  */
+  bfd *				  abfd;
   struct coff_link_hash_entry **  sym_hashes;
 };
 
@@ -299,7 +312,7 @@ struct coff_reloc_cookie
 #define coff_hash_table(p) ((struct coff_link_hash_table *) ((p)->hash))
 
 /* Functions in coffgen.c.  */
-extern const bfd_target *coff_object_p
+extern bfd_cleanup coff_object_p
   (bfd *);
 extern struct bfd_section *coff_section_from_bfd_index
   (bfd *, int);
@@ -367,6 +380,8 @@ extern bfd_vma bfd_coff_reloc16_get_value
   (arelent *, struct bfd_link_info *, asection *);
 extern void bfd_perform_slip
   (bfd *, unsigned int, asection *, bfd_vma);
+extern bfd_boolean _bfd_coff_close_and_cleanup
+  (bfd *);
 
 /* Functions and types in cofflink.c.  */
 
@@ -578,7 +593,8 @@ extern bfd_boolean _bfd_coff_reloc_link_order
    struct bfd_link_order *);
 extern bfd_boolean bfd_coff_gc_sections
   (bfd *, struct bfd_link_info *);
-
+extern const char *bfd_coff_group_name
+  (bfd *, const asection *);
 
 #define coff_get_section_contents_in_window \
   _bfd_generic_get_section_contents_in_window
@@ -775,19 +791,19 @@ typedef struct
 
   bfd_boolean (*_bfd_coff_pointerize_aux_hook)
     (bfd *, combined_entry_type *, combined_entry_type *,
-            unsigned int, combined_entry_type *);
+     unsigned int, combined_entry_type *);
 
   bfd_boolean (*_bfd_coff_print_aux)
     (bfd *, FILE *, combined_entry_type *, combined_entry_type *,
-            combined_entry_type *, unsigned int);
+     combined_entry_type *, unsigned int);
 
   void (*_bfd_coff_reloc16_extra_cases)
     (bfd *, struct bfd_link_info *, struct bfd_link_order *, arelent *,
-           bfd_byte *, unsigned int *, unsigned int *);
+     bfd_byte *, unsigned int *, unsigned int *);
 
   int (*_bfd_coff_reloc16_estimate)
     (bfd *, asection *, arelent *, unsigned int,
-            struct bfd_link_info *);
+     struct bfd_link_info *);
 
   enum coff_symbol_classification (*_bfd_coff_classify_symbol)
     (bfd *, struct internal_syment *);
@@ -800,21 +816,20 @@ typedef struct
 
   bfd_boolean (*_bfd_coff_relocate_section)
     (bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
-            struct internal_reloc *, struct internal_syment *, asection **);
+     struct internal_reloc *, struct internal_syment *, asection **);
 
   reloc_howto_type *(*_bfd_coff_rtype_to_howto)
     (bfd *, asection *, struct internal_reloc *,
-            struct coff_link_hash_entry *, struct internal_syment *,
-            bfd_vma *);
+     struct coff_link_hash_entry *, struct internal_syment *, bfd_vma *);
 
   bfd_boolean (*_bfd_coff_adjust_symndx)
     (bfd *, struct bfd_link_info *, bfd *, asection *,
-            struct internal_reloc *, bfd_boolean *);
+     struct internal_reloc *, bfd_boolean *);
 
   bfd_boolean (*_bfd_coff_link_add_one_symbol)
     (struct bfd_link_info *, bfd *, const char *, flagword,
-            asection *, bfd_vma, const char *, bfd_boolean, bfd_boolean,
-            struct bfd_link_hash_entry **);
+     asection *, bfd_vma, const char *, bfd_boolean, bfd_boolean,
+     struct bfd_link_hash_entry **);
 
   bfd_boolean (*_bfd_coff_link_output_has_begun)
     (bfd *, struct coff_final_link_info *);
@@ -973,4 +988,5 @@ typedef struct
   (CONST_STRNEQ ((abfd)->xvec->name, "pei-"))
 #ifdef __cplusplus
 }
+#endif
 #endif

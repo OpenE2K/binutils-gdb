@@ -1,5 +1,5 @@
 /* as.h - global header file
-   Copyright (C) 1987-2017 Free Software Foundation, Inc.
+   Copyright (C) 1987-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -226,7 +226,7 @@ COMMON subsegT now_subseg;
 /* Segment our instructions emit to.  */
 COMMON segT now_seg;
 
-#define segment_name(SEG)	bfd_get_section_name (stdoutput, SEG)
+#define segment_name(SEG)	bfd_section_name (SEG)
 
 extern segT reg_section, expr_section;
 /* Shouldn't these be eliminated someday?  */
@@ -278,6 +278,16 @@ enum _relax_state
      fr_symbol: operand
      1 variable char: fill character  */
   rs_space,
+
+  /* .nop directive with expression operand that needs to be computed
+     later.  Similar to rs_space, but different.  It fills with no-op
+     instructions.
+     fr_symbol: operand
+     1 constant byte: no-op fill control byte.  */
+  rs_space_nop,
+
+  /* Similar to rs_fill.  It is used to implement .nop directive .  */
+  rs_fill_nop,
 
   /* A DWARF leb128 value; only ELF uses this.  The subtype is 0 for
      unsigned, 1 for signed.  */
@@ -402,6 +412,8 @@ enum debug_info_type
 extern enum debug_info_type debug_type;
 extern int use_gnu_debug_info_extensions;
 COMMON bfd_boolean flag_dwarf_sections;
+extern int flag_dwarf_cie_version;
+extern unsigned int dwarf_level;
 
 /* Maximum level of macro nesting.  */
 extern int max_macro_nest;
@@ -469,7 +481,12 @@ void   as_bad_value_out_of_range (const char *, offsetT, offsetT, offsetT,
 				  const char *, unsigned);
 void   print_version_id (void);
 char * app_push (void);
+
+/* Number of littlenums required to hold an extended precision number.	*/
+#define MAX_LITTLENUMS 6
+
 char * atof_ieee (char *, int, LITTLENUM_TYPE *);
+char * atof_ieee_detail (char *, int, int, LITTLENUM_TYPE *, FLONUM_TYPE *);
 const char * ieee_md_atof (int, char *, int *, bfd_boolean);
 const char * vax_md_atof (int, char *, int *);
 char * input_scrub_include_file (const char *, char *);
@@ -486,6 +503,7 @@ void   cond_exit_macro (int);
 int    seen_at_least_1_file (void);
 void   app_pop (char *);
 const char * as_where (unsigned int *);
+const char * as_where_physical (unsigned int *);
 void   bump_line_counters (void);
 void   do_scrub_begin (int);
 void   input_scrub_begin (void);
@@ -571,6 +589,10 @@ COMMON int flag_m68k_mri;
 #define flag_m68k_mri 0
 #endif
 
+#ifndef TC_STRING_ESCAPES
+#define TC_STRING_ESCAPES 1
+#endif
+
 #ifdef WARN_COMMENTS
 COMMON int           warn_comment;
 COMMON unsigned int  found_comment;
@@ -583,6 +605,10 @@ COMMON int flag_allow_nonconst_size;
 
 /* If we should generate ELF common symbols with the STT_COMMON type.  */
 extern int flag_use_elf_stt_common;
+
+/* TRUE iff GNU Build attribute notes should
+   be generated if none are in the input files.  */
+extern bfd_boolean flag_generate_build_notes;
 
 /* If section name substitution sequences should be honored */
 COMMON int flag_sectname_subst;
@@ -626,6 +652,13 @@ COMMON int flag_sectname_subst;
 #endif
 #if OCTETS_PER_BYTE != (1<<OCTETS_PER_BYTE_POWER)
  #error "Octets per byte conflicts with its power-of-two definition!"
+#endif
+
+#if defined OBJ_ELF || defined OBJ_MAYBE_ELF
+/* On ELF platforms, mark debug sections with SEC_ELF_OCTETS */
+#define SEC_OCTETS (IS_ELF ? SEC_ELF_OCTETS : 0)
+#else
+#define SEC_OCTETS 0
 #endif
 
 #endif /* GAS */

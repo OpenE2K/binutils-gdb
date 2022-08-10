@@ -1,5 +1,5 @@
 # ; -*- mode: sh ; -*-
-# Copyright (C) 2013-2017 Free Software Foundation, Inc.
+# Copyright (C) 2013-2020 Free Software Foundation, Inc.
 #
 # This file is part of GDB.
 #
@@ -54,36 +54,44 @@
 case ${gdb_host} in
     *linux*)
 	NAT_FILE='config/nm-linux.h'
-	NATDEPFILES='inf-ptrace.o fork-child.o fork-inferior.o proc-service.o \
-		linux-thread-db.o linux-nat.o linux-osdata.o linux-fork.o \
-		linux-procfs.o linux-ptrace.o linux-waitpid.o \
-		linux-personality.o linux-namespaces.o'
+	NATDEPFILES='inf-ptrace.o fork-child.o nat/fork-inferior.o \
+		proc-service.o \
+		linux-thread-db.o linux-nat.o nat/linux-osdata.o linux-fork.o \
+		nat/linux-procfs.o nat/linux-ptrace.o nat/linux-waitpid.o \
+		nat/linux-personality.o nat/linux-namespaces.o'
 	NAT_CDEPS='$(srcdir)/proc-service.list'
 	LOADLIBES='-ldl $(RDYNAMIC)'
 	;;
     fbsd*)
-	NATDEPFILES='fork-child.o fork-inferior.o inf-ptrace.o fbsd-nat.o'
+	NATDEPFILES='fork-child.o nat/fork-inferior.o inf-ptrace.o fbsd-nat.o'
 	HAVE_NATIVE_GCORE_HOST=1
 	LOADLIBES='-lkvm'
 	;;
     nbsd*)
-	NATDEPFILES='fork-child.o fork-inferior.o inf-ptrace.o'
+	NATDEPFILES='fork-child.o nat/fork-inferior.o inf-ptrace.o'
+	HAVE_NATIVE_GCORE_HOST=1
 	;;
     obsd*)
-	NATDEPFILES='fork-child.o fork-inferior.o inf-ptrace.o'
+	NATDEPFILES='fork-child.o nat/fork-inferior.o inf-ptrace.o'
 	;;
     cygwin*)
-	NATDEPFILES='x86-nat.o x86-dregs.o windows-nat.o'
+	NATDEPFILES='x86-nat.o nat/x86-dregs.o windows-nat.o nat/windows-nat.o'
 	;;
     mingw*)
-	NATDEPFILES='x86-nat.o x86-dregs.o windows-nat.o'
+	NATDEPFILES='x86-nat.o nat/x86-dregs.o windows-nat.o nat/windows-nat.o'
 	;;
     aix)
-	NATDEPFILES='fork-inferior.o fork-child.o inf-ptrace.o'
+	NATDEPFILES='nat/fork-inferior.o fork-child.o inf-ptrace.o'
 	;;
     darwin)
-	NATDEPFILES='fork-child.o fork-inferior.o darwin-nat.o \
+	NATDEPFILES='fork-child.o nat/fork-inferior.o darwin-nat.o \
 	    darwin-nat-info.o'
+	;;
+    sol2)
+	NATDEPFILES='fork-child.o nat/fork-inferior.o \
+	    procfs.o proc-api.o proc-events.o proc-flags.o proc-why.o \
+	    sol-thread.o'
+	HAVE_NATIVE_GCORE_HOST=1
         ;;
 esac
 
@@ -108,7 +116,7 @@ case ${gdb_host} in
 	case ${gdb_host_cpu} in
 	    alpha)
 		# Host: Little-endian Alpha running Linux
-		NATDEPFILES="${NATDEPFILES} alpha-linux-nat.o"
+		NATDEPFILES="${NATDEPFILES} linux-nat-trad.o alpha-linux-nat.o"
 		# doublest.c currently assumes some properties of FP arithmetic
 		# on the host which require this.
 		MH_CFLAGS='-mieee'
@@ -129,7 +137,7 @@ case ${gdb_host} in
 	    i386)
 		# Native config information for GDB on amd64
 		# systems running Cygwin.
-		NATDEPFILES="${NATDEPFILES} amd64-windows-nat.o"
+		NATDEPFILES="${NATDEPFILES} i386-windows-nat.o amd64-windows-nat.o"
 		;;
 	esac
 	;;
@@ -138,17 +146,26 @@ case ${gdb_host} in
 	    i386)
 		# Host: IA86 running Darwin
 		NATDEPFILES="${NATDEPFILES} i386-darwin-nat.o x86-nat.o \
-		    x86-dregs.o amd64-nat.o"
+		    nat/x86-dregs.o amd64-nat.o"
 		;;
 	esac
 	;;
     fbsd)
 	case ${gdb_host_cpu} in
+	    aarch64)
+		# Host: FreeBSD/aarch64
+		NATDEPFILES="${NATDEPFILES} aarch64-fbsd-nat.o"
+		LOADLIBES=
+		;;
+	    arm)
+		# Host: FreeBSD/arm
+		NATDEPFILES="${NATDEPFILES} arm-fbsd-nat.o"
+		LOADLIBES=
+		;;
 	    i386)
 		# Host: FreeBSD/i386
-		NATDEPFILES="${NATDEPFILES} x86-nat.o x86-dregs.o \
+		NATDEPFILES="${NATDEPFILES} x86-nat.o nat/x86-dregs.o \
 		x86-bsd-nat.o i386-bsd-nat.o i386-fbsd-nat.o bsd-kvm.o"
-		NAT_FILE='nm-fbsd.h'
 		;;
 	    mips)
 		# Host: FreeBSD/mips
@@ -159,6 +176,10 @@ case ${gdb_host} in
 		# Native config information for GDB on PowerPC
 		# systems running FreeBSD.
 		NATDEPFILES="${NATDEPFILES} ppc-fbsd-nat.o bsd-kvm.o"
+		;;
+	    riscv*)
+		# Host: FreeBSD/riscv
+		NATDEPFILES="${NATDEPFILES} riscv-fbsd-nat.o"
 		;;
 	    sparc)
 		# Host: FreeBSD/sparc64
@@ -172,7 +193,8 @@ case ${gdb_host} in
 	    i386)
 		# Host: FreeBSD/amd64
 		NATDEPFILES="${NATDEPFILES} amd64-nat.o amd64-bsd-nat.o \
-		amd64-fbsd-nat.o bsd-kvm.o x86-nat.o x86-dregs.o x86-bsd-nat.o"
+		amd64-fbsd-nat.o bsd-kvm.o x86-nat.o nat/x86-dregs.o \
+		x86-bsd-nat.o"
 		;;
 	esac
 	;;
@@ -182,7 +204,7 @@ case ${gdb_host} in
 		# Host: Intel x86 running DJGPP
 		# We include several header files from config/djgpp
 		MH_CFLAGS='-I$(srcdir)/config/djgpp'
-		NATDEPFILES='go32-nat.o x86-nat.o x86-dregs.o'
+		NATDEPFILES='go32-nat.o x86-nat.o nat/x86-dregs.o'
 		XM_CLIBS='-ldbg'
 		;;
 	esac
@@ -192,7 +214,8 @@ case ${gdb_host} in
 	    i386)
 		# Host: Intel 386 running the GNU Hurd
 		NATDEPFILES='i386-gnu-nat.o gnu-nat.o \
-		     x86-nat.o x86-dregs.o fork-child.o \
+		     x86-nat.o nat/x86-dregs.o fork-child.o \
+		     nat/fork-inferior.o \
 		     notify_S.o process_reply_S.o msg_reply_S.o \
 		     msg_U.o exc_request_U.o exc_request_S.o'
 		HAVE_NATIVE_GCORE_HOST=1
@@ -206,22 +229,14 @@ case ${gdb_host} in
 		;;
 	esac
 	;;
-    i386sol2)
-	case ${gdb_host_cpu} in
-	    i386)
-		# Host: Solaris x86
-		NATDEPFILES='fork-child.o i386-v4-nat.o i386-sol2-nat.o \
-		procfs.o proc-api.o proc-events.o proc-flags.o proc-why.o'
-		HAVE_NATIVE_GCORE_HOST=1
-		;;
-	esac
-	;;
     linux)
 	case ${gdb_host_cpu} in
 	    aarch64)
 		#  Host: AArch64 based machine running GNU/Linux
 		NATDEPFILES="${NATDEPFILES} aarch64-linux-nat.o \
-		aarch32-linux-nat.o aarch64-linux-hw-point.o aarch64-linux.o"
+		aarch32-linux-nat.o nat/aarch64-linux-hw-point.o \
+		nat/aarch64-linux.o \
+		nat/aarch64-sve-linux-ptrace.o"
 		;;
 	    arm)
 		# Host: ARM based machine running GNU/Linux
@@ -230,9 +245,9 @@ case ${gdb_host} in
 		;;
 	    i386)
 		# Host: Intel 386 running GNU/Linux.
-		NATDEPFILES="${NATDEPFILES} x86-nat.o x86-dregs.o \
-		i386-linux-nat.o x86-linux-nat.o linux-btrace.o \
-		x86-linux.o x86-linux-dregs.o"
+		NATDEPFILES="${NATDEPFILES} x86-nat.o nat/x86-dregs.o \
+		i386-linux-nat.o x86-linux-nat.o nat/linux-btrace.o \
+		nat/x86-linux.o nat/x86-linux-dregs.o"
 		;;
 	    ia64)
 		# Host: Intel IA-64 running GNU/Linux
@@ -248,8 +263,8 @@ case ${gdb_host} in
 		;;
 	    mips)
 		# Host: Linux/MIPS
-		NATDEPFILES="${NATDEPFILES} mips-linux-nat.o \
-		mips-linux-watch.o"
+		NATDEPFILES="${NATDEPFILES} linux-nat-trad.o \
+		mips-linux-nat.o nat/mips-linux-watch.o"
 		;;
 	    pa)
 		# Host: Hewlett-Packard PA-RISC machine, running Linux
@@ -257,7 +272,12 @@ case ${gdb_host} in
 		;;
 	    powerpc)
 		# Host: PowerPC, running Linux
-		NATDEPFILES="${NATDEPFILES} ppc-linux-nat.o"
+		NATDEPFILES="${NATDEPFILES} ppc-linux-nat.o nat/ppc-linux.o"
+		;;
+	    riscv*)
+		# Host: RISC-V, running Linux
+		NATDEPFILES="${NATDEPFILES} riscv-linux-nat.o \
+		nat/riscv-linux-tdesc.o"
 		;;
 	    s390)
 		# Host: S390, running Linux
@@ -282,9 +302,11 @@ case ${gdb_host} in
 	case ${gdb_host_cpu} in
 	    i386)
 		# Host: GNU/Linux x86-64
-		NATDEPFILES="${NATDEPFILES} x86-nat.o x86-dregs.o \
-		amd64-nat.o amd64-linux-nat.o x86-linux-nat.o linux-btrace.o \
-		x86-linux.o x86-linux-dregs.o amd64-linux-siginfo.o"
+		NATDEPFILES="${NATDEPFILES} x86-nat.o nat/x86-dregs.o \
+		amd64-nat.o amd64-linux-nat.o x86-linux-nat.o \
+		nat/linux-btrace.o \
+		nat/x86-linux.o nat/x86-linux-dregs.o \
+		nat/amd64-linux-siginfo.o"
 		;;
 	    sparc)
 		# Host: GNU/Linux UltraSPARC
@@ -303,7 +325,7 @@ case ${gdb_host} in
     mingw64)
 	case ${gdb_host_cpu} in
 	    i386)
-		NATDEPFILES="${NATDEPFILES} amd64-windows-nat.o"
+		NATDEPFILES="${NATDEPFILES} i386-windows-nat.o amd64-windows-nat.o"
 		;;
 	esac
 	;;
@@ -338,18 +360,19 @@ case ${gdb_host} in
 	case ${gdb_host_cpu} in
 	    i386)
 		# Host: NetBSD/amd64
-		NATDEPFILES="${NATDEPFILES} nbsd-nat.o amd64-nat.o \
-		x86-bsd-nat.o amd64-bsd-nat.o amd64-nbsd-nat.o"
+		NATDEPFILES="${NATDEPFILES} nbsd-nat.o amd64-nat.o x86-nat.o \
+		nat/x86-dregs.o x86-bsd-nat.o amd64-bsd-nat.o amd64-nbsd-nat.o"
 		;;
 	    sparc)
 		# Host: NetBSD/sparc64
 		NATDEPFILES="${NATDEPFILES} sparc64-nbsd-nat.o sparc-nat.o \
 		bsd-kvm.o"
+		LOADLIBES='-lkvm'
 		;;
 
 	esac
 	;;
-    nbdself)
+    nbsdelf)
 	case ${gdb_host_cpu} in
 	    arm)
 		# Host: NetBSD/arm
@@ -357,8 +380,9 @@ case ${gdb_host} in
 		;;
 	    i386)
 		# Host: NetBSD/i386 ELF
-		NATDEPFILES="${NATDEPFILES} nbsd-nat.o x86-bsd-nat.o \
-		i386-bsd-nat.o i386-nbsd-nat.o bsd-kvm.o"
+		NATDEPFILES="${NATDEPFILES} nbsd-nat.o x86-nat.o \
+		nat/x86-dregs.o \
+		x86-bsd-nat.o i386-bsd-nat.o i386-nbsd-nat.o bsd-kvm.o"
 		LOADLIBES='-lkvm'
 		;;
 	    m68k)
@@ -402,10 +426,6 @@ case ${gdb_host} in
 		NATDEPFILES="${NATDEPFILES} m68k-bsd-nat.o bsd-kvm.o"
 		LOADLIBES='-lkvm'
 		;;
-	    m88k)
-		# Host: OpenBSD/m88k
-		NATDEPFILES="${NATDEPFILES} m88k-bsd-nat.o"
-		;;
 	    pa)
 		# Host: OpenBSD/hppa
 		NATDEPFILES="${NATDEPFILES} obsd-nat.o hppa-obsd-nat.o"
@@ -426,8 +446,9 @@ case ${gdb_host} in
 	case ${gdb_host_cpu} in
 	    i386)
 		# Host: OpenBSD/amd64
-		NATDEPFILES="${NATDEPFILES} obsd-nat.o amd64-nat.o \
-		x86-bsd-nat.o amd64-bsd-nat.o amd64-obsd-nat.o bsd-kvm.o"
+		NATDEPFILES="${NATDEPFILES} obsd-nat.o amd64-nat.o x86-nat.o \
+		x86-bsd-nat.o amd64-bsd-nat.o amd64-obsd-nat.o bsd-kvm.o \
+		nat/x86-dregs.o"
 		LOADLIBES='-lkvm'
 		;;
 	    mips)
@@ -447,44 +468,21 @@ case ${gdb_host} in
 	    powerpc)
 		# Host: PowerPC64, running Linux
 		XM_CLIBS=
-		NATDEPFILES="${NATDEPFILES} ppc-linux-nat.o ppc-linux.o"
+		NATDEPFILES="${NATDEPFILES} ppc-linux-nat.o nat/ppc-linux.o"
 		;;
 	esac
 	;;
     sol2)
 	case ${gdb_host_cpu} in
+	    i386)
+		# Host: Solaris x86_64
+		NATDEPFILES="${NATDEPFILES} \
+		amd64-nat.o i386-sol2-nat.o"
+		;;
 	    sparc)
 		# Host: Solaris SPARC & UltraSPARC
 		NAT_FILE='nm-sol2.h'
-		NATDEPFILES='sparc-sol2-nat.o \
-		fork-child.o \
-		procfs.o proc-api.o proc-events.o proc-flags.o proc-why.o'
-		HAVE_NATIVE_GCORE_HOST=1
-		;;
-	esac
-	;;
-    sol2-64)
-	case ${gdb_host_cpu} in
-	    i386)
-		# Host: Solaris x86_64
-		NATDEPFILES='fork-child.o amd64-nat.o i386-v4-nat.o i386-sol2-nat.o \
-		procfs.o proc-api.o proc-events.o proc-flags.o proc-why.o'
-		HAVE_NATIVE_GCORE_HOST=1
-		;;
-	esac
-	;;
-    spu-linux)
-	case ${gdb_host_cpu} in
-	    powerpc)
-		# Target: Cell BE (PowerPC64 + SPU)
-		# This implements a 'pseudo-native' GDB running on the
-		# PPU side of the Cell BE and debugging the SPU side.
-		NAT_FILE=
-		NAT_CDEPS=
-		LOADLIBES=
-		NATDEPFILES='spu-linux-nat.o fork-child.o inf-ptrace.o \
-		      linux-procfs.o linux-ptrace.o linux-waitpid.o \
-		      linux-personality.o linux-namespaces.o'
+		NATDEPFILES="${NATDEPFILES} sparc-sol2-nat.o"
 		;;
 	esac
 	;;

@@ -1,4 +1,4 @@
-# Copyright 1998-2017 Free Software Foundation, Inc.
+# Copyright 1998-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ if {[build_executable $testfile.exp $testfile \
 # start gdb -- start gdb running, default procedure
 #
 proc dbx_gdb_start { } {
-    global verbose
     global GDB
     global INTERNAL_GDBFLAGS GDBFLAGS
     global prompt
@@ -148,12 +147,8 @@ proc dbx_reinitialize_dir { subdir } {
 # right sequence of events, allowing gdb_load to do its normal thing? This way
 # remotes and simulators will work, too.
 #
-# [drow 2002-03-30]: We can restore the old gdb_file_cmd afterwards, though.
-set old_gdb_file_cmd_args [info args gdb_file_cmd]
-set old_gdb_file_cmd_body [info body gdb_file_cmd]
 
-proc gdb_file_cmd {arg} {
-    global verbose
+proc local_gdb_file_cmd {arg} {
     global loadpath
     global loadfile
     global GDB
@@ -174,22 +169,7 @@ proc gdb_file_cmd {arg} {
 
     send_gdb "symbol-file $arg\n"
     gdb_expect {
-	-re "Detected 64-bit symbol file.\r\nInvoking.*gdb64.*$gdb_prompt $" {
-            verbose "\t\tLoaded $arg into the $GDB"
-            send_gdb "exec-file $arg\n" 
-            gdb_expect {
-                -re ".*$gdb_prompt $" {
-                    verbose "\t\tLoaded $arg with new symbol table into $GDB"
-                    return 0
-                }
-                timeout {
-                    perror "(timeout) Couldn't load $arg"
-                    return -1
-                }
-            }
-            return 0
-        }
-        -re "Reading symbols from.*done.*$gdb_prompt $" {
+        -re "Reading symbols from.*$gdb_prompt $" {
             verbose "\t\tLoaded $arg into the $GDB"
             send_gdb "exec-file $arg\n" 
             gdb_expect {
@@ -249,7 +229,7 @@ proc test_breakpoints { } {
     set stop_line [gdb_get_line_number "stop-at-call"]
     gdb_test "stop at average.c:$stop_line" "Breakpoint.*at.*: file.*average\.c, line $stop_line.*"
     gdb_test "stop in average.c:$stop_line" "Usage: stop in <function . address>"
-    gdb_test "stop at main" "Usage: stop at <line>"
+    gdb_test "stop at main" "Usage: stop at LINE"
 }
 
 #
@@ -282,7 +262,7 @@ proc test_assign { } {
 #test_whereis
 #
 proc test_whereis { } {
-    gdb_test "whereis my_list" "All variables matching regular expression \"my_list\":\r\n\r\nFile.*average\.c:\r\nstatic int my_list\\\[10\\\];"
+    gdb_test "whereis my_list" "All variables matching regular expression \"my_list\":\r\n\r\nFile.*average\.c:\r\n.*\tstatic int my_list\\\[10\\\];"
 }
 
 #
@@ -303,24 +283,24 @@ proc test_func { } {
 # Start with a fresh gdb.
 
 gdb_exit
-global GDBFLAGS
-set saved_gdbflags $GDBFLAGS
 
-set GDBFLAGS "$GDBFLAGS --dbx"
-gdb_start
-dbx_reinitialize_dir $srcdir/$subdir
-gdb_load ${binfile}
+with_override gdb_file_cmd local_gdb_file_cmd {
+    save_vars GDBFLAGS {
+	set GDBFLAGS "$GDBFLAGS --dbx"
 
-test_breakpoints
-test_assign
-test_whereis
-gdb_test "file average.c:1" "1\[ \t\]+/. This is a sample program.*"
-test_func
+	gdb_start
+	dbx_reinitialize_dir $srcdir/$subdir
+	gdb_load ${binfile}
 
-#exit and cleanup
-gdb_exit
+	test_breakpoints
+	test_assign
+	test_whereis
+	gdb_test "file average.c:1" "1\[ \t\]+/. This is a sample program.*"
+	test_func
 
-set GDBFLAGS $saved_gdbflags
-eval proc gdb_file_cmd {$old_gdb_file_cmd_args} {$old_gdb_file_cmd_body}
+	#exit and cleanup
+	gdb_exit
+    }
+}
 
 return 0

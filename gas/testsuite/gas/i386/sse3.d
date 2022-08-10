@@ -10,7 +10,7 @@ Disassembly of section .text:
    4:	66 0f d0 ca [ 	]*addsubpd %xmm2,%xmm1
    8:	f2 0f d0 13 [ 	]*addsubps \(%ebx\),%xmm2
    c:	f2 0f d0 dc [ 	]*addsubps %xmm4,%xmm3
-  10:	df 88 90 90 90 90 [ 	]*fisttp -0x6f6f6f70\(%eax\)
+  10:	df 88 90 90 90 90 [ 	]*fisttps -0x6f6f6f70\(%eax\)
   16:	db 88 90 90 90 90 [ 	]*fisttpl -0x6f6f6f70\(%eax\)
   1c:	dd 88 90 90 90 90 [ 	]*fisttpll -0x6f6f6f70\(%eax\)
   22:	66 0f 7c 65 00 [ 	]*haddpd 0x0\(%ebp\),%xmm4
@@ -36,4 +36,7 @@ Disassembly of section .text:
   70:	67 0f 01 c8 [ 	]*monitor %ax,%ecx,%edx
   74:	f2 0f 12 38 [ 	]*movddup \(%eax\),%xmm7
   78:	f2 0f 12 38 [ 	]*movddup \(%eax\),%xmm7
+[ 	]*[0-9a-f]+:	0f 01 c8[ 	]+monitor %eax,%ecx,%edx
+[ 	]*[0-9a-f]+:	67 0f 01 c8[ 	]+monitor %ax,%ecx,%edx
+[ 	]*[0-9a-f]+:	0f 01 c9[ 	]+mwait  %eax,%ecx
 #pass

@@ -1,4 +1,4 @@
-#   Copyright 1998-2017 Free Software Foundation, Inc.
+#   Copyright 1998-2020 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,8 +22,12 @@ gdb_exit
 gdb_start
 
 standard_testfile actions.c
+if ![gdb_trace_common_supports_arch] {
+    unsupported "no trace-common.h support for arch"
+    return -1
+}
 if { [gdb_compile "$srcdir/$subdir/$srcfile" $binfile \
-	  executable {debug nowarnings}] != "" } {
+	  executable {debug nowarnings nopie}] != "" } {
     untested "failed to compile"
     return -1
 }
@@ -160,7 +164,7 @@ gdb_trace_setactions "9.x: setup TP to collect expressions" \
 
 gdb_test "tstart" ".*" ""
 
-gdb_test "break end" ".*" ""
+gdb_breakpoint "end" qualified
 gdb_test "continue" \
     "Continuing.*Breakpoint $decimal, end.*" \
     "run trace experiment"
@@ -387,7 +391,7 @@ proc use_collected_data { data_source } {
 	# There is always a thread of an inferior, either a live one or
 	# a faked one.
 	gdb_test "info threads" "\\* ${decimal}    (process|Thread) \[0-9\.\]+\[ \t\].*"
-	gdb_test "info inferiors" "\\* 1    process ${decimal} \[ \t\]+${binfile}.*"
+	gdb_test "info inferiors" "\\* 1    process ${decimal} \[ \t\]+\[^\r\n\]*\[ \t\]+${binfile}.*"
     }
 }
 

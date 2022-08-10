@@ -3,7 +3,7 @@
 #source: mask_1-armv8-ar.s
 #as: -march=armv8-r
 # This test is only valid on ELF based ports.
-#not-target: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
+#notarget: *-*-pe *-*-wince
 
 # Test VFMA instruction disassembly
 

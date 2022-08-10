@@ -1,5 +1,5 @@
 /* tc-cr16.c -- Assembler code for the CR16 CPU core.
-   Copyright (C) 2007-2017 Free Software Foundation, Inc.
+   Copyright (C) 2007-2020 Free Software Foundation, Inc.
 
    Contributed by M R Swami Reddy <MR.Swami.Reddy@nsc.com>
 
@@ -178,7 +178,12 @@ l_cons (int nbytes)
               if ((width = exp.X_add_number) >
                   (unsigned int)(BITS_PER_CHAR * nbytes))
                 {
-                  as_warn (_("field width %lu too big to fit in %d bytes: truncated to %d bits"), width, nbytes, (BITS_PER_CHAR * nbytes));
+		  as_warn (ngettext ("field width %lu too big to fit in %d"
+				     " byte: truncated to %d bits",
+				     "field width %lu too big to fit in %d"
+				     " bytes: truncated to %d bits",
+				     nbytes),
+			   width, nbytes, (BITS_PER_CHAR * nbytes));
                   width = BITS_PER_CHAR * nbytes;
                 }                   /* Too big.  */
 
@@ -637,7 +642,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, asection *sec, fragS *fragP)
 {
   /* 'opcode' points to the start of the instruction, whether
      we need to change the instruction's fixed encoding.  */
-  char *opcode = fragP->fr_literal + fragP->fr_fix;
+  char *opcode = &fragP->fr_literal[0] + fragP->fr_fix;
   bfd_reloc_code_real_type reloc;
 
   subseg_change (sec, 0);
@@ -1119,8 +1124,7 @@ getreg_image (reg r)
 /* Issue a error message when register is illegal.  */
 #define IMAGE_ERR \
   as_bad (_("Illegal register (`%s') in Instruction: `%s'"), \
-            reg_name, ins_parse);                            \
-  break;
+	  reg_name, ins_parse);
 
   switch (rreg->type)
     {
@@ -1129,6 +1133,7 @@ getreg_image (reg r)
         return rreg->image;
       else
         IMAGE_ERR;
+      break;
 
     case CR16_P_REGTYPE:
       return rreg->image;
@@ -1136,6 +1141,7 @@ getreg_image (reg r)
 
     default:
       IMAGE_ERR;
+      break;
     }
 
   return 0;
@@ -2323,8 +2329,8 @@ assemble_insn (const char *mnemonic, ins *insn)
       match = 1;
       break;
 
-/* Try again with next instruction.  */
-next_insn:
+      /* Try again with next instruction.  */
+    next_insn:
       instruction++;
     }
 
@@ -2554,8 +2560,11 @@ md_assemble (char *op)
   if (streq ("cinv", op))
     {
      /* Validate the cinv options.  */
+      unsigned int op_len, param_len;
       check_cinv_options (param);
-      strcat (op, param);
+      op_len = strlen (op);
+      param_len = strlen (param) + 1;
+      memmove (op + op_len, param, param_len);
     }
 
   /* MAPPING - SHIFT INSN, if imm4/imm16 positive values

@@ -1,4 +1,4 @@
-# Copyright 2009-2017 Free Software Foundation, Inc.
+# Copyright 2009-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -86,7 +86,15 @@ if [supports_process_record] {
 
 set end_part_one [gdb_get_line_number " end part one" "$srcfile"]
 set end_part_two [gdb_get_line_number " end part two" "$srcfile"]
-gdb_test "until $end_part_one" " end part one.*" "run until end part one"
+gdb_test_multiple "until $end_part_one" "run until end part one" {
+    -wrap -re " end part one.*" {
+	pass $gdb_test_name
+    }
+    -wrap -re "Process record does not support instruction 0xfae64 at.*" {
+	kfail "gdb/25038" $gdb_test_name
+	return -1
+    }
+}
 
 gdb_test "reverse-step" " shr1 three .*" "reverse-step third shr1"
 gdb_test "reverse-step" " shr1 two .*"   "reverse-step second shr1"

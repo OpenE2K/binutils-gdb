@@ -1,5 +1,5 @@
 /* BFD back-end for OSF/1 core files.
-   Copyright (C) 1993-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -70,14 +70,14 @@ make_bfd_asection (bfd *abfd,
   return asect;
 }
 
-static const bfd_target *
+static bfd_cleanup
 osf_core_core_file_p (bfd *abfd)
 {
   int val;
   int i;
   char *secname;
   struct core_filehdr core_header;
-  bfd_size_type amt;
+  size_t amt;
 
   amt = sizeof core_header;
   val = bfd_bread (& core_header, amt, abfd);
@@ -124,7 +124,7 @@ osf_core_core_file_p (bfd *abfd)
 	  flags = SEC_HAS_CONTENTS;
 	  break;
 	default:
-	  _bfd_error_handler (_("Unhandled OSF/1 core file section type %d\n"),
+	  _bfd_error_handler (_("unhandled OSF/1 core file section type %d"),
 			      core_scnhdr.scntype);
 	  continue;
 	}
@@ -138,7 +138,7 @@ osf_core_core_file_p (bfd *abfd)
 
   /* OK, we believe you.  You're a core file (sure, sure).  */
 
-  return abfd->xvec;
+  return _bfd_no_cleanup;
 
  fail:
   bfd_release (abfd, core_hdr (abfd));
@@ -201,12 +201,16 @@ const bfd_target core_osf_vec =
       osf_core_core_file_p		/* a core file */
     },
     {				/* bfd_set_format */
-      bfd_false, bfd_false,
-      bfd_false, bfd_false
+      _bfd_bool_bfd_false_error,
+      _bfd_bool_bfd_false_error,
+      _bfd_bool_bfd_false_error,
+      _bfd_bool_bfd_false_error
     },
     {				/* bfd_write_contents */
-      bfd_false, bfd_false,
-      bfd_false, bfd_false
+      _bfd_bool_bfd_false_error,
+      _bfd_bool_bfd_false_error,
+      _bfd_bool_bfd_false_error,
+      _bfd_bool_bfd_false_error
     },
 
     BFD_JUMP_TABLE_GENERIC (_bfd_generic),

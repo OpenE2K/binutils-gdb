@@ -1,5 +1,5 @@
 /* Altera Nios II assembler.
-   Copyright (C) 2012-2017 Free Software Foundation, Inc.
+   Copyright (C) 2012-2020 Free Software Foundation, Inc.
    Contributed by Nigel Gray (ngray@altera.com).
    Contributed by Mentor Graphics, Inc.
 
@@ -1384,7 +1384,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	    nios2_diagnose_overflow (fixup, howto, fixP, value);
 
 	  /* Apply the right shift.  */
-	  fixup = ((signed)fixup) >> howto->rightshift;
+	  fixup = (offsetT) fixup >> howto->rightshift;
 
 	  /* Truncate the fixup to right size.  */
 	  switch (fixP->fx_r_type)
@@ -1396,13 +1396,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	      fixup = fixup & 0xFFFF;
 	      break;
 	    case BFD_RELOC_NIOS2_HIADJ16:
-	      fixup = ((((fixup >> 16) & 0xFFFF) + ((fixup >> 15) & 0x01))
-		       & 0xFFFF);
+	      fixup = ((fixup + 0x8000) >> 16) & 0xFFFF;
 	      break;
 	    default:
 	      {
-		int n = sizeof (fixup) * 8 - howto->bitsize;
-		fixup = (fixup << n) >> n;
+		fixup &= ((valueT) 1 << howto->bitsize) - 1;
 		break;
 	      }
 	    }
@@ -2712,7 +2710,7 @@ nios2_assemble_arg_R (const char *token, nios2_insn_infoS *insn)
 	  mask = (reglist & 0x00ffc000) >> 14;
 	  if (reglist & (1 << 28))
 	    mask |= 1 << 10;
-	  if (reglist & (1 << 31))
+	  if (reglist & (1u << 31))
 	    mask |= 1 << 11;
 	}
       insn->insn_code |= SET_IW_F1X4L17_REGMASK (mask);
@@ -3232,11 +3230,8 @@ nios2_insert_arg (char **parsed_args, const char *insert, int num,
 static void
 nios2_free_arg (char **parsed_args, int num ATTRIBUTE_UNUSED, int start)
 {
-  if (parsed_args[start])
-    {
-      free (parsed_args[start]);
-      parsed_args[start] = NULL;
-    }
+  free (parsed_args[start]);
+  parsed_args[start] = NULL;
 }
 
 /* This function swaps the pseudo-op for a real op.  */
@@ -3244,16 +3239,29 @@ static nios2_ps_insn_infoS*
 nios2_translate_pseudo_insn (nios2_insn_infoS *insn)
 {
 
+  const struct nios2_opcode *op = insn->insn_nios2_opcode;
   nios2_ps_insn_infoS *ps_insn;
+  unsigned int tokidx, ntok;
 
   /* Find which real insn the pseudo-op translates to and
      switch the insn_info ptr to point to it.  */
-  ps_insn = nios2_ps_lookup (insn->insn_nios2_opcode->name);
+  ps_insn = nios2_ps_lookup (op->name);
 
   if (ps_insn != NULL)
     {
       insn->insn_nios2_opcode = nios2_opcode_lookup (ps_insn->insn);
       insn->insn_tokens[0] = insn->insn_nios2_opcode->name;
+      
+      /* Make sure there are enough arguments.  */
+      ntok = ((op->pinfo & NIOS2_INSN_OPTARG)
+	      ? op->num_args - 1 : op->num_args);
+      for (tokidx = 1; tokidx <= ntok; tokidx++)
+	if (insn->insn_tokens[tokidx] == NULL)
+	  {
+	    as_bad ("missing argument");
+	    return NULL;
+	  }
+
       /* Modify the args so they work with the real insn.  */
       ps_insn->arg_modifer_func ((char **) insn->insn_tokens,
 				 ps_insn->arg_modifier, ps_insn->num,
@@ -3684,6 +3692,7 @@ md_assemble (char *op_str)
   unsigned long saved_pinfo = 0;
   nios2_insn_infoS thisinsn;
   nios2_insn_infoS *insn = &thisinsn;
+  bfd_boolean ps_error = FALSE;
 
   /* Make sure we are aligned on an appropriate boundary.  */
   if (nios2_current_align < nios2_min_align)
@@ -3730,35 +3739,45 @@ md_assemble (char *op_str)
 	 with its real equivalent, and then continue.  */
       if ((insn->insn_nios2_opcode->pinfo & NIOS2_INSN_MACRO)
 	  == NIOS2_INSN_MACRO)
-	ps_insn = nios2_translate_pseudo_insn (insn);
+	{
+	  ps_insn = nios2_translate_pseudo_insn (insn);
+	  if (!ps_insn)
+	    ps_error = TRUE;
+	}
 
-      /* Assemble the parsed arguments into the instruction word.  */
-      nios2_assemble_args (insn);
+      /* If we found invalid pseudo-instruction syntax, the error's already
+	 been diagnosed in nios2_translate_pseudo_insn, so skip
+	 remaining processing.  */
+      if (!ps_error)
+	{
+	  /* Assemble the parsed arguments into the instruction word.  */
+	  nios2_assemble_args (insn);
 
-      /* Handle relaxation and other transformations.  */
-      if (nios2_as_options.relax != relax_none
-	  && !nios2_as_options.noat
-	  && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_UBRANCH)
-	output_ubranch (insn);
-      else if (nios2_as_options.relax != relax_none
-	       && !nios2_as_options.noat
-	       && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CBRANCH)
-	output_cbranch (insn);
-      else if (nios2_as_options.relax == relax_all
-	       && !nios2_as_options.noat
-	       && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CALL
-	       && insn->insn_reloc
-	       && ((insn->insn_reloc->reloc_type
-		    == BFD_RELOC_NIOS2_CALL26)
-		   || (insn->insn_reloc->reloc_type
-		       == BFD_RELOC_NIOS2_CALL26_NOAT)))
-	output_call (insn);
-      else if (saved_pinfo == NIOS2_INSN_MACRO_MOVIA)
-	output_movia (insn);
-      else
-	output_insn (insn);
-      if (ps_insn)
-	nios2_cleanup_pseudo_insn (insn, ps_insn);
+	  /* Handle relaxation and other transformations.  */
+	  if (nios2_as_options.relax != relax_none
+	      && !nios2_as_options.noat
+	      && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_UBRANCH)
+	    output_ubranch (insn);
+	  else if (nios2_as_options.relax != relax_none
+		   && !nios2_as_options.noat
+		   && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CBRANCH)
+	    output_cbranch (insn);
+	  else if (nios2_as_options.relax == relax_all
+		   && !nios2_as_options.noat
+		   && insn->insn_nios2_opcode->pinfo & NIOS2_INSN_CALL
+		   && insn->insn_reloc
+		   && ((insn->insn_reloc->reloc_type
+			== BFD_RELOC_NIOS2_CALL26)
+		       || (insn->insn_reloc->reloc_type
+			   == BFD_RELOC_NIOS2_CALL26_NOAT)))
+	    output_call (insn);
+	  else if (saved_pinfo == NIOS2_INSN_MACRO_MOVIA)
+	    output_movia (insn);
+	  else
+	    output_insn (insn);
+	  if (ps_insn)
+	    nios2_cleanup_pseudo_insn (insn, ps_insn);
+	}
     }
   else
     /* Unrecognised instruction - error.  */
@@ -3989,31 +4008,48 @@ nios2_elf_section_flags (flagword flags, int attr, int type ATTRIBUTE_UNUSED)
   return flags;
 }
 
-/* Implement TC_PARSE_CONS_EXPRESSION to handle %tls_ldo(...) */
+/* Implement TC_PARSE_CONS_EXPRESSION to handle %tls_ldo(...) and
+   %gotoff(...).  */
 bfd_reloc_code_real_type
 nios2_cons (expressionS *exp, int size)
 {
-  bfd_reloc_code_real_type nios2_tls_ldo_reloc = BFD_RELOC_NONE;
+  bfd_reloc_code_real_type explicit_reloc = BFD_RELOC_NONE;
+  const char *reloc_name = NULL;
 
   SKIP_WHITESPACE ();
   if (input_line_pointer[0] == '%')
     {
       if (strprefix (input_line_pointer + 1, "tls_ldo"))
 	{
+	  reloc_name = "%tls_ldo";
 	  if (size != 4)
 	    as_bad (_("Illegal operands: %%tls_ldo in %d-byte data field"),
 		    size);
 	  else
 	    {
 	      input_line_pointer += 8;
-	      nios2_tls_ldo_reloc = BFD_RELOC_NIOS2_TLS_DTPREL;
+	      explicit_reloc = BFD_RELOC_NIOS2_TLS_DTPREL;
 	    }
 	}
-      if (nios2_tls_ldo_reloc != BFD_RELOC_NONE)
+      else if (strprefix (input_line_pointer + 1, "gotoff"))
+	{
+	  reloc_name = "%gotoff";
+	  if (size != 4)
+	    as_bad (_("Illegal operands: %%gotoff in %d-byte data field"),
+		    size);
+	  else
+	    {
+	      input_line_pointer += 7;
+	      explicit_reloc = BFD_RELOC_NIOS2_GOTOFF;
+	    }
+	}
+
+      if (explicit_reloc != BFD_RELOC_NONE)
 	{
 	  SKIP_WHITESPACE ();
 	  if (input_line_pointer[0] != '(')
-	    as_bad (_("Illegal operands: %%tls_ldo requires arguments in ()"));
+	    as_bad (_("Illegal operands: %s requires arguments in ()"),
+		    reloc_name);
 	  else
 	    {
 	      int c;
@@ -4031,29 +4067,32 @@ nios2_cons (expressionS *exp, int size)
 		  }
 
 	      if (c != ')')
-		as_bad (_("Illegal operands: %%tls_ldo requires arguments in ()"));
+		as_bad (_("Illegal operands: %s requires arguments in ()"),
+			reloc_name);
 	      else
 		{
 		  *end = '\0';
 		  expression (exp);
 		  *end = c;
 		  if (input_line_pointer != end)
-		    as_bad (_("Illegal operands: %%tls_ldo requires arguments in ()"));
+		    as_bad (_("Illegal operands: %s requires arguments in ()"),
+			    reloc_name);
 		  else
 		    {
 		      input_line_pointer++;
 		      SKIP_WHITESPACE ();
 		      c = *input_line_pointer;
 		      if (! is_end_of_line[c] && c != ',')
-			as_bad (_("Illegal operands: garbage after %%tls_ldo()"));
+			as_bad (_("Illegal operands: garbage after %s()"),
+				reloc_name);
 		    }
 		}
 	    }
 	}
     }
-  if (nios2_tls_ldo_reloc == BFD_RELOC_NONE)
+  if (explicit_reloc == BFD_RELOC_NONE)
     expression (exp);
-  return nios2_tls_ldo_reloc;
+  return explicit_reloc;
 }
 
 /* Implement HANDLE_ALIGN.  */

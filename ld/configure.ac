@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script
 dnl
-dnl   Copyright (C) 2012-2017 Free Software Foundation, Inc.
+dnl   Copyright (C) 2012-2020 Free Software Foundation, Inc.
 dnl
 dnl This file is free software; you can redistribute it and/or modify
 dnl it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@ dnl along with this program; see the file COPYING3.  If not see
 dnl <http://www.gnu.org/licenses/>.
 dnl
 
-AC_PREREQ(2.59)
 m4_include([../bfd/version.m4])
 AC_INIT([ld], BFD_VERSION)
 AC_CONFIG_SRCDIR(ldmain.c)
@@ -44,7 +43,7 @@ AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations],
 [case "${enableval}" in
   yes | "") AC_MSG_ERROR(enable-targets option must specify target names or 'all')
-            ;;
+	    ;;
   no)       enable_targets= ;;
   *)        enable_targets=$enableval ;;
 esac])dnl
@@ -120,7 +119,7 @@ AC_SUBST(installed_linker)
 
 AC_ARG_ENABLE([got],
 AS_HELP_STRING([--enable-got=<type>],
-               [GOT handling scheme (target, single, negative, multigot)]),
+	       [GOT handling scheme (target, single, negative, multigot)]),
 [case "${enableval}" in
   target | single | negative | multigot)  got_handling=$enableval ;;
   *)  AC_MSG_ERROR(bad value ${enableval} for --enable-got option) ;;
@@ -130,16 +129,16 @@ esac],
 case "${got_handling}" in
   target)
     AC_DEFINE([GOT_HANDLING_DEFAULT], [GOT_HANDLING_TARGET_DEFAULT],
-              [Define to choose default GOT handling scheme]) ;;
+	      [Define to choose default GOT handling scheme]) ;;
   single)
     AC_DEFINE([GOT_HANDLING_DEFAULT], [GOT_HANDLING_SINGLE],
-              [Define to choose default GOT handling scheme]) ;;
+	      [Define to choose default GOT handling scheme]) ;;
   negative)
     AC_DEFINE([GOT_HANDLING_DEFAULT], [GOT_HANDLING_NEGATIVE],
-              [Define to choose default GOT handling scheme]) ;;
+	      [Define to choose default GOT handling scheme]) ;;
   multigot)
     AC_DEFINE([GOT_HANDLING_DEFAULT], [GOT_HANDLING_MULTIGOT],
-              [Define to choose default GOT handling scheme]) ;;
+	      [Define to choose default GOT handling scheme]) ;;
   *)  AC_MSG_ERROR(bad value ${got_handling} for --enable-got option) ;;
 esac
 
@@ -177,6 +176,57 @@ AC_ARG_ENABLE(relro,
   no)  ac_default_ld_z_relro=0 ;;
 esac])dnl
 
+# Decide if DT_TEXTREL check should be enabled in ELF linker.
+ac_default_ld_textrel_check=unset
+AC_ARG_ENABLE([textrel-check],
+	      AC_HELP_STRING([--enable-textrel-check=@<:@yes|no|warning|error@:>@],
+			     [enable DT_TEXTREL check in ELF linker]),
+[case "${enableval}" in
+  yes|no|warning|error) ac_default_ld_textrel_check=${enableval} ;;
+esac])
+
+# Decide if -z separate-code should be enabled in ELF linker by default.
+ac_default_ld_z_separate_code=unset
+AC_ARG_ENABLE(separate-code,
+	      AS_HELP_STRING([--enable-separate-code],
+	      [enable -z separate-code in ELF linker by default]),
+[case "${enableval}" in
+  yes) ac_default_ld_z_separate_code=1 ;;
+  no) ac_default_ld_z_separate_code=0 ;;
+esac])
+
+# Decide which "--hash-style" to use by default
+# Provide a configure time option to override our default.
+AC_ARG_ENABLE([default-hash-style],
+AS_HELP_STRING([--enable-default-hash-style={sysv,gnu,both}],
+	       [use this default hash style]),
+[case "${enable_default_hash_style}" in
+  sysv | gnu | both) ;;
+  *) AC_MSG_ERROR([bad value ${enable_default_hash_style} for enable-default-hash-style option]) ;;
+esac],
+[case "${target}" in
+  # Enable gnu hash only on GNU targets, but not mips
+  mips*-*-*) enable_default_hash_style=sysv ;;
+  *-*-gnu* | *-*-linux* | *-*-nacl*) enable_default_hash_style=both ;;
+  *) enable_default_hash_style=sysv ;;
+esac])
+
+case "${enable_default_hash_style}" in
+  sysv | both) ac_default_emit_sysv_hash=1 ;;
+  *) ac_default_emit_sysv_hash=0 ;;
+esac
+
+case "${enable_default_hash_style}" in
+  gnu | both) ac_default_emit_gnu_hash=1 ;;
+  *) ac_default_emit_gnu_hash=0 ;;
+esac
+
+GCC_ENABLE([libctf], [yes], [], [Handle .ctf type-info sections])
+if test "${enable_libctf}" = yes; then
+    AC_DEFINE(ENABLE_LIBCTF, 1, [Handle .ctf type-info sections])
+fi
+AM_CONDITIONAL(ENABLE_LIBCTF, test "${enable_libctf}" = yes)
+
 AM_BINUTILS_WARNINGS
 
 AM_LC_MESSAGES
@@ -201,7 +251,7 @@ fi
 
 # host-specific stuff:
 
-ALL_LINGUAS="fr sv tr es da vi zh_CN zh_TW ga fi id bg it uk sr ru de"
+ALL_LINGUAS="bg da de es fi fr ga id it ja pt_BR ru sr sv tr uk vi zh_CN zh_TW"
 ZW_GNU_GETTEXT_SISTER_DIR
 AM_PO_SUBDIRS
 
@@ -230,15 +280,6 @@ dnl AC_CHECK_HEADERS(sys/mman.h)
 AC_FUNC_MMAP
 
 AC_SEARCH_LIBS([dlopen], [dl])
-AM_CONDITIONAL([ENABLE_PLUGINS], [test x$plugins = xyes])
-
-AC_ARG_ENABLE(debian-multiarch,
-[  --enable-debian-multiarch use debian multiarch library search paths],
-[case "${enableval}" in
- yes|no) ;;
- *) AC_MSG_ERROR([invalid --enable-debian-multiarch argument]) ;;
- esac], [enable_debian_multiarch=no])
-AC_SUBST(enable_debian_multiarch)
 
 AC_ARG_ENABLE(initfini-array,
 [  --disable-initfini-array do not use .init_array/.fini_array sections],
@@ -264,7 +305,11 @@ fi
 
 BFD_BINARY_FOPEN
 
-AC_CHECK_DECLS([strstr, free, sbrk, getenv, environ])
+AC_CHECK_DECLS([asprintf, environ, free, getenv, sbrk, strstr])
+
+# Link in zlib if we can.  This allows us to read and write
+# compressed CTF sections.
+AM_ZLIB
 
 # When converting linker scripts into strings for use in emulation
 # files, use astring.sed if the compiler supports ANSI string
@@ -292,12 +337,7 @@ EMUL=
 all_emuls=
 all_emul_extras=
 all_libpath=
-
-dnl We need to get an arbitrary number of tdir definitions into
-dnl Makefile.  We can't do it using AC_SUBST, because autoconf does
-dnl not permit literal newlines in an AC_SUBST variables.  So we use a
-dnl file.
-rm -f tdirs
+TDIRS=
 
 # If the host is 64-bit, then we enable 64-bit targets by default.
 # This is consistent with what ../bfd/configure.ac does.
@@ -349,19 +389,24 @@ do
 	  all_emuls="$all_emuls e${i}.o"
 	  eval result=\$tdir_$i
 	  test -z "$result" && result=$targ_alias
-	  echo tdir_$i=$result >> tdirs
+	  TDIRS="$TDIRS
+tdir_$i=$result"
 	  case "${i}" in
 	  *elf*)
 	    elf_list_options=TRUE
 	    ;;
 	  *)
-	    if $GREP "TEMPLATE_NAME=elf32" ${srcdir}/emulparams/${i}.sh >/dev/null 2>/dev/null; then
+	    if $GREP "TEMPLATE_NAME=elf" ${srcdir}/emulparams/${i}.sh >/dev/null 2>/dev/null; then
 	      elf_list_options=TRUE
 	    fi
 	    ;;
 	  esac
 	  if test "$elf_list_options" = "TRUE"; then
-	    . ${srcdir}/emulparams/${i}.sh
+	    source_sh()
+	    {
+	      . $1
+	    }
+	    source_sh ${srcdir}/emulparams/${i}.sh
 	    if test x${GENERATE_SHLIB_SCRIPT} = xyes; then
 	      elf_shlib_list_options=TRUE
 	    fi
@@ -416,13 +461,48 @@ AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_RELRO,
   $ac_default_ld_z_relro,
   [Define to 1 if you want to enable -z relro in ELF linker by default.])
 
+ac_default_ld_textrel_check_warning=0
+case "${ac_default_ld_textrel_check}" in
+  unset|no)
+    ac_default_ld_textrel_check=textrel_check_none
+    ;;
+  yes|warning)
+    ac_default_ld_textrel_check=textrel_check_warning
+    ac_default_ld_textrel_check_warning=1
+    ;;
+  error)
+    ac_default_ld_textrel_check=textrel_check_error
+    ;;
+esac
+AC_DEFINE_UNQUOTED(DEFAULT_LD_TEXTREL_CHECK,
+  $ac_default_ld_textrel_check,
+  [The default method for DT_TEXTREL check in ELF linker.])
+AC_DEFINE_UNQUOTED(DEFAULT_LD_TEXTREL_CHECK_WARNING,
+  $ac_default_ld_textrel_check_warning,
+  [Define to 1 if DT_TEXTREL check is warning in ELF linker by default.])
+
+if test "${ac_default_ld_z_separate_code}" = unset; then
+  ac_default_ld_z_separate_code=0
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_SEPARATE_CODE,
+  $ac_default_ld_z_separate_code,
+  [Define to 1 if you want to enable -z separate-code in ELF linker by default.])
+
+AC_DEFINE_UNQUOTED([DEFAULT_EMIT_SYSV_HASH],
+  [$ac_default_emit_sysv_hash],
+  [Define to 1 if you want to emit sysv hash in the ELF linker by default.])
+
+AC_DEFINE_UNQUOTED([DEFAULT_EMIT_GNU_HASH],
+  [$ac_default_emit_gnu_hash],
+  [Define to 1 if you want to emit gnu hash in the ELF linker by default.])
+
 AC_SUBST(elf_list_options)
 AC_SUBST(elf_shlib_list_options)
 AC_SUBST(elf_plt_unwind_list_options)
 AC_SUBST(EMUL)
 
-TDIRS=tdirs
-AC_SUBST_FILE(TDIRS)
+AC_SUBST(TDIRS)
+AM_SUBST_NOTMAKE(TDIRS)
 
 if test x${all_targets} = xtrue; then
   if test x${want64} = xtrue; then
@@ -445,10 +525,16 @@ AC_SUBST(EMULATION_LIBPATH)
 
 if test x${enable_static} = xno; then
   TESTBFDLIB="-Wl,--rpath,../bfd/.libs ../bfd/.libs/libbfd.so"
+  TESTCTFLIB="-Wl,--rpath,../libctf/.libs ../libctf/.libs/libctf.so"
 else
   TESTBFDLIB="../bfd/.libs/libbfd.a"
+  TESTCTFLIB="../libctf/.libs/libctf.a"
+fi
+if test "${enable_libctf}" = no; then
+    TESTCTFLIB=
 fi
 AC_SUBST(TESTBFDLIB)
+AC_SUBST(TESTCTFLIB)
 
 target_vendor=${target_vendor=$host_vendor}
 case "$target_vendor" in
@@ -464,6 +550,26 @@ if test x${EXTRA_SHLIB_EXTENSION} != x ; then
   AC_DEFINE_UNQUOTED(EXTRA_SHLIB_EXTENSION, "$EXTRA_SHLIB_EXTENSION",
    [Additional extension a shared object might have.])
 fi
+
+AC_CONFIG_COMMANDS([default],
+[[
+case "$srcdir" in
+  .) srcdirpre= ;;
+  *) srcdirpre='$(srcdir)/' ;;
+esac
+POFILES=
+GMOFILES=
+for lang in dummy $OBSOLETE_ALL_LINGUAS; do
+  if test $lang != dummy; then
+    POFILES="$POFILES $srcdirpre$lang.po"
+    GMOFILES="$GMOFILES $srcdirpre$lang.gmo"
+  fi
+done
+sed -e '/^SRC-POTFILES =/r po/SRC-POTFILES' \
+    -e '/^BLD-POTFILES =/r po/BLD-POTFILES' \
+    -e "s,@POFILES@,$POFILES," \
+    -e "s,@GMOFILES@,$GMOFILES," \
+    po/Makefile.in > po/Makefile]],[[]])
 
 dnl Required by html, pdf, install-pdf and install-html
 AC_SUBST(datarootdir)

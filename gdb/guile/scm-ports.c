@@ -1,7 +1,7 @@
 /* Support for connecting Guile's stdio to GDB's.
    as well as r/w memory via ports.
 
-   Copyright (C) 2014-2017 Free Software Foundation, Inc.
+   Copyright (C) 2014-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,10 +22,11 @@
    conventions, et.al.  */
 
 #include "defs.h"
-#include "gdb_select.h"
+#include "gdbsupport/gdb_select.h"
 #include "top.h"
 #include "target.h"
 #include "guile-internal.h"
+#include "gdbsupport/gdb_optional.h"
 
 #ifdef HAVE_POLL
 #if defined (HAVE_POLL_H)
@@ -96,10 +97,6 @@ static const char error_port_name[] = "gdb:stderr";
 static SCM input_port_scm;
 static SCM output_port_scm;
 static SCM error_port_scm;
-
-/* Magic number to identify port ui-files.
-   Actually, the address of this variable is the magic number.  */
-static int file_port_magic;
 
 /* Internal enum for specifying output port.  */
 enum oport { GDB_STDOUT, GDB_STDERR };
@@ -237,7 +234,7 @@ ioscm_fill_input (SCM port)
   gdb_flush (gdb_stdout);
   gdb_flush (gdb_stderr);
 
-  count = ui_file_read (gdb_stdin, (char *) pt->read_buf, pt->read_buf_size);
+  count = gdb_stdin->read ((char *) pt->read_buf, pt->read_buf_size);
   if (count == -1)
     scm_syserror (FUNC_NAME);
   if (count == 0)
@@ -275,18 +272,19 @@ ioscm_write (SCM port, const void *data, size_t size)
   if (scm_is_eq (port, input_port_scm))
     return;
 
-  TRY
+  gdbscm_gdb_exception exc {};
+  try
     {
       if (scm_is_eq (port, error_port_scm))
 	fputsn_filtered ((const char *) data, size, gdb_stderr);
       else
 	fputsn_filtered ((const char *) data, size, gdb_stdout);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  catch (const gdb_exception &except)
     {
-      GDBSCM_HANDLE_GDB_EXCEPTION (except);
+      exc = unpack (except);
     }
-  END_CATCH
+  GDBSCM_HANDLE_GDB_EXCEPTION (exc);
 }
 
 /* Flush gdb's stdout or stderr.  */
@@ -460,7 +458,6 @@ static SCM
 ioscm_with_output_to_port_worker (SCM port, SCM thunk, enum oport oport,
 				  const char *func_name)
 {
-  struct cleanup *cleanups;
   SCM result;
 
   SCM_ASSERT_TYPE (gdbscm_is_true (scm_output_port_p (port)), port,
@@ -468,7 +465,7 @@ ioscm_with_output_to_port_worker (SCM port, SCM thunk, enum oport oport,
   SCM_ASSERT_TYPE (gdbscm_is_true (scm_thunk_p (thunk)), thunk,
 		   SCM_ARG2, func_name, _("thunk"));
 
-  cleanups = set_batch_flag_and_make_cleanup_restore_page_info ();
+  set_batch_flag_and_restore_page_info save_page_info;
 
   scoped_restore restore_async = make_scoped_restore (&current_ui->async, 0);
 
@@ -477,19 +474,20 @@ ioscm_with_output_to_port_worker (SCM port, SCM thunk, enum oport oport,
   scoped_restore save_file = make_scoped_restore (oport == GDB_STDERR
 						  ? &gdb_stderr : &gdb_stdout);
 
-  if (oport == GDB_STDERR)
-    gdb_stderr = port_file.get ();
-  else
-    {
-      current_uiout->redirect (port_file.get ());
-      make_cleanup_ui_out_redirect_pop (current_uiout);
+  {
+    gdb::optional<ui_out_redirect_pop> redirect_popper;
+    if (oport == GDB_STDERR)
+      gdb_stderr = port_file.get ();
+    else
+      {
+	current_uiout->redirect (port_file.get ());
+	redirect_popper.emplace (current_uiout);
 
-      gdb_stdout = port_file.get ();
-    }
+	gdb_stdout = port_file.get ();
+      }
 
-  result = gdbscm_safe_call_0 (thunk, NULL);
-
-  do_cleanups (cleanups);
+    result = gdbscm_safe_call_0 (thunk, NULL);
+  }
 
   if (gdbscm_is_exception (result))
     gdbscm_throw (result);

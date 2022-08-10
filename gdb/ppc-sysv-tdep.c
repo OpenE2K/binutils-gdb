@@ -1,7 +1,7 @@
 /* Target-dependent code for PowerPC systems using the SVR4 ABI
    for GDB, the GNU debugger.
 
-   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+   Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -28,6 +28,7 @@
 #include "objfiles.h"
 #include "infcall.h"
 #include "dwarf2.h"
+#include "target-float.h"
 #include <algorithm>
 
 
@@ -39,10 +40,10 @@ ppc_sysv_use_opencl_abi (struct type *ftype)
 {
   ftype = check_typedef (ftype);
 
-  if (TYPE_CODE (ftype) == TYPE_CODE_PTR)
+  if (ftype->code () == TYPE_CODE_PTR)
     ftype = check_typedef (TYPE_TARGET_TYPE (ftype));
 
-  return (TYPE_CODE (ftype) == TYPE_CODE_FUNC
+  return (ftype->code () == TYPE_CODE_FUNC
 	  && TYPE_CALLING_CONVENTION (ftype) == DW_CC_GDB_IBM_OpenCL);
 }
 
@@ -54,14 +55,15 @@ ppc_sysv_use_opencl_abi (struct type *ftype)
    are passed in user stack.
 
    If the function is returning a structure, then the return address is passed
-   in r3, then the first 7 words of the parametes can be passed in registers,
+   in r3, then the first 7 words of the parameters can be passed in registers,
    starting from r4.  */
 
 CORE_ADDR
 ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 			      struct regcache *regcache, CORE_ADDR bp_addr,
 			      int nargs, struct value **args, CORE_ADDR sp,
-			      int struct_return, CORE_ADDR struct_addr)
+			      function_call_return_method return_method,
+			      CORE_ADDR struct_addr)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
@@ -106,7 +108,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
          (which will be passed in r3) is used for struct return
          address.  In that case we should advance one word and start
          from r4 register to copy parameters.  */
-      if (struct_return)
+      if (return_method == return_method_struct)
 	{
 	  if (write_pass)
 	    regcache_cooked_write_signed (regcache,
@@ -122,7 +124,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	  int len = TYPE_LENGTH (type);
 	  const bfd_byte *val = value_contents (arg);
 
-	  if (TYPE_CODE (type) == TYPE_CODE_FLT && len <= 8
+	  if (type->code () == TYPE_CODE_FLT && len <= 8
 	      && !tdep->soft_float)
 	    {
 	      /* Floating point value converted to "double" then
@@ -137,10 +139,9 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		      gdb_byte regval[PPC_MAX_REGISTER_SIZE];
 		      struct type *regtype
 			= register_type (gdbarch, tdep->ppc_fp0_regnum + freg);
-		      convert_typed_floating (val, type, regval, regtype);
-		      regcache_cooked_write (regcache,
-                                             tdep->ppc_fp0_regnum + freg,
-					     regval);
+		      target_float_convert (val, type, regval, regtype);
+		      regcache->cooked_write (tdep->ppc_fp0_regnum + freg,
+					      regval);
 		    }
 		  freg++;
 		}
@@ -163,7 +164,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		  argoffset += len;
 		}
 	    }
-	  else if (TYPE_CODE (type) == TYPE_CODE_FLT
+	  else if (type->code () == TYPE_CODE_FLT
 		   && len == 16
 		   && !tdep->soft_float
 		   && (gdbarch_long_double_format (gdbarch)
@@ -175,12 +176,9 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		{
 		  if (write_pass)
 		    {
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_fp0_regnum + freg,
-					     val);
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_fp0_regnum + freg + 1,
-					     val + 8);
+		      regcache->cooked_write (tdep->ppc_fp0_regnum + freg, val);
+		      regcache->cooked_write (tdep->ppc_fp0_regnum + freg + 1,
+					      val + 8);
 		    }
 		  freg += 2;
 		}
@@ -193,9 +191,9 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		}
 	    }
 	  else if (len == 8
-		   && (TYPE_CODE (type) == TYPE_CODE_INT	/* long long */
-		       || TYPE_CODE (type) == TYPE_CODE_FLT	/* double */
-		       || (TYPE_CODE (type) == TYPE_CODE_DECFLOAT
+		   && (type->code () == TYPE_CODE_INT	/* long long */
+		       || type->code () == TYPE_CODE_FLT	/* double */
+		       || (type->code () == TYPE_CODE_DECFLOAT
 			   && tdep->soft_float)))
 	    {
 	      /* "long long" or soft-float "double" or "_Decimal64"
@@ -220,21 +218,19 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		    greg++;
 		  if (write_pass)
 		    {
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_gp0_regnum + greg + 0,
-					     val + 0);
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_gp0_regnum + greg + 1,
-					     val + 4);
+		      regcache->cooked_write (tdep->ppc_gp0_regnum + greg + 0,
+					      val + 0);
+		      regcache->cooked_write (tdep->ppc_gp0_regnum + greg + 1,
+					      val + 4);
 		    }
 		  greg += 2;
 		}
 	    }
 	  else if (len == 16
-		   && ((TYPE_CODE (type) == TYPE_CODE_FLT
+		   && ((type->code () == TYPE_CODE_FLT
 			&& (gdbarch_long_double_format (gdbarch)
 			    == floatformats_ibm_long_double))
-		       || (TYPE_CODE (type) == TYPE_CODE_DECFLOAT
+		       || (type->code () == TYPE_CODE_DECFLOAT
 			   && tdep->soft_float)))
 	    {
 	      /* Soft-float IBM long double or _Decimal128 passed in
@@ -252,23 +248,19 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		{
 		  if (write_pass)
 		    {
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_gp0_regnum + greg + 0,
-					     val + 0);
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_gp0_regnum + greg + 1,
-					     val + 4);
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_gp0_regnum + greg + 2,
-					     val + 8);
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_gp0_regnum + greg + 3,
-					     val + 12);
+		      regcache->cooked_write (tdep->ppc_gp0_regnum + greg + 0,
+					      val + 0);
+		      regcache->cooked_write (tdep->ppc_gp0_regnum + greg + 1,
+					      val + 4);
+		      regcache->cooked_write (tdep->ppc_gp0_regnum + greg + 2,
+					      val + 8);
+		      regcache->cooked_write (tdep->ppc_gp0_regnum + greg + 3,
+					      val + 12);
 		    }
 		  greg += 4;
 		}
 	    }
-	  else if (TYPE_CODE (type) == TYPE_CODE_DECFLOAT && len <= 8
+	  else if (type->code () == TYPE_CODE_DECFLOAT && len <= 8
 		   && !tdep->soft_float)
 	    {
 	      /* 32-bit and 64-bit decimal floats go in f1 .. f8.  They can
@@ -291,8 +283,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		      else
 			p = val;
 
-		      regcache_cooked_write (regcache,
-			  tdep->ppc_fp0_regnum + freg, p);
+		      regcache->cooked_write (tdep->ppc_fp0_regnum + freg, p);
 		    }
 
 		  freg++;
@@ -308,7 +299,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		  argoffset += len;
 		}
 	    }
-	  else if (TYPE_CODE (type) == TYPE_CODE_DECFLOAT && len == 16
+	  else if (type->code () == TYPE_CODE_DECFLOAT && len == 16
 		   && !tdep->soft_float)
 	    {
 	      /* 128-bit decimal floats go in f2 .. f7, always in even/odd
@@ -321,10 +312,9 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 
 		  if (write_pass)
 		    {
-		      regcache_cooked_write (regcache,
-					     tdep->ppc_fp0_regnum + freg, val);
-		      regcache_cooked_write (regcache,
-			  tdep->ppc_fp0_regnum + freg + 1, val + 8);
+		      regcache->cooked_write (tdep->ppc_fp0_regnum + freg, val);
+		      regcache->cooked_write (tdep->ppc_fp0_regnum + freg + 1,
+					      val + 8);
 		    }
 		}
 	      else
@@ -344,7 +334,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	      freg += 2;
 	    }
 	  else if (len < 16
-		   && TYPE_CODE (type) == TYPE_CODE_ARRAY
+		   && type->code () == TYPE_CODE_ARRAY
 		   && TYPE_VECTOR (type)
 		   && opencl_abi)
 	    {
@@ -357,7 +347,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		{
 		  const gdb_byte *elval = val + i * TYPE_LENGTH (eltype);
 
-		  if (TYPE_CODE (eltype) == TYPE_CODE_FLT && !tdep->soft_float)
+		  if (eltype->code () == TYPE_CODE_FLT && !tdep->soft_float)
 		    {
 		      if (freg <= 8)
 			{
@@ -367,9 +357,9 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 			      gdb_byte regval[PPC_MAX_REGISTER_SIZE];
 			      struct type *regtype
 				= register_type (gdbarch, regnum);
-			      convert_typed_floating (elval, eltype,
-						      regval, regtype);
-			      regcache_cooked_write (regcache, regnum, regval);
+			      target_float_convert (elval, eltype,
+						    regval, regtype);
+			      regcache->cooked_write (regnum, regval);
 			    }
 			  freg++;
 			}
@@ -401,10 +391,8 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 			  if (write_pass)
 			    {
 			      int regnum = tdep->ppc_gp0_regnum + greg;
-			      regcache_cooked_write (regcache,
-						     regnum + 0, elval + 0);
-			      regcache_cooked_write (regcache,
-						     regnum + 1, elval + 4);
+			      regcache->cooked_write (regnum + 0, elval + 0);
+			      regcache->cooked_write (regnum + 1, elval + 4);
 			    }
 			  greg += 2;
 			}
@@ -418,9 +406,8 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		      if (greg <= 10)
 			{
 			  if (write_pass)
-			    regcache_cooked_write (regcache,
-						   tdep->ppc_gp0_regnum + greg,
-						   word);
+			    regcache->cooked_write (tdep->ppc_gp0_regnum + greg,
+						    word);
 			  greg++;
 			}
 		      else
@@ -434,7 +421,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		}
 	    }
 	  else if (len >= 16
-		   && TYPE_CODE (type) == TYPE_CODE_ARRAY
+		   && type->code () == TYPE_CODE_ARRAY
 		   && TYPE_VECTOR (type)
 		   && opencl_abi)
 	    {
@@ -449,9 +436,8 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		  if (vreg <= 13)
 		    {
 		      if (write_pass)
-			regcache_cooked_write (regcache,
-					       tdep->ppc_vr0_regnum + vreg,
-					       elval);
+			regcache->cooked_write (tdep->ppc_vr0_regnum + vreg,
+						elval);
 		      vreg++;
 		    }
 		  else
@@ -464,7 +450,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		}
 	    }
 	  else if (len == 16
-		   && TYPE_CODE (type) == TYPE_CODE_ARRAY
+		   && type->code () == TYPE_CODE_ARRAY
 		   && TYPE_VECTOR (type)
 		   && tdep->vector_abi == POWERPC_VEC_ALTIVEC)
 	    {
@@ -473,8 +459,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	      if (vreg <= 13)
 		{
 		  if (write_pass)
-		    regcache_cooked_write (regcache,
-					   tdep->ppc_vr0_regnum + vreg, val);
+		    regcache->cooked_write (tdep->ppc_vr0_regnum + vreg, val);
 		  vreg++;
 		}
 	      else
@@ -486,7 +471,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		}
 	    }
 	  else if (len == 8
-		   && TYPE_CODE (type) == TYPE_CODE_ARRAY
+		   && type->code () == TYPE_CODE_ARRAY
 		   && TYPE_VECTOR (type)
 		   && tdep->vector_abi == POWERPC_VEC_SPE)
 	    {
@@ -500,8 +485,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	      if (greg <= 10)
 		{
 		  if (write_pass)
-		    regcache_cooked_write (regcache,
-					   tdep->ppc_ev0_regnum + greg, val);
+		    regcache->cooked_write (tdep->ppc_ev0_regnum + greg, val);
 		  greg++;
 		}
 	      else
@@ -519,12 +503,12 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	      gdb_byte word[PPC_MAX_REGISTER_SIZE];
 	      memset (word, 0, PPC_MAX_REGISTER_SIZE);
 	      if (len > tdep->wordsize
-		  || TYPE_CODE (type) == TYPE_CODE_STRUCT
-		  || TYPE_CODE (type) == TYPE_CODE_UNION)
+		  || type->code () == TYPE_CODE_STRUCT
+		  || type->code () == TYPE_CODE_UNION)
 		{
 		  /* Structs and large values are put in an
 		     aligned stack slot ...  */
-		  if (TYPE_CODE (type) == TYPE_CODE_ARRAY
+		  if (type->code () == TYPE_CODE_ARRAY
 		      && TYPE_VECTOR (type)
 		      && len >= 16)
 		    structoffset = align_up (structoffset, 16);
@@ -539,7 +523,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 					  sp + structoffset);
 		  structoffset += len;
 		}
-	      else if (TYPE_CODE (type) == TYPE_CODE_INT)
+	      else if (type->code () == TYPE_CODE_INT)
 		/* Sign or zero extend the "int" into a "word".  */
 		store_unsigned_integer (word, tdep->wordsize, byte_order,
 					unpack_long (type, val));
@@ -551,8 +535,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	      if (greg <= 10)
 		{
 		  if (write_pass)
-		    regcache_cooked_write (regcache,
-					   tdep->ppc_gp0_regnum + greg, word);
+		    regcache->cooked_write (tdep->ppc_gp0_regnum + greg, word);
 		  greg++;
 		}
 	      else
@@ -616,7 +599,7 @@ get_decimal_float_return_value (struct gdbarch *gdbarch, struct type *valtype,
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
-  gdb_assert (TYPE_CODE (valtype) == TYPE_CODE_DECFLOAT);
+  gdb_assert (valtype->code () == TYPE_CODE_DECFLOAT);
 
   /* 32-bit and 64-bit decimal floats in f1.  */
   if (TYPE_LENGTH (valtype) <= 8)
@@ -635,11 +618,11 @@ get_decimal_float_return_value (struct gdbarch *gdbarch, struct type *valtype,
 	  else
 	    p = writebuf;
 
-	  regcache_cooked_write (regcache, tdep->ppc_fp0_regnum + 1, p);
+	  regcache->cooked_write (tdep->ppc_fp0_regnum + 1, p);
 	}
       if (readbuf != NULL)
 	{
-	  regcache_cooked_read (regcache, tdep->ppc_fp0_regnum + 1, readbuf);
+	  regcache->cooked_read (tdep->ppc_fp0_regnum + 1, readbuf);
 
 	  /* Left align 32-bit decimal float.  */
 	  if (TYPE_LENGTH (valtype) == 4)
@@ -656,11 +639,11 @@ get_decimal_float_return_value (struct gdbarch *gdbarch, struct type *valtype,
 	  for (i = 0; i < 2; i++)
 	    {
 	      if (writebuf != NULL)
-		regcache_cooked_write (regcache, tdep->ppc_fp0_regnum + 2 + i,
-				       writebuf + i * 8);
+		regcache->cooked_write (tdep->ppc_fp0_regnum + 2 + i,
+					writebuf + i * 8);
 	      if (readbuf != NULL)
-		regcache_cooked_read (regcache, tdep->ppc_fp0_regnum + 2 + i,
-				      readbuf + i * 8);
+		regcache->cooked_read (tdep->ppc_fp0_regnum + 2 + i,
+				       readbuf + i * 8);
 	    }
 	}
     }
@@ -698,7 +681,7 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 
   gdb_assert (tdep->wordsize == 4);
 
-  if (TYPE_CODE (type) == TYPE_CODE_FLT
+  if (type->code () == TYPE_CODE_FLT
       && TYPE_LENGTH (type) <= 8
       && !tdep->soft_float)
     {
@@ -709,8 +692,8 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	  gdb_byte regval[PPC_MAX_REGISTER_SIZE];
 	  struct type *regtype = register_type (gdbarch,
                                                 tdep->ppc_fp0_regnum + 1);
-	  regcache_cooked_read (regcache, tdep->ppc_fp0_regnum + 1, regval);
-	  convert_typed_floating (regval, regtype, readbuf, type);
+	  regcache->cooked_read (tdep->ppc_fp0_regnum + 1, regval);
+	  target_float_convert (regval, regtype, readbuf, type);
 	}
       if (writebuf)
 	{
@@ -718,12 +701,12 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	     the register's "double" type.  */
 	  gdb_byte regval[PPC_MAX_REGISTER_SIZE];
 	  struct type *regtype = register_type (gdbarch, tdep->ppc_fp0_regnum);
-	  convert_typed_floating (writebuf, type, regval, regtype);
-	  regcache_cooked_write (regcache, tdep->ppc_fp0_regnum + 1, regval);
+	  target_float_convert (writebuf, type, regval, regtype);
+	  regcache->cooked_write (tdep->ppc_fp0_regnum + 1, regval);
 	}
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
-  if (TYPE_CODE (type) == TYPE_CODE_FLT
+  if (type->code () == TYPE_CODE_FLT
       && TYPE_LENGTH (type) == 16
       && !tdep->soft_float
       && (gdbarch_long_double_format (gdbarch)
@@ -732,82 +715,70 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
       /* IBM long double stored in f1 and f2.  */
       if (readbuf)
 	{
-	  regcache_cooked_read (regcache, tdep->ppc_fp0_regnum + 1, readbuf);
-	  regcache_cooked_read (regcache, tdep->ppc_fp0_regnum + 2,
-				readbuf + 8);
+	  regcache->cooked_read (tdep->ppc_fp0_regnum + 1, readbuf);
+	  regcache->cooked_read (tdep->ppc_fp0_regnum + 2, readbuf + 8);
 	}
       if (writebuf)
 	{
-	  regcache_cooked_write (regcache, tdep->ppc_fp0_regnum + 1, writebuf);
-	  regcache_cooked_write (regcache, tdep->ppc_fp0_regnum + 2,
-				 writebuf + 8);
+	  regcache->cooked_write (tdep->ppc_fp0_regnum + 1, writebuf);
+	  regcache->cooked_write (tdep->ppc_fp0_regnum + 2, writebuf + 8);
 	}
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
   if (TYPE_LENGTH (type) == 16
-      && ((TYPE_CODE (type) == TYPE_CODE_FLT
+      && ((type->code () == TYPE_CODE_FLT
 	   && (gdbarch_long_double_format (gdbarch)
 	       == floatformats_ibm_long_double))
-	  || (TYPE_CODE (type) == TYPE_CODE_DECFLOAT && tdep->soft_float)))
+	  || (type->code () == TYPE_CODE_DECFLOAT && tdep->soft_float)))
     {
       /* Soft-float IBM long double or _Decimal128 stored in r3, r4,
 	 r5, r6.  */
       if (readbuf)
 	{
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 3, readbuf);
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 4,
-				readbuf + 4);
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 5,
-				readbuf + 8);
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 6,
-				readbuf + 12);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 3, readbuf);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 4, readbuf + 4);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 5, readbuf + 8);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 6, readbuf + 12);
 	}
       if (writebuf)
 	{
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 3, writebuf);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 4,
-				 writebuf + 4);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 5,
-				 writebuf + 8);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 6,
-				 writebuf + 12);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 3, writebuf);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 4, writebuf + 4);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 5, writebuf + 8);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 6, writebuf + 12);
 	}
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
-  if ((TYPE_CODE (type) == TYPE_CODE_INT && TYPE_LENGTH (type) == 8)
-      || (TYPE_CODE (type) == TYPE_CODE_FLT && TYPE_LENGTH (type) == 8)
-      || (TYPE_CODE (type) == TYPE_CODE_DECFLOAT && TYPE_LENGTH (type) == 8
+  if ((type->code () == TYPE_CODE_INT && TYPE_LENGTH (type) == 8)
+      || (type->code () == TYPE_CODE_FLT && TYPE_LENGTH (type) == 8)
+      || (type->code () == TYPE_CODE_DECFLOAT && TYPE_LENGTH (type) == 8
 	  && tdep->soft_float))
     {
       if (readbuf)
 	{
 	  /* A long long, double or _Decimal64 stored in the 32 bit
 	     r3/r4.  */
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 3,
-				readbuf + 0);
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 4,
-				readbuf + 4);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 3, readbuf + 0);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 4, readbuf + 4);
 	}
       if (writebuf)
 	{
 	  /* A long long, double or _Decimal64 stored in the 32 bit
 	     r3/r4.  */
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 3,
-				 writebuf + 0);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 4,
-				 writebuf + 4);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 3, writebuf + 0);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 4, writebuf + 4);
 	}
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
-  if (TYPE_CODE (type) == TYPE_CODE_DECFLOAT && !tdep->soft_float)
+  if (type->code () == TYPE_CODE_DECFLOAT && !tdep->soft_float)
     return get_decimal_float_return_value (gdbarch, type, regcache, readbuf,
 					   writebuf);
-  else if ((TYPE_CODE (type) == TYPE_CODE_INT
-	    || TYPE_CODE (type) == TYPE_CODE_CHAR
-	    || TYPE_CODE (type) == TYPE_CODE_BOOL
-	    || TYPE_CODE (type) == TYPE_CODE_PTR
+  else if ((type->code () == TYPE_CODE_INT
+	    || type->code () == TYPE_CODE_CHAR
+	    || type->code () == TYPE_CODE_BOOL
+	    || type->code () == TYPE_CODE_PTR
 	    || TYPE_IS_REFERENCE (type)
-	    || TYPE_CODE (type) == TYPE_CODE_ENUM)
+	    || type->code () == TYPE_CODE_ENUM)
 	   && TYPE_LENGTH (type) <= tdep->wordsize)
     {
       if (readbuf)
@@ -832,7 +803,7 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
     }
   /* OpenCL vectors < 16 bytes are returned as distinct
      scalars in f1..f2 or r3..r10.  */
-  if (TYPE_CODE (type) == TYPE_CODE_ARRAY
+  if (type->code () == TYPE_CODE_ARRAY
       && TYPE_VECTOR (type)
       && TYPE_LENGTH (type) < 16
       && opencl_abi)
@@ -844,7 +815,7 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	{
 	  int offset = i * TYPE_LENGTH (eltype);
 
-	  if (TYPE_CODE (eltype) == TYPE_CODE_FLT)
+	  if (eltype->code () == TYPE_CODE_FLT)
 	    {
 	      int regnum = tdep->ppc_fp0_regnum + 1 + i;
 	      gdb_byte regval[PPC_MAX_REGISTER_SIZE];
@@ -852,15 +823,15 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 
 	      if (writebuf != NULL)
 		{
-		  convert_typed_floating (writebuf + offset, eltype,
-					  regval, regtype);
-		  regcache_cooked_write (regcache, regnum, regval);
+		  target_float_convert (writebuf + offset, eltype,
+					regval, regtype);
+		  regcache->cooked_write (regnum, regval);
 		}
 	      if (readbuf != NULL)
 		{
-		  regcache_cooked_read (regcache, regnum, regval);
-		  convert_typed_floating (regval, regtype,
-					  readbuf + offset, eltype);
+		  regcache->cooked_read (regnum, regval);
+		  target_float_convert (regval, regtype,
+					readbuf + offset, eltype);
 		}
 	    }
 	  else
@@ -886,7 +857,7 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
   /* OpenCL vectors >= 16 bytes are returned in v2..v9.  */
-  if (TYPE_CODE (type) == TYPE_CODE_ARRAY
+  if (type->code () == TYPE_CODE_ARRAY
       && TYPE_VECTOR (type)
       && TYPE_LENGTH (type) >= 16
       && opencl_abi)
@@ -900,32 +871,32 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	  int regnum = tdep->ppc_vr0_regnum + 2 + i;
 
 	  if (writebuf != NULL)
-	    regcache_cooked_write (regcache, regnum, writebuf + offset);
+	    regcache->cooked_write (regnum, writebuf + offset);
 	  if (readbuf != NULL)
-	    regcache_cooked_read (regcache, regnum, readbuf + offset);
+	    regcache->cooked_read (regnum, readbuf + offset);
 	}
 
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
   if (TYPE_LENGTH (type) == 16
-      && TYPE_CODE (type) == TYPE_CODE_ARRAY
+      && type->code () == TYPE_CODE_ARRAY
       && TYPE_VECTOR (type)
       && tdep->vector_abi == POWERPC_VEC_ALTIVEC)
     {
       if (readbuf)
 	{
 	  /* Altivec places the return value in "v2".  */
-	  regcache_cooked_read (regcache, tdep->ppc_vr0_regnum + 2, readbuf);
+	  regcache->cooked_read (tdep->ppc_vr0_regnum + 2, readbuf);
 	}
       if (writebuf)
 	{
 	  /* Altivec places the return value in "v2".  */
-	  regcache_cooked_write (regcache, tdep->ppc_vr0_regnum + 2, writebuf);
+	  regcache->cooked_write (tdep->ppc_vr0_regnum + 2, writebuf);
 	}
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
   if (TYPE_LENGTH (type) == 16
-      && TYPE_CODE (type) == TYPE_CODE_ARRAY
+      && type->code () == TYPE_CODE_ARRAY
       && TYPE_VECTOR (type)
       && tdep->vector_abi == POWERPC_VEC_GENERIC)
     {
@@ -934,30 +905,22 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	 ABI risks in that case; we don't try to support it.  */
       if (readbuf)
 	{
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 3,
-				readbuf + 0);
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 4,
-				readbuf + 4);
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 5,
-				readbuf + 8);
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 6,
-				readbuf + 12);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 3, readbuf + 0);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 4, readbuf + 4);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 5, readbuf + 8);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 6, readbuf + 12);
 	}
       if (writebuf)
 	{
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 3,
-				 writebuf + 0);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 4,
-				 writebuf + 4);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 5,
-				 writebuf + 8);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 6,
-				 writebuf + 12);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 3, writebuf + 0);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 4, writebuf + 4);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 5, writebuf + 8);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 6, writebuf + 12);
 	}
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
   if (TYPE_LENGTH (type) == 8
-      && TYPE_CODE (type) == TYPE_CODE_ARRAY
+      && type->code () == TYPE_CODE_ARRAY
       && TYPE_VECTOR (type)
       && tdep->vector_abi == POWERPC_VEC_SPE)
     {
@@ -967,9 +930,9 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	 only corresponds to the least significant 32-bits.  So place
 	 the 64-bit DSP type's value in ev3.  */
       if (readbuf)
-	regcache_cooked_read (regcache, tdep->ppc_ev0_regnum + 3, readbuf);
+	regcache->cooked_read (tdep->ppc_ev0_regnum + 3, readbuf);
       if (writebuf)
-	regcache_cooked_write (regcache, tdep->ppc_ev0_regnum + 3, writebuf);
+	regcache->cooked_write (tdep->ppc_ev0_regnum + 3, writebuf);
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
   if (broken_gcc && TYPE_LENGTH (type) <= 8)
@@ -983,22 +946,22 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 
       if (readbuf)
 	{
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 3,
-				regvals + 0 * tdep->wordsize);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 3,
+				 regvals + 0 * tdep->wordsize);
 	  if (len > tdep->wordsize)
-	    regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 4,
-				  regvals + 1 * tdep->wordsize);
+	    regcache->cooked_read (tdep->ppc_gp0_regnum + 4,
+				   regvals + 1 * tdep->wordsize);
 	  memcpy (readbuf, regvals + offset, len);
 	}
       if (writebuf)
 	{
 	  memset (regvals, 0, sizeof regvals);
 	  memcpy (regvals + offset, writebuf, len);
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 3,
-				 regvals + 0 * tdep->wordsize);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 3,
+				  regvals + 0 * tdep->wordsize);
 	  if (len > tdep->wordsize)
-	    regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 4,
-				   regvals + 1 * tdep->wordsize);
+	    regcache->cooked_write (tdep->ppc_gp0_regnum + 4,
+				    regvals + 1 * tdep->wordsize);
 	}
 
       return RETURN_VALUE_REGISTER_CONVENTION;
@@ -1011,11 +974,11 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	  /* The value is right-padded to 8 bytes and then loaded, as
 	     two "words", into r3/r4.  */
 	  gdb_byte regvals[PPC_MAX_REGISTER_SIZE * 2];
-	  regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 3,
-				regvals + 0 * tdep->wordsize);
+	  regcache->cooked_read (tdep->ppc_gp0_regnum + 3,
+				 regvals + 0 * tdep->wordsize);
 	  if (TYPE_LENGTH (type) > tdep->wordsize)
-	    regcache_cooked_read (regcache, tdep->ppc_gp0_regnum + 4,
-				  regvals + 1 * tdep->wordsize);
+	    regcache->cooked_read (tdep->ppc_gp0_regnum + 4,
+				   regvals + 1 * tdep->wordsize);
 	  memcpy (readbuf, regvals, TYPE_LENGTH (type));
 	}
       if (writebuf)
@@ -1026,11 +989,11 @@ do_ppc_sysv_return_value (struct gdbarch *gdbarch, struct type *func_type,
 	  gdb_byte regvals[PPC_MAX_REGISTER_SIZE * 2];
 	  memset (regvals, 0, sizeof regvals);
 	  memcpy (regvals, writebuf, TYPE_LENGTH (type));
-	  regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 3,
-				 regvals + 0 * tdep->wordsize);
+	  regcache->cooked_write (tdep->ppc_gp0_regnum + 3,
+				  regvals + 0 * tdep->wordsize);
 	  if (TYPE_LENGTH (type) > tdep->wordsize)
-	    regcache_cooked_write (regcache, tdep->ppc_gp0_regnum + 4,
-				   regvals + 1 * tdep->wordsize);
+	    regcache->cooked_write (tdep->ppc_gp0_regnum + 4,
+				    regvals + 1 * tdep->wordsize);
 	}
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
@@ -1080,7 +1043,7 @@ convert_code_addr_to_desc_addr (CORE_ADDR code_addr, CORE_ADDR *desc_addr)
   /* Find the minimal symbol that corresponds to CODE_ADDR (should
      have a name of the form ".FN").  */
   dot_fn = lookup_minimal_symbol_by_pc (code_addr);
-  if (dot_fn.minsym == NULL || MSYMBOL_LINKAGE_NAME (dot_fn.minsym)[0] != '.')
+  if (dot_fn.minsym == NULL || dot_fn.minsym->linkage_name ()[0] != '.')
     return 0;
   /* Get the section that contains CODE_ADDR.  Need this for the
      "objfile" that it contains.  */
@@ -1091,7 +1054,7 @@ convert_code_addr_to_desc_addr (CORE_ADDR code_addr, CORE_ADDR *desc_addr)
      address.  Only look for the minimal symbol in ".FN"'s object file
      - avoids problems when two object files (i.e., shared libraries)
      contain a minimal symbol with the same name.  */
-  fn = lookup_minimal_symbol (MSYMBOL_LINKAGE_NAME (dot_fn.minsym) + 1, NULL,
+  fn = lookup_minimal_symbol (dot_fn.minsym->linkage_name () + 1, NULL,
 			      dot_fn_section->objfile);
   if (fn.minsym == NULL)
     return 0;
@@ -1113,25 +1076,25 @@ ppc64_aggregate_candidate (struct type *type,
 {
   type = check_typedef (type);
 
-  switch (TYPE_CODE (type))
+  switch (type->code ())
     {
     case TYPE_CODE_FLT:
     case TYPE_CODE_DECFLOAT:
       if (!*field_type)
 	*field_type = type;
-      if (TYPE_CODE (*field_type) == TYPE_CODE (type)
+      if ((*field_type)->code () == type->code ()
 	  && TYPE_LENGTH (*field_type) == TYPE_LENGTH (type))
 	return 1;
       break;
 
     case TYPE_CODE_COMPLEX:
       type = TYPE_TARGET_TYPE (type);
-      if (TYPE_CODE (type) == TYPE_CODE_FLT
-	  || TYPE_CODE (type) == TYPE_CODE_DECFLOAT)
+      if (type->code () == TYPE_CODE_FLT
+	  || type->code () == TYPE_CODE_DECFLOAT)
 	{
 	  if (!*field_type)
 	    *field_type = type;
-	  if (TYPE_CODE (*field_type) == TYPE_CODE (type)
+	  if ((*field_type)->code () == type->code ()
 	      && TYPE_LENGTH (*field_type) == TYPE_LENGTH (type))
 	    return 2;
 	}
@@ -1142,7 +1105,7 @@ ppc64_aggregate_candidate (struct type *type,
 	{
 	  if (!*field_type)
 	    *field_type = type;
-	  if (TYPE_CODE (*field_type) == TYPE_CODE (type)
+	  if ((*field_type)->code () == type->code ()
 	      && TYPE_LENGTH (*field_type) == TYPE_LENGTH (type))
 	    return 1;
 	}
@@ -1175,19 +1138,19 @@ ppc64_aggregate_candidate (struct type *type,
 	  LONGEST count = 0;
 	  int i;
 
-	  for (i = 0; i < TYPE_NFIELDS (type); i++)
+	  for (i = 0; i < type->num_fields (); i++)
 	    {
 	      LONGEST sub_count;
 
-	      if (field_is_static (&TYPE_FIELD (type, i)))
+	      if (field_is_static (&type->field (i)))
 		continue;
 
 	      sub_count = ppc64_aggregate_candidate
-			   (TYPE_FIELD_TYPE (type, i), field_type);
+			   (type->field (i).type (), field_type);
 	      if (sub_count == -1)
 		return -1;
 
-	      if (TYPE_CODE (type) == TYPE_CODE_STRUCT)
+	      if (type->code () == TYPE_CODE_STRUCT)
 		count += sub_count;
 	      else
 		count = std::max (count, sub_count);
@@ -1221,17 +1184,17 @@ ppc64_elfv2_abi_homogeneous_aggregate (struct type *type,
 {
   /* Complex types at the top level are treated separately.  However,
      complex types can be elements of homogeneous aggregates.  */
-  if (TYPE_CODE (type) == TYPE_CODE_STRUCT
-      || TYPE_CODE (type) == TYPE_CODE_UNION
-      || (TYPE_CODE (type) == TYPE_CODE_ARRAY && !TYPE_VECTOR (type)))
+  if (type->code () == TYPE_CODE_STRUCT
+      || type->code () == TYPE_CODE_UNION
+      || (type->code () == TYPE_CODE_ARRAY && !TYPE_VECTOR (type)))
     {
       struct type *field_type = NULL;
       LONGEST field_count = ppc64_aggregate_candidate (type, &field_type);
 
       if (field_count > 0)
 	{
-	  int n_regs = ((TYPE_CODE (field_type) == TYPE_CODE_FLT
-			 || TYPE_CODE (field_type) == TYPE_CODE_DECFLOAT)?
+	  int n_regs = ((field_type->code () == TYPE_CODE_FLT
+			 || field_type->code () == TYPE_CODE_DECFLOAT)?
 			(TYPE_LENGTH (field_type) + 7) >> 3 : 1);
 
 	  /* The ELFv2 ABI allows homogeneous aggregates to occupy
@@ -1314,8 +1277,8 @@ ppc64_sysv_abi_push_val (struct gdbarch *gdbarch,
   while (len >= tdep->wordsize)
     {
       if (argpos->regcache && argpos->greg <= 10)
-	regcache_cooked_write (argpos->regcache,
-			       tdep->ppc_gp0_regnum + argpos->greg, val);
+	argpos->regcache->cooked_write (tdep->ppc_gp0_regnum + argpos->greg,
+					val);
       argpos->greg++;
       len -= tdep->wordsize;
       val += tdep->wordsize;
@@ -1324,9 +1287,8 @@ ppc64_sysv_abi_push_val (struct gdbarch *gdbarch,
   if (len > 0)
     {
       if (argpos->regcache && argpos->greg <= 10)
-	regcache_cooked_write_part (argpos->regcache,
-				    tdep->ppc_gp0_regnum + argpos->greg,
-				    offset, len, val);
+	argpos->regcache->cooked_write_part
+	  (tdep->ppc_gp0_regnum + argpos->greg, offset, len, val);
       argpos->greg++;
     }
 }
@@ -1361,7 +1323,7 @@ ppc64_sysv_abi_push_freg (struct gdbarch *gdbarch,
     return;
 
   if (TYPE_LENGTH (type) <= 8
-      && TYPE_CODE (type) == TYPE_CODE_FLT)
+      && type->code () == TYPE_CODE_FLT)
     {
       /* Floats and doubles go in f1 .. f13.  32-bit floats are converted
  	 to double first.  */
@@ -1371,14 +1333,14 @@ ppc64_sysv_abi_push_freg (struct gdbarch *gdbarch,
 	  struct type *regtype = register_type (gdbarch, regnum);
 	  gdb_byte regval[PPC_MAX_REGISTER_SIZE];
 
-	  convert_typed_floating (val, type, regval, regtype);
-	  regcache_cooked_write (argpos->regcache, regnum, regval);
+	  target_float_convert (val, type, regval, regtype);
+	  argpos->regcache->cooked_write (regnum, regval);
 	}
 
       argpos->freg++;
     }
   else if (TYPE_LENGTH (type) <= 8
-	   && TYPE_CODE (type) == TYPE_CODE_DECFLOAT)
+	   && type->code () == TYPE_CODE_DECFLOAT)
     {
       /* Floats and doubles go in f1 .. f13.  32-bit decimal floats are
 	 placed in the least significant word.  */
@@ -1390,14 +1352,14 @@ ppc64_sysv_abi_push_freg (struct gdbarch *gdbarch,
 	  if (gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG)
 	    offset = 8 - TYPE_LENGTH (type);
 
-	  regcache_cooked_write_part (argpos->regcache, regnum,
-				      offset, TYPE_LENGTH (type), val);
+	  argpos->regcache->cooked_write_part (regnum, offset,
+					       TYPE_LENGTH (type), val);
 	}
 
       argpos->freg++;
     }
   else if (TYPE_LENGTH (type) == 16
-	   && TYPE_CODE (type) == TYPE_CODE_FLT
+	   && type->code () == TYPE_CODE_FLT
 	   && (gdbarch_long_double_format (gdbarch)
 	       == floatformats_ibm_long_double))
     {
@@ -1406,15 +1368,15 @@ ppc64_sysv_abi_push_freg (struct gdbarch *gdbarch,
 	{
 	  int regnum = tdep->ppc_fp0_regnum + argpos->freg;
 
-	  regcache_cooked_write (argpos->regcache, regnum, val);
+	  argpos->regcache->cooked_write (regnum, val);
 	  if (argpos->freg <= 12)
-	    regcache_cooked_write (argpos->regcache, regnum + 1, val + 8);
+	    argpos->regcache->cooked_write (regnum + 1, val + 8);
 	}
 
       argpos->freg += 2;
     }
   else if (TYPE_LENGTH (type) == 16
-	   && TYPE_CODE (type) == TYPE_CODE_DECFLOAT)
+	   && type->code () == TYPE_CODE_DECFLOAT)
     {
       /* 128-bit decimal floating-point values are stored in and even/odd
 	 pair of FPRs, with the even FPR holding the most significant half.  */
@@ -1426,8 +1388,8 @@ ppc64_sysv_abi_push_freg (struct gdbarch *gdbarch,
 	  int lopart = gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG ? 8 : 0;
 	  int hipart = gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG ? 0 : 8;
 
-	  regcache_cooked_write (argpos->regcache, regnum, val + hipart);
-	  regcache_cooked_write (argpos->regcache, regnum + 1, val + lopart);
+	  argpos->regcache->cooked_write (regnum, val + hipart);
+	  argpos->regcache->cooked_write (regnum + 1, val + lopart);
 	}
 
       argpos->freg += 2;
@@ -1444,8 +1406,7 @@ ppc64_sysv_abi_push_vreg (struct gdbarch *gdbarch, const bfd_byte *val,
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
   if (argpos->regcache && argpos->vreg <= 13)
-    regcache_cooked_write (argpos->regcache,
-			   tdep->ppc_vr0_regnum + argpos->vreg, val);
+    argpos->regcache->cooked_write (tdep->ppc_vr0_regnum + argpos->vreg, val);
 
   argpos->vreg++;
 }
@@ -1460,14 +1421,14 @@ ppc64_sysv_abi_push_param (struct gdbarch *gdbarch,
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
-  if (TYPE_CODE (type) == TYPE_CODE_FLT
-      || TYPE_CODE (type) == TYPE_CODE_DECFLOAT)
+  if (type->code () == TYPE_CODE_FLT
+      || type->code () == TYPE_CODE_DECFLOAT)
     {
       /* Floating-point scalars are passed in floating-point registers.  */
       ppc64_sysv_abi_push_val (gdbarch, val, TYPE_LENGTH (type), 0, argpos);
       ppc64_sysv_abi_push_freg (gdbarch, type, val, argpos);
     }
-  else if (TYPE_CODE (type) == TYPE_CODE_ARRAY && TYPE_VECTOR (type)
+  else if (type->code () == TYPE_CODE_ARRAY && TYPE_VECTOR (type)
 	   && tdep->vector_abi == POWERPC_VEC_ALTIVEC
 	   && TYPE_LENGTH (type) == 16)
     {
@@ -1475,7 +1436,7 @@ ppc64_sysv_abi_push_param (struct gdbarch *gdbarch,
       ppc64_sysv_abi_push_val (gdbarch, val, TYPE_LENGTH (type), 16, argpos);
       ppc64_sysv_abi_push_vreg (gdbarch, val, argpos);
     }
-  else if (TYPE_CODE (type) == TYPE_CODE_ARRAY && TYPE_VECTOR (type)
+  else if (type->code () == TYPE_CODE_ARRAY && TYPE_VECTOR (type)
 	   && TYPE_LENGTH (type) >= 16)
     {
       /* Non-Altivec vectors are passed by reference.  */
@@ -1489,11 +1450,11 @@ ppc64_sysv_abi_push_param (struct gdbarch *gdbarch,
       /* ... and pass a pointer to the copy as parameter.  */
       ppc64_sysv_abi_push_integer (gdbarch, addr, argpos);
     }
-  else if ((TYPE_CODE (type) == TYPE_CODE_INT
-	    || TYPE_CODE (type) == TYPE_CODE_ENUM
-	    || TYPE_CODE (type) == TYPE_CODE_BOOL
-	    || TYPE_CODE (type) == TYPE_CODE_CHAR
-	    || TYPE_CODE (type) == TYPE_CODE_PTR
+  else if ((type->code () == TYPE_CODE_INT
+	    || type->code () == TYPE_CODE_ENUM
+	    || type->code () == TYPE_CODE_BOOL
+	    || type->code () == TYPE_CODE_CHAR
+	    || type->code () == TYPE_CODE_PTR
 	    || TYPE_IS_REFERENCE (type))
 	   && TYPE_LENGTH (type) <= tdep->wordsize)
     {
@@ -1506,14 +1467,14 @@ ppc64_sysv_abi_push_param (struct gdbarch *gdbarch,
 
 	  /* Convert any function code addresses into descriptors.  */
 	  if (tdep->elf_abi == POWERPC_ELF_V1
-	      && (TYPE_CODE (type) == TYPE_CODE_PTR
-		  || TYPE_CODE (type) == TYPE_CODE_REF))
+	      && (type->code () == TYPE_CODE_PTR
+		  || type->code () == TYPE_CODE_REF))
 	    {
 	      struct type *target_type
 		= check_typedef (TYPE_TARGET_TYPE (type));
 
-	      if (TYPE_CODE (target_type) == TYPE_CODE_FUNC
-		  || TYPE_CODE (target_type) == TYPE_CODE_METHOD)
+	      if (target_type->code () == TYPE_CODE_FUNC
+		  || target_type->code () == TYPE_CODE_METHOD)
 		{
 		  CORE_ADDR desc = word;
 
@@ -1532,14 +1493,14 @@ ppc64_sysv_abi_push_param (struct gdbarch *gdbarch,
       /* The ABI (version 1.9) specifies that structs containing a
 	 single floating-point value, at any level of nesting of
 	 single-member structs, are passed in floating-point registers.  */
-      if (TYPE_CODE (type) == TYPE_CODE_STRUCT
-	  && TYPE_NFIELDS (type) == 1)
+      if (type->code () == TYPE_CODE_STRUCT
+	  && type->num_fields () == 1)
 	{
-	  while (TYPE_CODE (type) == TYPE_CODE_STRUCT
-		 && TYPE_NFIELDS (type) == 1)
-	    type = check_typedef (TYPE_FIELD_TYPE (type, 0));
+	  while (type->code () == TYPE_CODE_STRUCT
+		 && type->num_fields () == 1)
+	    type = check_typedef (type->field (0).type ());
 
-	  if (TYPE_CODE (type) == TYPE_CODE_FLT)
+	  if (type->code () == TYPE_CODE_FLT)
 	    ppc64_sysv_abi_push_freg (gdbarch, type, val, argpos);
 	}
 
@@ -1555,10 +1516,10 @@ ppc64_sysv_abi_push_param (struct gdbarch *gdbarch,
 	      {
 		const gdb_byte *elval = val + i * TYPE_LENGTH (eltype);
 
-		if (TYPE_CODE (eltype) == TYPE_CODE_FLT
-		    || TYPE_CODE (eltype) == TYPE_CODE_DECFLOAT)
+		if (eltype->code () == TYPE_CODE_FLT
+		    || eltype->code () == TYPE_CODE_DECFLOAT)
 		  ppc64_sysv_abi_push_freg (gdbarch, eltype, elval, argpos);
-		else if (TYPE_CODE (eltype) == TYPE_CODE_ARRAY
+		else if (eltype->code () == TYPE_CODE_ARRAY
 			 && TYPE_VECTOR (eltype)
 			 && tdep->vector_abi == POWERPC_VEC_ALTIVEC
 			 && TYPE_LENGTH (eltype) == 16)
@@ -1580,7 +1541,8 @@ ppc64_sysv_abi_push_dummy_call (struct gdbarch *gdbarch,
 				struct value *function,
 				struct regcache *regcache, CORE_ADDR bp_addr,
 				int nargs, struct value **args, CORE_ADDR sp,
-				int struct_return, CORE_ADDR struct_addr)
+				function_call_return_method return_method,
+				CORE_ADDR struct_addr)
 {
   CORE_ADDR func_addr = find_function_addr (function, NULL);
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
@@ -1664,7 +1626,7 @@ ppc64_sysv_abi_push_dummy_call (struct gdbarch *gdbarch,
          containing the address of that struct..  In that case we
          should advance one word and start from r4 register to copy
          parameters.  This also consumes one on-stack parameter slot.  */
-      if (struct_return)
+      if (return_method == return_method_struct)
 	ppc64_sysv_abi_push_integer (gdbarch, struct_addr, &argpos);
 
       for (argno = 0; argno < nargs; argno++)
@@ -1673,7 +1635,7 @@ ppc64_sysv_abi_push_dummy_call (struct gdbarch *gdbarch,
 	  struct type *type = check_typedef (value_type (arg));
 	  const bfd_byte *val = value_contents (arg);
 
-	  if (TYPE_CODE (type) == TYPE_CODE_COMPLEX)
+	  if (type->code () == TYPE_CODE_COMPLEX)
 	    {
 	      /* Complex types are passed as if two independent scalars.  */
 	      struct type *eltype = check_typedef (TYPE_TARGET_TYPE (type));
@@ -1682,7 +1644,7 @@ ppc64_sysv_abi_push_dummy_call (struct gdbarch *gdbarch,
 	      ppc64_sysv_abi_push_param (gdbarch, eltype,
 				 	 val + TYPE_LENGTH (eltype), &argpos);
 	    }
-	  else if (TYPE_CODE (type) == TYPE_CODE_ARRAY && TYPE_VECTOR (type)
+	  else if (type->code () == TYPE_CODE_ARRAY && TYPE_VECTOR (type)
 		   && opencl_abi)
 	    {
 	      /* OpenCL vectors shorter than 16 bytes are passed as if
@@ -1742,7 +1704,7 @@ ppc64_sysv_abi_push_dummy_call (struct gdbarch *gdbarch,
       struct type *ftype = check_typedef (value_type (function));
       CORE_ADDR desc_addr = value_as_address (function);
 
-      if (TYPE_CODE (ftype) == TYPE_CODE_PTR
+      if (ftype->code () == TYPE_CODE_PTR
 	  || convert_code_addr_to_desc_addr (func_addr, &desc_addr))
 	{
 	  /* The TOC is the second double word in the descriptor.  */
@@ -1780,10 +1742,10 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
 
   /* Integers live in GPRs starting at r3.  */
-  if ((TYPE_CODE (valtype) == TYPE_CODE_INT
-       || TYPE_CODE (valtype) == TYPE_CODE_ENUM
-       || TYPE_CODE (valtype) == TYPE_CODE_CHAR
-       || TYPE_CODE (valtype) == TYPE_CODE_BOOL)
+  if ((valtype->code () == TYPE_CODE_INT
+       || valtype->code () == TYPE_CODE_ENUM
+       || valtype->code () == TYPE_CODE_CHAR
+       || valtype->code () == TYPE_CODE_BOOL)
       && TYPE_LENGTH (valtype) <= 8)
     {
       int regnum = tdep->ppc_gp0_regnum + 3 + index;
@@ -1810,7 +1772,7 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
   /* Floats and doubles go in f1 .. f13.  32-bit floats are converted
      to double first.  */
   if (TYPE_LENGTH (valtype) <= 8
-      && TYPE_CODE (valtype) == TYPE_CODE_FLT)
+      && valtype->code () == TYPE_CODE_FLT)
     {
       int regnum = tdep->ppc_fp0_regnum + 1 + index;
       struct type *regtype = register_type (gdbarch, regnum);
@@ -1818,13 +1780,13 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
 
       if (writebuf != NULL)
 	{
-	  convert_typed_floating (writebuf, valtype, regval, regtype);
-	  regcache_cooked_write (regcache, regnum, regval);
+	  target_float_convert (writebuf, valtype, regval, regtype);
+	  regcache->cooked_write (regnum, regval);
 	}
       if (readbuf != NULL)
 	{
-	  regcache_cooked_read (regcache, regnum, regval);
-	  convert_typed_floating (regval, regtype, readbuf, valtype);
+	  regcache->cooked_read (regnum, regval);
+	  target_float_convert (regval, regtype, readbuf, valtype);
 	}
       return 1;
     }
@@ -1832,7 +1794,7 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
   /* Floats and doubles go in f1 .. f13.  32-bit decimal floats are
      placed in the least significant word.  */
   if (TYPE_LENGTH (valtype) <= 8
-      && TYPE_CODE (valtype) == TYPE_CODE_DECFLOAT)
+      && valtype->code () == TYPE_CODE_DECFLOAT)
     {
       int regnum = tdep->ppc_fp0_regnum + 1 + index;
       int offset = 0;
@@ -1841,17 +1803,17 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
 	offset = 8 - TYPE_LENGTH (valtype);
 
       if (writebuf != NULL)
-	regcache_cooked_write_part (regcache, regnum,
-				    offset, TYPE_LENGTH (valtype), writebuf);
+	regcache->cooked_write_part (regnum, offset, TYPE_LENGTH (valtype),
+				     writebuf);
       if (readbuf != NULL)
-	regcache_cooked_read_part (regcache, regnum,
-				   offset, TYPE_LENGTH (valtype), readbuf);
+	regcache->cooked_read_part (regnum, offset, TYPE_LENGTH (valtype),
+				    readbuf);
       return 1;
     }
 
   /* IBM long double stored in two consecutive FPRs.  */
   if (TYPE_LENGTH (valtype) == 16
-      && TYPE_CODE (valtype) == TYPE_CODE_FLT
+      && valtype->code () == TYPE_CODE_FLT
       && (gdbarch_long_double_format (gdbarch)
 	  == floatformats_ibm_long_double))
     {
@@ -1859,13 +1821,13 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
 
       if (writebuf != NULL)
 	{
-	  regcache_cooked_write (regcache, regnum, writebuf);
-	  regcache_cooked_write (regcache, regnum + 1, writebuf + 8);
+	  regcache->cooked_write (regnum, writebuf);
+	  regcache->cooked_write (regnum + 1, writebuf + 8);
 	}
       if (readbuf != NULL)
 	{
-	  regcache_cooked_read (regcache, regnum, readbuf);
-	  regcache_cooked_read (regcache, regnum + 1, readbuf + 8);
+	  regcache->cooked_read (regnum, readbuf);
+	  regcache->cooked_read (regnum + 1, readbuf + 8);
 	}
       return 1;
     }
@@ -1873,7 +1835,7 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
   /* 128-bit decimal floating-point values are stored in an even/odd
      pair of FPRs, with the even FPR holding the most significant half.  */
   if (TYPE_LENGTH (valtype) == 16
-      && TYPE_CODE (valtype) == TYPE_CODE_DECFLOAT)
+      && valtype->code () == TYPE_CODE_DECFLOAT)
     {
       int regnum = tdep->ppc_fp0_regnum + 2 + 2 * index;
       int lopart = gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG ? 8 : 0;
@@ -1881,34 +1843,34 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
 
       if (writebuf != NULL)
 	{
-	  regcache_cooked_write (regcache, regnum, writebuf + hipart);
-	  regcache_cooked_write (regcache, regnum + 1, writebuf + lopart);
+	  regcache->cooked_write (regnum, writebuf + hipart);
+	  regcache->cooked_write (regnum + 1, writebuf + lopart);
 	}
       if (readbuf != NULL)
 	{
-	  regcache_cooked_read (regcache, regnum, readbuf + hipart);
-	  regcache_cooked_read (regcache, regnum + 1, readbuf + lopart);
+	  regcache->cooked_read (regnum, readbuf + hipart);
+	  regcache->cooked_read (regnum + 1, readbuf + lopart);
 	}
       return 1;
     }
 
   /* AltiVec vectors are returned in VRs starting at v2.  */
   if (TYPE_LENGTH (valtype) == 16
-      && TYPE_CODE (valtype) == TYPE_CODE_ARRAY && TYPE_VECTOR (valtype)
+      && valtype->code () == TYPE_CODE_ARRAY && TYPE_VECTOR (valtype)
       && tdep->vector_abi == POWERPC_VEC_ALTIVEC)
     {
       int regnum = tdep->ppc_vr0_regnum + 2 + index;
 
       if (writebuf != NULL)
-	regcache_cooked_write (regcache, regnum, writebuf);
+	regcache->cooked_write (regnum, writebuf);
       if (readbuf != NULL)
-	regcache_cooked_read (regcache, regnum, readbuf);
+	regcache->cooked_read (regnum, readbuf);
       return 1;
     }
 
   /* Short vectors are returned in GPRs starting at r3.  */
   if (TYPE_LENGTH (valtype) <= 8
-      && TYPE_CODE (valtype) == TYPE_CODE_ARRAY && TYPE_VECTOR (valtype))
+      && valtype->code () == TYPE_CODE_ARRAY && TYPE_VECTOR (valtype))
     {
       int regnum = tdep->ppc_gp0_regnum + 3 + index;
       int offset = 0;
@@ -1917,11 +1879,11 @@ ppc64_sysv_abi_return_value_base (struct gdbarch *gdbarch, struct type *valtype,
 	offset = 8 - TYPE_LENGTH (valtype);
 
       if (writebuf != NULL)
-	regcache_cooked_write_part (regcache, regnum,
-				    offset, TYPE_LENGTH (valtype), writebuf);
+	regcache->cooked_write_part (regnum, offset, TYPE_LENGTH (valtype),
+				     writebuf);
       if (readbuf != NULL)
-	regcache_cooked_read_part (regcache, regnum,
-				   offset, TYPE_LENGTH (valtype), readbuf);
+	regcache->cooked_read_part (regnum, offset, TYPE_LENGTH (valtype),
+				    readbuf);
       return 1;
     }
 
@@ -1947,7 +1909,7 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
   struct type *func_type = function ? value_type (function) : NULL;
   int opencl_abi = func_type? ppc_sysv_use_opencl_abi (func_type) : 0;
   struct type *eltype;
-  int nelt, i, ok;
+  int nelt, ok;
 
   /* This function exists to support a calling convention that
      requires floating-point registers.  It shouldn't be used on
@@ -1955,11 +1917,11 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
   gdb_assert (ppc_floating_point_unit_p (gdbarch));
 
   /* Complex types are returned as if two independent scalars.  */
-  if (TYPE_CODE (valtype) == TYPE_CODE_COMPLEX)
+  if (valtype->code () == TYPE_CODE_COMPLEX)
     {
       eltype = check_typedef (TYPE_TARGET_TYPE (valtype));
 
-      for (i = 0; i < 2; i++)
+      for (int i = 0; i < 2; i++)
 	{
 	  ok = ppc64_sysv_abi_return_value_base (gdbarch, eltype, regcache,
 						 readbuf, writebuf, i);
@@ -1976,7 +1938,7 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
   /* OpenCL vectors shorter than 16 bytes are returned as if
      a series of independent scalars; OpenCL vectors 16 bytes
      or longer are returned as if a series of AltiVec vectors.  */
-  if (TYPE_CODE (valtype) == TYPE_CODE_ARRAY && TYPE_VECTOR (valtype)
+  if (valtype->code () == TYPE_CODE_ARRAY && TYPE_VECTOR (valtype)
       && opencl_abi)
     {
       if (TYPE_LENGTH (valtype) < 16)
@@ -1985,7 +1947,7 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
 	eltype = register_type (gdbarch, tdep->ppc_vr0_regnum);
 
       nelt = TYPE_LENGTH (valtype) / TYPE_LENGTH (eltype);
-      for (i = 0; i < nelt; i++)
+      for (int i = 0; i < nelt; i++)
 	{
 	  ok = ppc64_sysv_abi_return_value_base (gdbarch, eltype, regcache,
 						 readbuf, writebuf, i);
@@ -2000,33 +1962,33 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
     }
 
   /* All pointers live in r3.  */
-  if (TYPE_CODE (valtype) == TYPE_CODE_PTR || TYPE_IS_REFERENCE (valtype))
+  if (valtype->code () == TYPE_CODE_PTR || TYPE_IS_REFERENCE (valtype))
     {
       int regnum = tdep->ppc_gp0_regnum + 3;
 
       if (writebuf != NULL)
-	regcache_cooked_write (regcache, regnum, writebuf);
+	regcache->cooked_write (regnum, writebuf);
       if (readbuf != NULL)
-	regcache_cooked_read (regcache, regnum, readbuf);
+	regcache->cooked_read (regnum, readbuf);
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
 
   /* Small character arrays are returned, right justified, in r3.  */
-  if (TYPE_CODE (valtype) == TYPE_CODE_ARRAY
+  if (valtype->code () == TYPE_CODE_ARRAY
       && !TYPE_VECTOR (valtype)
       && TYPE_LENGTH (valtype) <= 8
-      && TYPE_CODE (TYPE_TARGET_TYPE (valtype)) == TYPE_CODE_INT
+      && TYPE_TARGET_TYPE (valtype)->code () == TYPE_CODE_INT
       && TYPE_LENGTH (TYPE_TARGET_TYPE (valtype)) == 1)
     {
       int regnum = tdep->ppc_gp0_regnum + 3;
       int offset = (register_size (gdbarch, regnum) - TYPE_LENGTH (valtype));
 
       if (writebuf != NULL)
-	regcache_cooked_write_part (regcache, regnum,
-				    offset, TYPE_LENGTH (valtype), writebuf);
+	regcache->cooked_write_part (regnum, offset, TYPE_LENGTH (valtype),
+				     writebuf);
       if (readbuf != NULL)
-	regcache_cooked_read_part (regcache, regnum,
-				   offset, TYPE_LENGTH (valtype), readbuf);
+	regcache->cooked_read_part (regnum, offset, TYPE_LENGTH (valtype),
+				    readbuf);
       return RETURN_VALUE_REGISTER_CONVENTION;
     }
 
@@ -2034,14 +1996,14 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
      aggregates are returned in registers.  */
   if (tdep->elf_abi == POWERPC_ELF_V2
       && ppc64_elfv2_abi_homogeneous_aggregate (valtype, &eltype, &nelt)
-      && (TYPE_CODE (eltype) == TYPE_CODE_FLT
-	  || TYPE_CODE (eltype) == TYPE_CODE_DECFLOAT
-	  || (TYPE_CODE (eltype) == TYPE_CODE_ARRAY
+      && (eltype->code () == TYPE_CODE_FLT
+	  || eltype->code () == TYPE_CODE_DECFLOAT
+	  || (eltype->code () == TYPE_CODE_ARRAY
 	      && TYPE_VECTOR (eltype)
 	      && tdep->vector_abi == POWERPC_VEC_ALTIVEC
 	      && TYPE_LENGTH (eltype) == 16)))
     {
-      for (i = 0; i < nelt; i++)
+      for (int i = 0; i < nelt; i++)
 	{
 	  ok = ppc64_sysv_abi_return_value_base (gdbarch, eltype, regcache,
 						 readbuf, writebuf, i);
@@ -2060,16 +2022,15 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
      returned in registers r3:r4.  */
   if (tdep->elf_abi == POWERPC_ELF_V2
       && TYPE_LENGTH (valtype) <= 16
-      && (TYPE_CODE (valtype) == TYPE_CODE_STRUCT
-	  || TYPE_CODE (valtype) == TYPE_CODE_UNION
-	  || (TYPE_CODE (valtype) == TYPE_CODE_ARRAY
+      && (valtype->code () == TYPE_CODE_STRUCT
+	  || valtype->code () == TYPE_CODE_UNION
+	  || (valtype->code () == TYPE_CODE_ARRAY
 	      && !TYPE_VECTOR (valtype))))
     {
       int n_regs = ((TYPE_LENGTH (valtype) + tdep->wordsize - 1)
 		    / tdep->wordsize);
-      int i;
 
-      for (i = 0; i < n_regs; i++)
+      for (int i = 0; i < n_regs; i++)
 	{
 	  gdb_byte regval[PPC_MAX_REGISTER_SIZE];
 	  int regnum = tdep->ppc_gp0_regnum + 3 + i;
@@ -2087,11 +2048,11 @@ ppc64_sysv_abi_return_value (struct gdbarch *gdbarch, struct value *function,
 		memcpy (regval + tdep->wordsize - len, writebuf, len);
 	      else
 		memcpy (regval, writebuf + offset, len);
-	      regcache_cooked_write (regcache, regnum, regval);
+	      regcache->cooked_write (regnum, regval);
 	    }
 	  if (readbuf != NULL)
 	    {
-	      regcache_cooked_read (regcache, regnum, regval);
+	      regcache->cooked_read (regnum, regval);
 	      if (gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG
 		  && offset == 0)
 		memcpy (readbuf, regval + tdep->wordsize - len, len);

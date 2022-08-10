@@ -1,6 +1,6 @@
 /* Character set conversion support for GDB.
 
-   Copyright (C) 2001-2017 Free Software Foundation, Inc.
+   Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,12 +21,11 @@
 #include "charset.h"
 #include "gdbcmd.h"
 #include "gdb_obstack.h"
-#include "gdb_wait.h"
+#include "gdbsupport/gdb_wait.h"
 #include "charset-list.h"
-#include "vec.h"
-#include "environ.h"
+#include "gdbsupport/environ.h"
 #include "arch-utils.h"
-#include "gdb_vecs.h"
+#include "gdbsupport/gdb_vecs.h"
 #include <ctype.h>
 
 #ifdef USE_WIN32API
@@ -295,9 +294,6 @@ static struct gdbarch *be_le_arch;
 static void
 set_be_le_names (struct gdbarch *gdbarch)
 {
-  int i, len;
-  const char *target_wide;
-
   if (be_le_arch == gdbarch)
     return;
   be_le_arch = gdbarch;
@@ -307,6 +303,9 @@ set_be_le_names (struct gdbarch *gdbarch)
   target_wide_charset_le_name = "UTF-32LE";
   target_wide_charset_be_name = "UTF-32BE";
 #else
+  int i, len;
+  const char *target_wide;
+
   target_wide_charset_le_name = NULL;
   target_wide_charset_be_name = NULL;
 
@@ -365,7 +364,7 @@ validate (struct gdbarch *gdbarch)
 
 /* This is the sfunc for the 'set charset' command.  */
 static void
-set_charset_sfunc (char *charset, int from_tty, 
+set_charset_sfunc (const char *charset, int from_tty, 
 		   struct cmd_list_element *c)
 {
   /* CAREFUL: set the target charset here as well.  */
@@ -376,7 +375,7 @@ set_charset_sfunc (char *charset, int from_tty,
 /* 'set host-charset' command sfunc.  We need a wrapper here because
    the function needs to have a specific signature.  */
 static void
-set_host_charset_sfunc (char *charset, int from_tty,
+set_host_charset_sfunc (const char *charset, int from_tty,
 			struct cmd_list_element *c)
 {
   validate (get_current_arch ());
@@ -384,7 +383,7 @@ set_host_charset_sfunc (char *charset, int from_tty,
 
 /* Wrapper for the 'set target-charset' command.  */
 static void
-set_target_charset_sfunc (char *charset, int from_tty,
+set_target_charset_sfunc (const char *charset, int from_tty,
 			  struct cmd_list_element *c)
 {
   validate (get_current_arch ());
@@ -392,7 +391,7 @@ set_target_charset_sfunc (char *charset, int from_tty,
 
 /* Wrapper for the 'set target-wide-charset' command.  */
 static void
-set_target_wide_charset_sfunc (char *charset, int from_tty,
+set_target_wide_charset_sfunc (const char *charset, int from_tty,
 			       struct cmd_list_element *c)
 {
   validate (get_current_arch ());
@@ -548,7 +547,7 @@ convert_between_encodings (const char *from, const char *to,
 
       /* Now make sure that the object on the obstack only includes
 	 bytes we have converted.  */
-      obstack_blank_fast (output, -outleft);
+      obstack_blank_fast (output, -(ssize_t) outleft);
 
       if (r == (size_t) -1)
 	{
@@ -705,24 +704,33 @@ wchar_iterator::iterate (enum wchar_iterate_result *out_result,
   return -1;
 }
 
-
-/* The charset.c module initialization function.  */
+struct charset_vector
+{
+  ~charset_vector ()
+  {
+    clear ();
+  }
 
-extern initialize_file_ftype _initialize_charset; /* -Wmissing-prototype */
+  void clear ()
+  {
+    for (char *c : charsets)
+      xfree (c);
 
-static VEC (char_ptr) *charsets;
+    charsets.clear ();
+  }
+
+  std::vector<char *> charsets;
+};
+
+static charset_vector charsets;
 
 #ifdef PHONY_ICONV
 
 static void
 find_charset_names (void)
 {
-  /* Cast is fine here, because CHARSETS is never released.  Note that
-     the vec does not hold "const char *" pointers instead of "char *"
-     because the non-phony version stores heap-allocated strings in
-     it.  */
-  VEC_safe_push (char_ptr, charsets, (char *) GDB_DEFAULT_HOST_CHARSET);
-  VEC_safe_push (char_ptr, charsets, NULL);
+  charsets.charsets.push_back (xstrdup (GDB_DEFAULT_HOST_CHARSET));
+  charsets.charsets.push_back (NULL);
 }
 
 #else /* PHONY_ICONV */
@@ -743,7 +751,7 @@ add_one (unsigned int count, const char *const *names, void *data)
   unsigned int i;
 
   for (i = 0; i < count; ++i)
-    VEC_safe_push (char_ptr, charsets, xstrdup (names[i]));
+    charsets.charsets.push_back (xstrdup (names[i]));
 
   return 0;
 }
@@ -752,7 +760,8 @@ static void
 find_charset_names (void)
 {
   iconvlist (add_one, NULL);
-  VEC_safe_push (char_ptr, charsets, NULL);
+
+  charsets.charsets.push_back (NULL);
 }
 
 #else
@@ -807,10 +816,10 @@ find_charset_names (void)
 
 #ifdef ICONV_BIN
   {
-    char *iconv_dir = relocate_gdb_directory (ICONV_BIN,
-					      ICONV_BIN_RELOCATABLE);
-    iconv_program = concat (iconv_dir, SLASH_STRING, "iconv", NULL);
-    xfree (iconv_dir);
+    std::string iconv_dir = relocate_gdb_directory (ICONV_BIN,
+						    ICONV_BIN_RELOCATABLE);
+    iconv_program
+      = concat (iconv_dir.c_str(), SLASH_STRING, "iconv", (char *) NULL);
   }
 #else
   iconv_program = xstrdup ("iconv");
@@ -882,7 +891,7 @@ find_charset_names (void)
 		break;
 	      keep_going = *p;
 	      *p = '\0';
-	      VEC_safe_push (char_ptr, charsets, xstrdup (start));
+	      charsets.charsets.push_back (xstrdup (start));
 	      if (!keep_going)
 		break;
 	      /* Skip any extra spaces.  */
@@ -903,11 +912,10 @@ find_charset_names (void)
   if (fail)
     {
       /* Some error occurred, so drop the vector.  */
-      free_char_ptr_vec (charsets);
-      charsets = NULL;
+      charsets.clear ();
     }
   else
-    VEC_safe_push (char_ptr, charsets, NULL);
+    charsets.charsets.push_back (NULL);
 }
 
 #endif /* HAVE_ICONVLIST || HAVE_LIBICONVLIST */
@@ -937,15 +945,9 @@ default_auto_wide_charset (void)
 #define ENDIAN_SUFFIX "LE"
 #endif
 
-/* The code below serves to generate a compile time error if
-   gdb_wchar_t type is not of size 2 nor 4, despite the fact that
-   macro __STDC_ISO_10646__ is defined.
-   This is better than a gdb_assert call, because GDB cannot handle
-   strings correctly if this size is different.  */
+/* GDB cannot handle strings correctly if this size is different.  */
 
-extern char your_gdb_wchar_t_is_bogus[(sizeof (gdb_wchar_t) == 2
-				       || sizeof (gdb_wchar_t) == 4)
-				      ? 1 : -1];
+gdb_static_assert (sizeof (gdb_wchar_t) == 2 || sizeof (gdb_wchar_t) == 4);
 
 /* intermediate_encoding returns the charset used internally by
    GDB to convert between target and host encodings. As the test above
@@ -988,20 +990,21 @@ intermediate_encoding (void)
   /* Not valid, free the allocated memory.  */
   xfree (result);
   /* No valid charset found, generate error here.  */
-  error (_("Unable to find a vaild charset for string conversions"));
+  error (_("Unable to find a valid charset for string conversions"));
 }
 
 #endif /* USE_INTERMEDIATE_ENCODING_FUNCTION */
 
+void _initialize_charset ();
 void
-_initialize_charset (void)
+_initialize_charset ()
 {
   /* The first element is always "auto".  */
-  VEC_safe_push (char_ptr, charsets, xstrdup ("auto"));
+  charsets.charsets.push_back (xstrdup ("auto"));
   find_charset_names ();
 
-  if (VEC_length (char_ptr, charsets) > 1)
-    charset_enum = (const char **) VEC_address (char_ptr, charsets);
+  if (charsets.charsets.size () > 1)
+    charset_enum = (const char **) charsets.charsets.data ();
   else
     charset_enum = default_charset_names;
 

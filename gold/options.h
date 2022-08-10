@@ -1,6 +1,6 @@
 // options.h -- handle command line options for gold  -*- C++ -*-
 
-// Copyright (C) 2006-2017 Free Software Foundation, Inc.
+// Copyright (C) 2006-2020 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -471,7 +471,11 @@ struct Struct_special : public Struct_var
 									  \
   options::String_set::const_iterator					  \
   varname__##_end() const						  \
-  { return this->varname__##_.value.end(); }
+  { return this->varname__##_.value.end(); }                              \
+									  \
+  options::String_set::size_type                                          \
+  varname__##_size() const                                                \
+  { return this->varname__##_.value.size(); }                             \
 
 // When you have a list of possible values (expressed as string)
 // After helparg__ should come an initializer list, like
@@ -711,7 +715,7 @@ class General_options
   DEFINE_string(format, options::TWO_DASHES, 'b', "elf",
 		N_("Set input format"), ("[elf,binary]"));
 
-  DEFINE_bool(be8,options::TWO_DASHES, '\0', false,
+  DEFINE_bool(be8, options::TWO_DASHES, '\0', false,
 	      N_("Output BE8 format image"), NULL);
 
   DEFINE_optional_string(build_id, options::TWO_DASHES, '\0', "tree",
@@ -795,6 +799,10 @@ class General_options
   DEFINE_bool(no_demangle, options::TWO_DASHES, '\0', false,
 	      N_("Do not demangle C++ symbols in log messages"),
 	      NULL);
+
+  DEFINE_string(dependency_file, options::TWO_DASHES, '\0', NULL,
+		N_("Write a dependency file listing all files read"),
+		N_("FILE"));
 
   DEFINE_bool(detect_odr_violations, options::TWO_DASHES, '\0', false,
 	      N_("Look for violations of the C++ One Definition Rule"),
@@ -894,7 +902,7 @@ class General_options
 
   DEFINE_string(fuse_ld, options::ONE_DASH, '\0', "",
 		N_("Ignored for GCC linker option compatibility"),
-		"");
+		N_("[gold,bfd]"));
 
   // g
 
@@ -925,7 +933,7 @@ class General_options
 		N_("Min fraction of empty buckets in dynamic hash"),
 		N_("FRACTION"));
 
-  DEFINE_enum(hash_style, options::TWO_DASHES, '\0', "sysv",
+  DEFINE_enum(hash_style, options::TWO_DASHES, '\0', DEFAULT_HASH_STYLE,
 	      N_("Dynamic hash style"), N_("[sysv,gnu,both]"),
 	      {"sysv", "gnu", "both"});
 
@@ -942,7 +950,7 @@ class General_options
 	      {"none", "all", "safe"});
 
   DEFINE_uint(icf_iterations, options::TWO_DASHES , '\0', 0,
-	      N_("Number of iterations of ICF (default 2)"), N_("COUNT"));
+	      N_("Number of iterations of ICF (default 3)"), N_("COUNT"));
 
   DEFINE_special(incremental, options::TWO_DASHES, '\0',
 		 N_("Do an incremental link if possible; "
@@ -1101,7 +1109,7 @@ class General_options
 	      NULL, N_("(ARM only) Ignore for backward compatibility"));
 
   DEFINE_var(plt_align, options::TWO_DASHES, '\0', 0, "5",
-	     N_("(PowerPC64 only) Align PLT call stubs to fit cache lines"),
+	     N_("(PowerPC only) Align PLT call stubs to fit cache lines"),
 	     N_("[=P2ALIGN]"), true, int, int, options::parse_uint, false);
 
   DEFINE_bool(plt_localentry, options::TWO_DASHES, '\0', false,
@@ -1121,6 +1129,12 @@ class General_options
 		 N_("Load a plugin library"), N_("PLUGIN"));
   DEFINE_special(plugin_opt, options::TWO_DASHES, '\0',
 		 N_("Pass an option to the plugin"), N_("OPTION"));
+#else
+  DEFINE_special(plugin, options::TWO_DASHES, '\0',
+		 N_("Load a plugin library (not supported)"), N_("PLUGIN"));
+  DEFINE_special(plugin_opt, options::TWO_DASHES, '\0',
+		 N_("Pass an option to the plugin (not supported)"),
+		 N_("OPTION"));
 #endif
 
   DEFINE_bool(posix_fallocate, options::TWO_DASHES, '\0', true,
@@ -1172,7 +1186,7 @@ class General_options
 
   DEFINE_bool(rosegment, options::TWO_DASHES, '\0', false,
 	      N_("Put read-only non-executable sections in their own segment"),
-	      NULL);
+	      N_("Do not put read-only non-executable sections in their own segment"));
 
   DEFINE_uint64(rosegment_gap, options::TWO_DASHES, '\0', -1U,
 		N_("Set offset between executable and read-only segments"),
@@ -1292,6 +1306,13 @@ class General_options
   DEFINE_uint(thread_count_final, options::TWO_DASHES, '\0', 0,
 	      N_("Number of threads to use in final pass"), N_("COUNT"));
 
+  DEFINE_bool(tls_optimize, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC/64 only) Optimize GD/LD/IE code to IE/LE"),
+	      N_("(PowerPC/64 only) Don'\''t try to optimize TLS accesses"));
+  DEFINE_bool(tls_get_addr_optimize, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC/64 only) Use a special __tls_get_addr call"),
+	      N_("(PowerPC/64 only) Don't use a special __tls_get_addr call"));
+
   DEFINE_bool(toc_optimize, options::TWO_DASHES, '\0', true,
 	      N_("(PowerPC64 only) Optimize TOC code sequences"),
 	      N_("(PowerPC64 only) Don't optimize TOC code sequences"));
@@ -1343,6 +1364,10 @@ class General_options
 
   DEFINE_bool_ignore(warn_constructors, options::TWO_DASHES, '\0',
 		     N_("Ignored"), N_("Ignored"));
+
+  DEFINE_bool(warn_drop_version, options::TWO_DASHES, '\0', false,
+	      N_("Warn when discarding version information"),
+	      N_("Do not warn when discarding version information"));
 
   DEFINE_bool(warn_execstack, options::TWO_DASHES, '\0', false,
 	      N_("Warn if the stack is executable"),
@@ -1479,12 +1504,26 @@ class General_options
 	      N_("Don't mark variables read-only after relocation"));
   DEFINE_uint64(stack_size, options::DASH_Z, '\0', 0,
 		N_("Set PT_GNU_STACK segment p_memsz to SIZE"), N_("SIZE"));
+  DEFINE_enum(start_stop_visibility, options::DASH_Z, '\0', "protected",
+	      N_("ELF symbol visibility for synthesized "
+		 "__start_* and __stop_* symbols"),
+	      ("[default,internal,hidden,protected]"),
+	      {"default", "internal", "hidden", "protected"});
   DEFINE_bool(text, options::DASH_Z, '\0', false,
 	      N_("Do not permit relocations in read-only segments"),
 	      N_("Permit relocations in read-only segments"));
   DEFINE_bool_alias(textoff, text, options::DASH_Z, '\0',
 		    N_("Permit relocations in read-only segments"),
 		    NULL, true);
+  DEFINE_bool(text_unlikely_segment, options::DASH_Z, '\0', false,
+	      N_("Move .text.unlikely sections to a separate segment."),
+	      N_("Do not move .text.unlikely sections to a separate "
+		 "segment."));
+  DEFINE_bool(keep_text_section_prefix, options::DASH_Z, '\0', false,
+	      N_("Keep .text.hot, .text.startup, .text.exit and .text.unlikely "
+		 "as separate sections in the final binary."),
+	      N_("Merge all .text.* prefix sections."));
+
 
  public:
   typedef options::Dir_list Dir_list;
@@ -1720,6 +1759,10 @@ class General_options
   orphan_handling_enum() const
   { return this->orphan_handling_enum_; }
 
+  elfcpp::STV
+  start_stop_visibility_enum() const
+  { return this->start_stop_visibility_enum_; }
+
  private:
   // Don't copy this structure.
   General_options(const General_options&);
@@ -1778,6 +1821,10 @@ class General_options
   void
   set_orphan_handling_enum(Orphan_handling value)
   { this->orphan_handling_enum_ = value; }
+
+  void
+  set_start_stop_visibility_enum(elfcpp::STV value)
+  { this->start_stop_visibility_enum_ = value; }
 
   // These are called by finalize() to set up the search-path correctly.
   void
@@ -1846,6 +1893,8 @@ class General_options
   std::vector<Position_dependent_options*> options_stack_;
   // Orphan handling option, decoded to an enum value.
   Orphan_handling orphan_handling_enum_;
+  // Symbol visibility for __start_* / __stop_* magic symbols.
+  elfcpp::STV start_stop_visibility_enum_;
 };
 
 // The position-dependent options.  We use this to store the state of

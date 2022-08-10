@@ -1,5 +1,5 @@
 /* Disassemble support for GDB.
-   Copyright (C) 2002-2017 Free Software Foundation, Inc.
+   Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,14 +20,19 @@
 #define DISASM_H
 
 #include "dis-asm.h"
+#include "gdbsupport/enum-flags.h"
 
-#define DISASSEMBLY_SOURCE_DEPRECATED (0x1 << 0)
-#define DISASSEMBLY_RAW_INSN	(0x1 << 1)
-#define DISASSEMBLY_OMIT_FNAME	(0x1 << 2)
-#define DISASSEMBLY_FILENAME	(0x1 << 3)
-#define DISASSEMBLY_OMIT_PC	(0x1 << 4)
-#define DISASSEMBLY_SOURCE	(0x1 << 5)
-#define DISASSEMBLY_SPECULATIVE	(0x1 << 6)
+enum gdb_disassembly_flag
+  {
+    DISASSEMBLY_SOURCE_DEPRECATED = (0x1 << 0),
+    DISASSEMBLY_RAW_INSN = (0x1 << 1),
+    DISASSEMBLY_OMIT_FNAME = (0x1 << 2),
+    DISASSEMBLY_FILENAME = (0x1 << 3),
+    DISASSEMBLY_OMIT_PC = (0x1 << 4),
+    DISASSEMBLY_SOURCE = (0x1 << 5),
+    DISASSEMBLY_SPECULATIVE = (0x1 << 6),
+  };
+DEF_ENUM_FLAGS_TYPE (enum gdb_disassembly_flag, gdb_disassembly_flags);
 
 struct gdbarch;
 struct ui_out;
@@ -41,6 +46,10 @@ public:
   gdb_disassembler (struct gdbarch *gdbarch, struct ui_file *file)
     : gdb_disassembler (gdbarch, file, dis_asm_read_memory)
   {}
+
+  ~gdb_disassembler ();
+
+  DISABLE_COPY_AND_ASSIGN (gdb_disassembler);
 
   int print_insn (CORE_ADDR memaddr, int *branch_delay_insns = NULL);
 
@@ -61,6 +70,11 @@ private:
   /* Stores data required for disassembling instructions in
      opcodes.  */
   struct disassemble_info m_di;
+
+  /* If we own the string in `m_di.disassembler_options', we do so
+     using this field.  */
+  std::string m_disassembler_options_holder;
+
   CORE_ADDR m_err_memaddr;
 
   static int dis_asm_read_memory (bfd_vma memaddr, gdb_byte *myaddr,
@@ -87,7 +101,7 @@ struct disasm_insn
 };
 
 extern void gdb_disassembly (struct gdbarch *gdbarch, struct ui_out *uiout,
-			     int flags, int how_many,
+			     gdb_disassembly_flags flags, int how_many,
 			     CORE_ADDR low, CORE_ADDR high);
 
 /* Print the instruction at address MEMADDR in debugged memory,
@@ -102,25 +116,31 @@ extern int gdb_print_insn (struct gdbarch *gdbarch, CORE_ADDR memaddr,
 class gdb_pretty_print_disassembler
 {
 public:
-  explicit gdb_pretty_print_disassembler (struct gdbarch *gdbarch)
-    : m_di (gdbarch, &m_insn_stb)
+  explicit gdb_pretty_print_disassembler (struct gdbarch *gdbarch,
+					  struct ui_out *uiout)
+    : m_uiout (uiout),
+      m_insn_stb (uiout->can_emit_style_escape ()),
+      m_di (gdbarch, &m_insn_stb)
   {}
 
-  /* Prints the instruction INSN into UIOUT and returns the length of
-     the printed instruction in bytes.  */
-  int pretty_print_insn (struct ui_out *uiout, const struct disasm_insn *insn,
-			 int flags);
+  /* Prints the instruction INSN into the saved ui_out and returns the
+     length of the printed instruction in bytes.  */
+  int pretty_print_insn (const struct disasm_insn *insn,
+			 gdb_disassembly_flags flags);
 
 private:
   /* Returns the architecture used for disassembling.  */
   struct gdbarch *arch () { return m_di.arch (); }
 
-  /* The disassembler used for instruction printing.  */
-  gdb_disassembler m_di;
+  /* The ui_out that is used by pretty_print_insn.  */
+  struct ui_out *m_uiout;
 
   /* The buffer used to build the instruction string.  The
      disassembler is initialized with this stream.  */
   string_file m_insn_stb;
+
+  /* The disassembler used for instruction printing.  */
+  gdb_disassembler m_di;
 
   /* The buffer used to build the raw opcodes string.  */
   string_file m_opcode_stb;

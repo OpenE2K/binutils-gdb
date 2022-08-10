@@ -1,5 +1,5 @@
 /* listing.c - maintain assembly listings
-   Copyright (C) 1991-2017 Free Software Foundation, Inc.
+   Copyright (C) 1991-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -324,7 +324,13 @@ listing_newline (char *ps)
     }
 #endif
 
-  file = as_where (&line);
+  /* PR 21977 - use the physical file name not the logical one unless high
+     level source files are being included in the listing.  */
+  if (listing & LISTING_HLL)
+    file = as_where (&line);
+  else
+    file = as_where_physical (&line);
+
   if (ps == NULL)
     {
       if (line == last_line
@@ -777,7 +783,7 @@ calc_hex (list_info_type *list)
     {
       /* Print as many bytes from the fixed part as is sensible.  */
       octet_in_frag = 0;
-      while ((offsetT) octet_in_frag < frag_ptr->fr_fix
+      while (octet_in_frag < frag_ptr->fr_fix
 	     && data_buffer_size < MAX_BYTES - 3)
 	{
 	  if (address == ~(unsigned int) 0)
@@ -795,8 +801,8 @@ calc_hex (list_info_type *list)
 	  unsigned int var_rep_idx = octet_in_frag;
 
 	  /* Print as many bytes from the variable part as is sensible.  */
-	  while (((offsetT) octet_in_frag
-		  < (frag_ptr->fr_fix + frag_ptr->fr_var * frag_ptr->fr_offset))
+	  while ((octet_in_frag
+		  < frag_ptr->fr_fix + frag_ptr->fr_var * frag_ptr->fr_offset)
 		 && data_buffer_size < MAX_BYTES - 3)
 	    {
 	      if (address == ~(unsigned int) 0)
@@ -810,7 +816,7 @@ calc_hex (list_info_type *list)
 	      var_rep_idx++;
 	      octet_in_frag++;
 
-	      if ((offsetT) var_rep_idx >= frag_ptr->fr_fix + frag_ptr->fr_var)
+	      if (var_rep_idx >= frag_ptr->fr_fix + frag_ptr->fr_var)
 		var_rep_idx = var_rep_max;
 	    }
 	}

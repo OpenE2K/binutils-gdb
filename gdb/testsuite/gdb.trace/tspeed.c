@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2010-2017 Free Software Foundation, Inc.
+   Copyright 2010-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <unistd.h>
 
 int trace_speed_test (void);
 
@@ -74,7 +75,7 @@ main(int argc, char **argv)
 
       /* Keep trying the speed test, with more iterations, until
 	 we get to a reasonable number.  */
-      while (problem = trace_speed_test())
+      while ((problem = trace_speed_test()))
 	{
 	  /* If iteration isn't working, give up.  */
 	  if (iters > max_iters)
@@ -84,7 +85,7 @@ main(int argc, char **argv)
 	    }
 	  if (problem < 0)
 	    {
-	      printf ("Negative times, giving up\n", max_iters);
+	      printf ("Negative times, giving up\n");
 	      break;
 	    }
 

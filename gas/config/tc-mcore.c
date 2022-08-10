@@ -1,5 +1,5 @@
 /* tc-mcore.c -- Assemble code for M*Core
-   Copyright (C) 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1088,7 +1088,7 @@ md_assemble (char * str)
 
       if (* op_end == ',')
 	{
-	  op_end = parse_imm (op_end + 1, & reg, 1, 1 << 31);
+	  op_end = parse_imm (op_end + 1, & reg, 1, 1u << 31);
 	  /* Further restrict the immediate to a power of two.  */
 	  if ((reg & (reg - 1)) == 0)
 	    reg = mylog2 (reg);
@@ -1144,7 +1144,7 @@ md_assemble (char * str)
 
       if (* op_end == ',')
 	{
-	  op_end = parse_imm (op_end + 1, & reg, 1, 1 << 31);
+	  op_end = parse_imm (op_end + 1, & reg, 1, 1u << 31);
 
 	  /* Further restrict the immediate to a power of two.  */
 	  if ((reg & (reg - 1)) == 0)
@@ -1725,7 +1725,7 @@ md_convert_frag (bfd * abfd ATTRIBUTE_UNUSED,
   char *buffer;
   int targ_addr = S_GET_VALUE (fragP->fr_symbol) + fragP->fr_offset;
 
-  buffer = fragP->fr_fix + fragP->fr_literal;
+  buffer = fragP->fr_fix + &fragP->fr_literal[0];
 
   switch (fragP->fr_subtype)
     {
@@ -1947,7 +1947,10 @@ md_apply_fix (fixS *   fixP,
     case BFD_RELOC_MCORE_PCREL_IMM11BY2:
       if ((val & 1) != 0)
 	as_bad_where (file, fixP->fx_line,
-		      _("odd distance branch (0x%lx bytes)"), (long) val);
+		      ngettext ("odd distance branch (0x%lx byte)",
+				"odd distance branch (0x%lx bytes)",
+				(long) val),
+		      (long) val);
       val /= 2;
       if (((val & ~0x3ff) != 0) && ((val | 0x3ff) != -1))
 	as_bad_where (file, fixP->fx_line,

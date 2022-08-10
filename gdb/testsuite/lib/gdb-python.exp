@@ -1,4 +1,4 @@
-# Copyright 2010-2017 Free Software Foundation, Inc.
+# Copyright 2010-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,38 +27,23 @@ proc gdb_py_test_silent_cmd { cmd name report_pass } {
     }
 }
 
-# Usage: gdb_py_test_multiple NAME INPUT RESULT {INPUT RESULT}...
-# Run a test named NAME, consisting of multiple lines of input.
-# After each input line INPUT, search for result line RESULT.
-# Succeed if all results are seen; fail otherwise.
+# Return the result of python expression EXPR.  DEFAULT is returned if
+# there's an error.  TEST is the test message to use.  It can be
+# omitted, in which case a test message is built from EXP.  This is
+# modeled after get_integer_valueof.
 
-proc gdb_py_test_multiple { name args } {
+proc get_python_valueof { exp default {test ""} } {
     global gdb_prompt
-    foreach {input result} $args {
-	if {[gdb_test_multiple $input "$name - $input" {
-	    -re "\[\r\n\]*($result)\[\r\n\]+($gdb_prompt | *>)$" {
-		pass "$name - $input"
-	    }
-	}]} {
-	    return 1
-	}
+
+    if {$test == ""} {
+	set test "get python valueof \"${exp}\""
     }
-    return 0
-}
 
-# Return the result of python expression EXPR.
-# DEFAULT is returned if there's an error.
-# This is modelled after get_integer_valueof.
-
-proc get_python_valueof { exp default } {
-    global gdb_prompt
-
-    set test "get python valueof \"${exp}\""
     set val ${default}
     gdb_test_multiple "python print (\"valueof: %s\" % (${exp}))" "$test" {
 	-re "valueof: (\[^\r\n\]*)\[\r\n\]*$gdb_prompt $" {
 	    set val $expect_out(1,string)
-	    pass "$test ($val)"
+	    pass "$test"
 	}
 	timeout {
 	    fail "$test (timeout)"

@@ -1,6 +1,6 @@
-. ${srcdir}/emulparams/arc-endianness.sh
+source_sh ${srcdir}/emulparams/arc-endianness.sh
 SCRIPT_NAME=elfarc
-TEMPLATE_NAME=elf32
+TEMPLATE_NAME=elf
 if [ "x${ARC_ENDIAN}" = "xbig" ]; then
   OUTPUT_FORMAT="elf32-bigarc"
 else
@@ -16,6 +16,7 @@ ARCH=arc
 MACHINE=
 ENTRY=__start
 SDATA_START_SYMBOLS='__SDATA_BEGIN__ = . + 0x100;'
+JLI_START_TABLE='__JLI_TABLE__ = .;'
 OTHER_SECTIONS="/DISCARD/ : { *(.__arc_profile_*) }"
 EMBEDDED=yes
 

@@ -1,6 +1,6 @@
 /* Target-dependent code for the NDS32 architecture, for GDB.
 
-   Copyright (C) 2013-2017 Free Software Foundation, Inc.
+   Copyright (C) 2013-2020 Free Software Foundation, Inc.
    Contributed by Andes Technology Corporation.
 
    This file is part of GDB.
@@ -34,7 +34,7 @@
 #include "dis-asm.h"
 #include "user-regs.h"
 #include "elf-bfd.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "remote.h"
 #include "target-descriptions.h"
 
@@ -54,8 +54,6 @@
 	N32_TYPE4 (LSMW, 0, 0, 0, 0, (N32_LSMW_BIM << 2) | N32_LSMW_LSMW)
 #define N32_FLDI_SP \
 	N32_TYPE2 (LDC, 0, REG_SP, 0)
-
-extern void _initialize_nds32_tdep (void);
 
 /* Use an invalid address value as 'not available' marker.  */
 enum { REG_UNAVAIL = (CORE_ADDR) -1 };
@@ -439,7 +437,7 @@ nds32_pseudo_register_name (struct gdbarch *gdbarch, int regnum)
 
 static enum register_status
 nds32_pseudo_register_read (struct gdbarch *gdbarch,
-			    struct regcache *regcache, int regnum,
+			    readable_regcache *regcache, int regnum,
 			    gdb_byte *buf)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
@@ -464,7 +462,7 @@ nds32_pseudo_register_read (struct gdbarch *gdbarch,
 	offset = (regnum & 1) ? 0 : 4;
 
       fdr_regnum = NDS32_FD0_REGNUM + (regnum >> 1);
-      status = regcache_raw_read (regcache, fdr_regnum, reg_buf);
+      status = regcache->raw_read (fdr_regnum, reg_buf);
       if (status == REG_VALID)
 	memcpy (buf, reg_buf + offset, 4);
 
@@ -502,9 +500,9 @@ nds32_pseudo_register_write (struct gdbarch *gdbarch,
 	offset = (regnum & 1) ? 0 : 4;
 
       fdr_regnum = NDS32_FD0_REGNUM + (regnum >> 1);
-      regcache_raw_read (regcache, fdr_regnum, reg_buf);
+      regcache->raw_read (fdr_regnum, reg_buf);
       memcpy (reg_buf + offset, buf, 4);
-      regcache_raw_write (regcache, fdr_regnum, reg_buf);
+      regcache->raw_write (fdr_regnum, reg_buf);
       return;
     }
 
@@ -1389,32 +1387,7 @@ static const struct frame_unwind nds32_epilogue_frame_unwind =
   NULL,
   nds32_epilogue_frame_sniffer
 };
-
-/* Implement the "dummy_id" gdbarch method.  */
 
-static struct frame_id
-nds32_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  CORE_ADDR sp = get_frame_register_unsigned (this_frame, NDS32_SP_REGNUM);
-
-  return frame_id_build (sp, get_frame_pc (this_frame));
-}
-
-/* Implement the "unwind_pc" gdbarch method.  */
-
-static CORE_ADDR
-nds32_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame, NDS32_PC_REGNUM);
-}
-
-/* Implement the "unwind_sp" gdbarch method.  */
-
-static CORE_ADDR
-nds32_unwind_sp (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame, NDS32_SP_REGNUM);
-}
 
 /* Floating type and struct type that has only one floating type member
    can pass value using FPU registers (when FPU ABI is used).  */
@@ -1429,61 +1402,16 @@ nds32_check_calling_use_fpr (struct type *type)
   while (1)
     {
       t = check_typedef (t);
-      typecode = TYPE_CODE (t);
+      typecode = t->code ();
       if (typecode != TYPE_CODE_STRUCT)
 	break;
-      else if (TYPE_NFIELDS (t) != 1)
+      else if (t->num_fields () != 1)
 	return 0;
       else
-	t = TYPE_FIELD_TYPE (t, 0);
+	t = t->field (0).type ();
     }
 
   return typecode == TYPE_CODE_FLT;
-}
-
-/* Return the alignment (in bytes) of the given type.  */
-
-static int
-nds32_type_align (struct type *type)
-{
-  int n;
-  int align;
-  int falign;
-
-  type = check_typedef (type);
-  switch (TYPE_CODE (type))
-    {
-    default:
-      /* Should never happen.  */
-      internal_error (__FILE__, __LINE__, _("unknown type alignment"));
-      return 4;
-
-    case TYPE_CODE_PTR:
-    case TYPE_CODE_ENUM:
-    case TYPE_CODE_INT:
-    case TYPE_CODE_FLT:
-    case TYPE_CODE_SET:
-    case TYPE_CODE_RANGE:
-    case TYPE_CODE_REF:
-    case TYPE_CODE_CHAR:
-    case TYPE_CODE_BOOL:
-      return TYPE_LENGTH (type);
-
-    case TYPE_CODE_ARRAY:
-    case TYPE_CODE_COMPLEX:
-      return nds32_type_align (TYPE_TARGET_TYPE (type));
-
-    case TYPE_CODE_STRUCT:
-    case TYPE_CODE_UNION:
-      align = 1;
-      for (n = 0; n < TYPE_NFIELDS (type); n++)
-	{
-	  falign = nds32_type_align (TYPE_FIELD_TYPE (type, n));
-	  if (falign > align)
-	    align = falign;
-	}
-      return align;
-    }
 }
 
 /* Implement the "push_dummy_call" gdbarch method.  */
@@ -1492,7 +1420,8 @@ static CORE_ADDR
 nds32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		       struct regcache *regcache, CORE_ADDR bp_addr,
 		       int nargs, struct value **args, CORE_ADDR sp,
-		       int struct_return, CORE_ADDR struct_addr)
+		       function_call_return_method return_method,
+		       CORE_ADDR struct_addr)
 {
   const int REND = 6;		/* End for register offset.  */
   int goff = 0;			/* Current gpr offset for argument.  */
@@ -1513,7 +1442,7 @@ nds32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   /* If STRUCT_RETURN is true, then the struct return address (in
      STRUCT_ADDR) will consume the first argument-passing register.
      Both adjust the register count and store that value.  */
-  if (struct_return)
+  if (return_method == return_method_struct)
     {
       regcache_cooked_write_unsigned (regcache, NDS32_R0_REGNUM, struct_addr);
       goff++;
@@ -1523,7 +1452,7 @@ nds32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   for (i = 0; i < nargs; i++)
     {
       struct type *type = value_type (args[i]);
-      int align = nds32_type_align (type);
+      int align = type_align (type);
 
       /* If align is zero, it may be an empty struct.
 	 Just ignore the argument of empty struct.  */
@@ -1549,7 +1478,7 @@ nds32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       type = value_type (args[i]);
       calling_use_fpr = nds32_check_calling_use_fpr (type);
       len = TYPE_LENGTH (type);
-      align = nds32_type_align (type);
+      align = type_align (type);
       val = value_contents (args[i]);
 
       /* The size of a composite type larger than 4 bytes will be rounded
@@ -1567,7 +1496,7 @@ nds32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	 and pushes all unnamed arguments in stack.  */
 
       if (abi_use_fpr && TYPE_VARARGS (func_type)
-	  && i >= TYPE_NFIELDS (func_type))
+	  && i >= func_type->num_fields ())
 	goto use_stack;
 
       /* Try to use FPRs to pass arguments only when
@@ -1589,13 +1518,11 @@ nds32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	      switch (len)
 		{
 		case 4:
-		  regcache_cooked_write (regcache,
-					 tdep->fs0_regnum + foff, val);
+		  regcache->cooked_write (tdep->fs0_regnum + foff, val);
 		  foff++;
 		  break;
 		case 8:
-		  regcache_cooked_write (regcache,
-					 NDS32_FD0_REGNUM + (foff >> 1), val);
+		  regcache->cooked_write (NDS32_FD0_REGNUM + (foff >> 1), val);
 		  foff += 2;
 		  break;
 		default:
@@ -1742,9 +1669,9 @@ nds32_extract_return_value (struct gdbarch *gdbarch, struct type *type,
   if (abi_use_fpr && calling_use_fpr)
     {
       if (len == 4)
-	regcache_cooked_read (regcache, tdep->fs0_regnum, valbuf);
+	regcache->cooked_read (tdep->fs0_regnum, valbuf);
       else if (len == 8)
-	regcache_cooked_read (regcache, NDS32_FD0_REGNUM, valbuf);
+	regcache->cooked_read (NDS32_FD0_REGNUM, valbuf);
       else
 	internal_error (__FILE__, __LINE__,
 			_("Cannot extract return value of %d bytes "
@@ -1790,7 +1717,7 @@ nds32_extract_return_value (struct gdbarch *gdbarch, struct type *type,
 	}
       else if (len == 4)
 	{
-	  regcache_cooked_read (regcache, NDS32_R0_REGNUM, valbuf);
+	  regcache->cooked_read (NDS32_R0_REGNUM, valbuf);
 	}
       else if (len < 8)
 	{
@@ -1807,8 +1734,8 @@ nds32_extract_return_value (struct gdbarch *gdbarch, struct type *type,
 	}
       else
 	{
-	  regcache_cooked_read (regcache, NDS32_R0_REGNUM, valbuf);
-	  regcache_cooked_read (regcache, NDS32_R0_REGNUM + 1, valbuf + 4);
+	  regcache->cooked_read (NDS32_R0_REGNUM, valbuf);
+	  regcache->cooked_read (NDS32_R0_REGNUM + 1, valbuf + 4);
 	}
     }
 }
@@ -1832,9 +1759,9 @@ nds32_store_return_value (struct gdbarch *gdbarch, struct type *type,
   if (abi_use_fpr && calling_use_fpr)
     {
       if (len == 4)
-	regcache_cooked_write (regcache, tdep->fs0_regnum, valbuf);
+	regcache->cooked_write (tdep->fs0_regnum, valbuf);
       else if (len == 8)
-	regcache_cooked_write (regcache, NDS32_FD0_REGNUM, valbuf);
+	regcache->cooked_write (NDS32_FD0_REGNUM, valbuf);
       else
 	internal_error (__FILE__, __LINE__,
 			_("Cannot store return value of %d bytes "
@@ -1851,7 +1778,7 @@ nds32_store_return_value (struct gdbarch *gdbarch, struct type *type,
 	}
       else if (len == 4)
 	{
-	  regcache_cooked_write (regcache, NDS32_R0_REGNUM, valbuf);
+	  regcache->cooked_write (NDS32_R0_REGNUM, valbuf);
 	}
       else if (len < 8)
 	{
@@ -1869,8 +1796,8 @@ nds32_store_return_value (struct gdbarch *gdbarch, struct type *type,
 	}
       else
 	{
-	  regcache_cooked_write (regcache, NDS32_R0_REGNUM, valbuf);
-	  regcache_cooked_write (regcache, NDS32_R0_REGNUM + 1, valbuf + 4);
+	  regcache->cooked_write (NDS32_R0_REGNUM, valbuf);
+	  regcache->cooked_write (NDS32_R0_REGNUM + 1, valbuf + 4);
 	}
     }
 }
@@ -2103,7 +2030,7 @@ nds32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Add NDS32 register aliases.  To avoid search in user register name space,
      user_reg_map_name_to_regnum is not used.  */
-  maxregs = (gdbarch_num_regs (gdbarch) + gdbarch_num_pseudo_regs (gdbarch));
+  maxregs = gdbarch_num_cooked_regs (gdbarch);
   for (i = 0; i < ARRAY_SIZE (nds32_register_aliases); i++)
     {
       int regnum, j;
@@ -2134,7 +2061,7 @@ nds32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   nds32_add_reggroups (gdbarch);
 
   /* Hook in ABI-specific overrides, if they have been registered.  */
-  info.tdep_info = (void *) tdesc_data;
+  info.tdesc_data = tdesc_data;
   gdbarch_init_osabi (info, gdbarch);
 
   /* Override tdesc_register callbacks for system registers.  */
@@ -2142,14 +2069,11 @@ nds32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   set_gdbarch_sp_regnum (gdbarch, NDS32_SP_REGNUM);
   set_gdbarch_pc_regnum (gdbarch, NDS32_PC_REGNUM);
-  set_gdbarch_unwind_sp (gdbarch, nds32_unwind_sp);
-  set_gdbarch_unwind_pc (gdbarch, nds32_unwind_pc);
   set_gdbarch_stack_frame_destroyed_p (gdbarch, nds32_stack_frame_destroyed_p);
   set_gdbarch_dwarf2_reg_to_regnum (gdbarch, nds32_dwarf2_reg_to_regnum);
 
   set_gdbarch_push_dummy_call (gdbarch, nds32_push_dummy_call);
   set_gdbarch_return_value (gdbarch, nds32_return_value);
-  set_gdbarch_dummy_id (gdbarch, nds32_dummy_id);
 
   set_gdbarch_skip_prologue (gdbarch, nds32_skip_prologue);
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
@@ -2172,8 +2096,9 @@ nds32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   return gdbarch;
 }
 
+void _initialize_nds32_tdep ();
 void
-_initialize_nds32_tdep (void)
+_initialize_nds32_tdep ()
 {
   /* Initialize gdbarch.  */
   register_gdbarch_init (bfd_arch_nds32, nds32_gdbarch_init);

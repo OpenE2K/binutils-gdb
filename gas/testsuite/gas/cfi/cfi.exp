@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2017 Free Software Foundation, Inc.
+# Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
     if { [gas_x86_32_check] }  then {
 	set ASFLAGS "$ASFLAGS --32"
 	run_dump_test "cfi-i386"
+	run_dump_test "cfi-i386-2"
 	set ASFLAGS "$old_ASFLAGS"
     }
 
@@ -96,11 +97,7 @@ if  { [istarget "i*86-*-*"] || [istarget "x86_64-*-*"] } then {
     if { [istarget "*-pe" ] || [istarget "*-rtemscoff*"] } then {
 	return
     }
-
-    if { [istarget sh64*-*-*] || [istarget sh5*-*-*] } then {
-    } else {
-	run_dump_test "cfi-sh-1"
-    }
+    run_dump_test "cfi-sh-1"
 
 } elseif { [istarget sparc*-*-*] } then {
     global NM
@@ -137,4 +134,10 @@ if { ![istarget "hppa64*-*"] } then {
   run_dump_test "cfi-common-7"
   run_dump_test "cfi-common-8"
   run_dump_test "cfi-common-9"
+
+  run_dump_test "cie-version-0"
+  run_dump_test "cie-version-1"
+  run_dump_test "cie-version-2"
+  run_dump_test "cie-version-3"
+  run_dump_test "cie-version-4"
 }

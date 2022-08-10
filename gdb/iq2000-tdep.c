@@ -1,7 +1,7 @@
 /* Target-dependent code for the IQ2000 architecture, for GDB, the GNU
    Debugger.
 
-   Copyright (C) 2000-2017 Free Software Foundation, Inc.
+   Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
    Contributed by Red Hat.
 
@@ -24,7 +24,7 @@
 #include "frame.h"
 #include "frame-base.h"
 #include "frame-unwind.h"
-#include "dwarf2-frame.h"
+#include "dwarf2/frame.h"
 #include "gdbtypes.h"
 #include "value.h"
 #include "dis-asm.h"
@@ -89,7 +89,7 @@ iq2000_pointer_to_address (struct gdbarch *gdbarch,
 			   struct type * type, const gdb_byte * buf)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
-  enum type_code target = TYPE_CODE (TYPE_TARGET_TYPE (type));
+  enum type_code target = TYPE_TARGET_TYPE (type)->code ();
   CORE_ADDR addr
     = extract_unsigned_integer (buf, TYPE_LENGTH (type), byte_order);
 
@@ -109,7 +109,7 @@ iq2000_address_to_pointer (struct gdbarch *gdbarch,
 			   struct type *type, gdb_byte *buf, CORE_ADDR addr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
-  enum type_code target = TYPE_CODE (TYPE_TARGET_TYPE (type));
+  enum type_code target = TYPE_TARGET_TYPE (type)->code ();
 
   if (target == TYPE_CODE_FUNC || target == TYPE_CODE_METHOD)
     addr = insn_ptr_from_addr (addr);
@@ -435,25 +435,6 @@ static const struct frame_unwind iq2000_frame_unwind = {
 };
 
 static CORE_ADDR
-iq2000_unwind_sp (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame, E_SP_REGNUM);
-}   
-
-static CORE_ADDR
-iq2000_unwind_pc (struct gdbarch *gdbarch, struct frame_info *next_frame)
-{
-  return frame_unwind_register_unsigned (next_frame, E_PC_REGNUM);
-}
-
-static struct frame_id
-iq2000_dummy_id (struct gdbarch *gdbarch, struct frame_info *this_frame)
-{
-  CORE_ADDR sp = get_frame_register_unsigned (this_frame, E_SP_REGNUM);
-  return frame_id_build (sp, get_frame_pc (this_frame));
-}
-
-static CORE_ADDR
 iq2000_frame_base_address (struct frame_info *this_frame, void **this_cache)
 {
   struct iq2000_frame_cache *cache = iq2000_frame_cache (this_frame,
@@ -510,7 +491,7 @@ iq2000_store_return_value (struct type *type, struct regcache *regcache,
 
       memset (buf, 0, 4);
       memcpy (buf + 4 - size, valbuf, size);
-      regcache_raw_write (regcache, regno++, buf);
+      regcache->raw_write (regno++, buf);
       len -= size;
       valbuf = ((char *) valbuf) + size;
     }
@@ -523,8 +504,8 @@ iq2000_store_return_value (struct type *type, struct regcache *regcache,
 static int
 iq2000_use_struct_convention (struct type *type)
 {
-  return ((TYPE_CODE (type) == TYPE_CODE_STRUCT)
-	  || (TYPE_CODE (type) == TYPE_CODE_UNION))
+  return ((type->code () == TYPE_CODE_STRUCT)
+	  || (type->code () == TYPE_CODE_UNION))
 	 && TYPE_LENGTH (type) > 8;
 }
 
@@ -539,7 +520,7 @@ static void
 iq2000_extract_return_value (struct type *type, struct regcache *regcache,
 			     gdb_byte *valbuf)
 {
-  struct gdbarch *gdbarch = get_regcache_arch (regcache);
+  struct gdbarch *gdbarch = regcache->arch ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
 
   /* If the function's return value is 8 bytes or less, it is
@@ -616,26 +597,26 @@ iq2000_pass_8bytetype_by_address (struct type *type)
   struct type *ftype;
 
   /* Skip typedefs.  */
-  while (TYPE_CODE (type) == TYPE_CODE_TYPEDEF)
+  while (type->code () == TYPE_CODE_TYPEDEF)
     type = TYPE_TARGET_TYPE (type);
   /* Non-struct and non-union types are always passed by value.  */
-  if (TYPE_CODE (type) != TYPE_CODE_STRUCT
-      && TYPE_CODE (type) != TYPE_CODE_UNION)
+  if (type->code () != TYPE_CODE_STRUCT
+      && type->code () != TYPE_CODE_UNION)
     return 0;
   /* Structs with more than 1 field are always passed by address.  */
-  if (TYPE_NFIELDS (type) != 1)
+  if (type->num_fields () != 1)
     return 1;
   /* Get field type.  */
-  ftype = (TYPE_FIELDS (type))[0].type;
+  ftype = type->field (0).type ();
   /* The field type must have size 8, otherwise pass by address.  */
   if (TYPE_LENGTH (ftype) != 8)
     return 1;
   /* Skip typedefs of field type.  */
-  while (TYPE_CODE (ftype) == TYPE_CODE_TYPEDEF)
+  while (ftype->code () == TYPE_CODE_TYPEDEF)
     ftype = TYPE_TARGET_TYPE (ftype);
   /* If field is int or float, pass by value.  */
-  if (TYPE_CODE (ftype) == TYPE_CODE_FLT
-      || TYPE_CODE (ftype) == TYPE_CODE_INT)
+  if (ftype->code () == TYPE_CODE_FLT
+      || ftype->code () == TYPE_CODE_INT)
     return 0;
   /* Everything else, pass by address.  */
   return 1;
@@ -645,7 +626,8 @@ static CORE_ADDR
 iq2000_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 		        struct regcache *regcache, CORE_ADDR bp_addr,
 		        int nargs, struct value **args, CORE_ADDR sp,
-		        int struct_return, CORE_ADDR struct_addr)
+			function_call_return_method return_method,
+			CORE_ADDR struct_addr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   const bfd_byte *val;
@@ -657,7 +639,9 @@ iq2000_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   CORE_ADDR struct_ptr;
 
   /* First determine how much stack space we will need.  */
-  for (i = 0, argreg = E_1ST_ARGREG + (struct_return != 0); i < nargs; i++)
+  for (i = 0, argreg = E_1ST_ARGREG + (return_method == return_method_struct);
+       i < nargs;
+       i++)
     {
       type = value_type (args[i]);
       typelen = TYPE_LENGTH (type);
@@ -716,7 +700,7 @@ iq2000_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   stackspace = 0;
 
   argreg = E_1ST_ARGREG;
-  if (struct_return)
+  if (return_method == return_method_struct)
     {
       /* A function that returns a struct will consume one argreg to do so.
        */
@@ -737,7 +721,7 @@ iq2000_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
           if (argreg <= E_LAST_ARGREG)
             {
               /* Passed in a register.  */
-	      regcache_raw_write (regcache, argreg++, buf);
+	      regcache->raw_write (argreg++, buf);
             }
           else
             {
@@ -756,8 +740,8 @@ iq2000_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
                  (must start with an even-numbered reg).  */
               if (((argreg - E_1ST_ARGREG) % 2) != 0)
                 argreg++;
-	      regcache_raw_write (regcache, argreg++, val);
-	      regcache_raw_write (regcache, argreg++, val + 4);
+	      regcache->raw_write (argreg++, val);
+	      regcache->raw_write (argreg++, val + 4);
             }
           else
             {
@@ -840,9 +824,6 @@ iq2000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_inner_than           (gdbarch, core_addr_lessthan);
   set_gdbarch_register_type (gdbarch, iq2000_register_type);
   set_gdbarch_frame_align (gdbarch, iq2000_frame_align);
-  set_gdbarch_unwind_sp (gdbarch, iq2000_unwind_sp);
-  set_gdbarch_unwind_pc (gdbarch, iq2000_unwind_pc);
-  set_gdbarch_dummy_id (gdbarch, iq2000_dummy_id);
   frame_base_set_default (gdbarch, &iq2000_frame_base);
   set_gdbarch_push_dummy_call (gdbarch, iq2000_push_dummy_call);
 
@@ -858,11 +839,9 @@ iq2000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
    Initializer function for the iq2000 module.
    Called by gdb at start-up.  */
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_iq2000_tdep;
-
+void _initialize_iq2000_tdep ();
 void
-_initialize_iq2000_tdep (void)
+_initialize_iq2000_tdep ()
 {
   register_gdbarch_init (bfd_arch_iq2000, iq2000_gdbarch_init);
 }

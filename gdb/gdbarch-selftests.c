@@ -1,6 +1,6 @@
 /* Self tests for gdbarch for GDB, the GNU debugger.
 
-   Copyright (C) 2017 Free Software Foundation, Inc.
+   Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,31 +18,16 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#if GDB_SELF_TEST
-#include "selftest.h"
+#include "gdbsupport/selftest.h"
 #include "selftest-arch.h"
-#include "inferior.h"
+#include "target.h"
+#include "test-target.h"
+#include "target-float.h"
+#include "gdbsupport/def-vector.h"
+#include "gdbarch.h"
+#include "scoped-mock-context.h"
 
 namespace selftests {
-
-/* A read-write regcache which doesn't write the target.  */
-
-class regcache_test : public regcache
-{
-public:
-  explicit regcache_test (struct gdbarch *gdbarch)
-    : regcache (gdbarch, NULL, false)
-  {
-    set_ptid (inferior_ptid);
-
-    current_regcache.push_front (this);
-  }
-
-  void raw_write (int regnum, const gdb_byte *buf) override
-  {
-    raw_set_cached_value (regnum, buf);
-  }
-};
 
 /* Test gdbarch methods register_to_value and value_to_register.  */
 
@@ -84,14 +69,10 @@ register_to_value_test (struct gdbarch *gdbarch)
       builtin->builtin_char32,
     };
 
-  current_inferior()->gdbarch = gdbarch;
+  scoped_mock_context<test_target_ops> mockctx (gdbarch);
 
-  struct regcache *regcache = new regcache_test (gdbarch);
-  struct frame_info *frame = create_test_frame (regcache);
-  const int num_regs = (gdbarch_num_regs (gdbarch)
-			+ gdbarch_num_pseudo_regs (gdbarch));
-
-  SELF_CHECK (regcache == get_current_regcache ());
+  struct frame_info *frame = get_current_frame ();
+  const int num_regs = gdbarch_num_cooked_regs (gdbarch);
 
   /* Test gdbarch methods register_to_value and value_to_register with
      different combinations of register numbers and types.  */
@@ -103,13 +84,10 @@ register_to_value_test (struct gdbarch *gdbarch)
 	    {
 	      std::vector<gdb_byte> expected (TYPE_LENGTH (type), 0);
 
-	      if (TYPE_CODE (type) == TYPE_CODE_FLT)
+	      if (type->code () == TYPE_CODE_FLT)
 		{
-		  DOUBLEST d = 1.25;
-
 		  /* Generate valid float format.  */
-		  floatformat_from_doublest (floatformat_from_type (type),
-					     &d, expected.data ());
+		  target_float_from_string (expected.data (), type, "1.25");
 		}
 	      else
 		{
@@ -145,12 +123,11 @@ register_to_value_test (struct gdbarch *gdbarch)
 }
 
 } // namespace selftests
-#endif /* GDB_SELF_TEST */
 
+void _initialize_gdbarch_selftests ();
 void
-_initialize_gdbarch_selftests (void)
+_initialize_gdbarch_selftests ()
 {
-#if GDB_SELF_TEST
-  register_self_test_foreach_arch (selftests::register_to_value_test);
-#endif
+  selftests::register_test_foreach_arch ("register_to_value",
+					 selftests::register_to_value_test);
 }

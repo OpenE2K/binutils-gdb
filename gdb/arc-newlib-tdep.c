@@ -1,6 +1,6 @@
 /* Target-dependent code for Newlib ARC.
 
-   Copyright (C) 2016-2017 Free Software Foundation, Inc.
+   Copyright (C) 2016-2020 Free Software Foundation, Inc.
    Contributed by Synopsys Inc.
 
    This file is part of GDB.
@@ -56,11 +56,9 @@ arc_newlib_osabi_sniffer (bfd *abfd)
     return GDB_OSABI_UNKNOWN;
 }
 
-/* Provide a prototype to silence -Wmissing-prototypes.  */
-extern initialize_file_ftype _initialize_arc_newlib_tdep;
-
+void _initialize_arc_newlib_tdep ();
 void
-_initialize_arc_newlib_tdep (void)
+_initialize_arc_newlib_tdep ()
 {
   gdbarch_register_osabi_sniffer (bfd_arch_arc, bfd_target_elf_flavour,
 				  arc_newlib_osabi_sniffer);

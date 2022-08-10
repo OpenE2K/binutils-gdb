@@ -12,7 +12,7 @@ class Ordering {
 bool Ordering::operator()(int a, int b) {
   // Optimization makes this operator() a different size than the one
   // in odr_violation1.cc.
-  return a + 12345 > b / 67;
+  return (a * 30 + b + 12345) > b / 67;
 }
 
 void SortDescending(int array[], int size) {
@@ -23,6 +23,14 @@ void SortDescending(int array[], int size) {
 extern "C" int OverriddenCFunction(int i) {
   return i * i;
 }
+
+// Extra lines to put SometimeInlineFunction at line 30+.
+
+// And a dummy function to workaround a GCC 7 bug with debug line numbers.
+int DummyFunction(int i) {
+  return i ^ 0x5555;
+}
+
 // This is inline in debug_msg.cc, which makes it a weak symbol too.
 int SometimesInlineFunction(int i) {
   return i * i;

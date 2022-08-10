@@ -1,9 +1,10 @@
 #source: start.s
 #source: pr19539.s
-#ld: -pie -T pr19539.t
+#ld: -pie -T pr19539.t --warn-textrel
 #readelf : --dyn-syms --wide
-#target: *-*-linux* *-*-gnu* *-*-solaris*
-#notarget: cris*-*-* alpha-*-*
+#warning: .*: creating DT_TEXTREL in a PIE
+#target: *-*-linux* *-*-gnu* *-*-solaris* arm*-*-uclinuxfdpiceabi
+#xfail: ![check_pie_support]
 
-Symbol table '\.dynsym' contains [0-9]+ entries:
+Symbol table '\.dynsym' contains [0-9]+ entr(y|ies):
 #pass

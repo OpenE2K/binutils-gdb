@@ -1,5 +1,5 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright (C) 1997-2017 Free Software Foundation, Inc.
+   Copyright (C) 1997-2020 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
    Rewritten by Kai Tietz, Onevision.
 
@@ -674,7 +674,7 @@ get_long (FILE *e, const char *msg)
 static void
 get_data (FILE *e, bfd_byte *p, rc_uint_type c, const char *msg)
 {
-  rc_uint_type got; // $$$d
+  rc_uint_type got; /* $$$d */
 
   got = (rc_uint_type) fread (p, 1, c, e);
   if (got == c)

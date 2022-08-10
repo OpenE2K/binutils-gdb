@@ -1,6 +1,6 @@
 /* Everything about catch/throw catchpoints, for GDB.
 
-   Copyright (C) 1986-2017 Free Software Foundation, Inc.
+   Copyright (C) 1986-2020 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -37,14 +37,6 @@
 #include "cp-support.h"
 #include "location.h"
 
-/* Enums for exception-handling support.  */
-enum exception_event_kind
-{
-  EX_EVENT_THROW,
-  EX_EVENT_RETHROW,
-  EX_EVENT_CATCH
-};
-
 /* Each spot where we may place an exception-related catchpoint has
    two names: the SDT probe point and the function name.  This
    structure holds both.  */
@@ -76,22 +68,28 @@ static struct breakpoint_ops gnu_v3_exception_catchpoint_ops;
 
 struct exception_catchpoint : public breakpoint
 {
-  ~exception_catchpoint () override;
-
   /* The kind of exception catchpoint.  */
 
   enum exception_event_kind kind;
 
-  /* If non-NULL, an xmalloc'd string holding the source form of the
-     regular expression to match against.  */
+  /* If not empty, a string holding the source form of the regular
+     expression to match against.  */
 
-  char *exception_rx;
+  std::string exception_rx;
 
   /* If non-NULL, a compiled regular expression which is used to
      determine which exceptions to stop on.  */
 
   std::unique_ptr<compiled_regex> pattern;
 };
+
+/* See breakpoint.h.  */
+
+bool
+is_exception_catchpoint (breakpoint *bp)
+{
+  return bp->ops == &gnu_v3_exception_catchpoint_ops;
+}
 
 
 
@@ -108,20 +106,22 @@ fetch_probe_arguments (struct value **arg0, struct value **arg1)
   unsigned n_args;
 
   pc_probe = find_probe_by_pc (pc);
-  if (pc_probe.probe == NULL
-      || strcmp (pc_probe.probe->provider, "libstdcxx") != 0
-      || (strcmp (pc_probe.probe->name, "catch") != 0
-	  && strcmp (pc_probe.probe->name, "throw") != 0
-	  && strcmp (pc_probe.probe->name, "rethrow") != 0))
+  if (pc_probe.prob == NULL)
+    error (_("did not find exception probe (does libstdcxx have SDT probes?)"));
+
+  if (pc_probe.prob->get_provider () != "libstdcxx"
+      || (pc_probe.prob->get_name () != "catch"
+	  && pc_probe.prob->get_name () != "throw"
+	  && pc_probe.prob->get_name () != "rethrow"))
     error (_("not stopped at a C++ exception catchpoint"));
 
-  n_args = get_probe_argument_count (pc_probe.probe, frame);
+  n_args = pc_probe.prob->get_argument_count (get_frame_arch (frame));
   if (n_args < 2)
     error (_("C++ exception catchpoint has too few arguments"));
 
   if (arg0 != NULL)
-    *arg0 = evaluate_probe_argument (pc_probe.probe, 0, frame);
-  *arg1 = evaluate_probe_argument (pc_probe.probe, 1, frame);
+    *arg0 = pc_probe.prob->evaluate_argument (0, frame);
+  *arg1 = pc_probe.prob->evaluate_argument (1, frame);
 
   if ((arg0 != NULL && *arg0 == NULL) || *arg1 == NULL)
     error (_("error computing probe argument at c++ exception catchpoint"));
@@ -140,13 +140,6 @@ classify_exception_breakpoint (struct breakpoint *b)
   return cp->kind;
 }
 
-/* exception_catchpoint destructor.  */
-
-exception_catchpoint::~exception_catchpoint ()
-{
-  xfree (this->exception_rx);
-}
-
 /* Implement the 'check_status' method.  */
 
 static void
@@ -163,27 +156,28 @@ check_status_exception_catchpoint (struct bpstats *bs)
   if (self->pattern == NULL)
     return;
 
-  TRY
+  const char *name = nullptr;
+  gdb::unique_xmalloc_ptr<char> canon;
+  try
     {
       struct value *typeinfo_arg;
-      std::string canon;
 
       fetch_probe_arguments (NULL, &typeinfo_arg);
       type_name = cplus_typename_from_type_info (typeinfo_arg);
 
       canon = cp_canonicalize_string (type_name.c_str ());
-      if (!canon.empty ())
-	std::swap (type_name, canon);
+      name = (canon != nullptr
+	      ? canon.get ()
+	      : type_name.c_str ());
     }
-  CATCH (e, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &e)
     {
       exception_print (gdb_stderr, e);
     }
-  END_CATCH
 
-  if (!type_name.empty ())
+  if (name != nullptr)
     {
-      if (self->pattern->exec (type_name.c_str (), 0, NULL, 0) != 0)
+      if (self->pattern->exec (name, 0, NULL, 0) != 0)
 	bs->stop = 0;
     }
 }
@@ -193,24 +187,22 @@ check_status_exception_catchpoint (struct bpstats *bs)
 static void
 re_set_exception_catchpoint (struct breakpoint *self)
 {
-  struct symtabs_and_lines sals = {0};
-  struct symtabs_and_lines sals_end = {0};
-  struct cleanup *cleanup;
+  std::vector<symtab_and_line> sals;
   enum exception_event_kind kind = classify_exception_breakpoint (self);
   struct program_space *filter_pspace = current_program_space;
 
   /* We first try to use the probe interface.  */
-  TRY
+  try
     {
       event_location_up location
 	= new_probe_location (exception_functions[kind].probe);
       sals = parse_probes (location.get (), filter_pspace, NULL);
     }
-  CATCH (e, RETURN_MASK_ERROR)
+  catch (const gdb_exception_error &e)
     {
       /* Using the probe interface failed.  Let's fallback to the normal
 	 catchpoint mode.  */
-      TRY
+      try
 	{
 	  struct explicit_location explicit_loc;
 
@@ -218,23 +210,19 @@ re_set_exception_catchpoint (struct breakpoint *self)
 	  explicit_loc.function_name
 	    = ASTRDUP (exception_functions[kind].function);
 	  event_location_up location = new_explicit_location (&explicit_loc);
-	  self->ops->decode_location (self, location.get (), filter_pspace,
-				      &sals);
+	  sals = self->ops->decode_location (self, location.get (),
+					     filter_pspace);
 	}
-      CATCH (ex, RETURN_MASK_ERROR)
+      catch (const gdb_exception_error &ex)
 	{
 	  /* NOT_FOUND_ERROR just means the breakpoint will be
 	     pending, so let it through.  */
 	  if (ex.error != NOT_FOUND_ERROR)
-	    throw_exception (ex);
+	    throw;
 	}
-      END_CATCH
     }
-  END_CATCH
 
-  cleanup = make_cleanup (xfree, sals.sals);
-  update_breakpoint_locations (self, filter_pspace, sals, sals_end);
-  do_cleanups (cleanup);
+  update_breakpoint_locations (self, filter_pspace, sals, {});
 }
 
 static enum print_stop_action
@@ -251,8 +239,7 @@ print_it_exception_catchpoint (bpstat bs)
   bp_temp = b->disposition == disp_del;
   uiout->text (bp_temp ? "Temporary catchpoint "
 		       : "Catchpoint ");
-  if (!uiout->is_mi_like_p ())
-    uiout->field_int ("bkptno", b->number);
+  uiout->field_signed ("bkptno", b->number);
   uiout->text ((kind == EX_EVENT_THROW ? " (exception thrown), "
 		: (kind == EX_EVENT_CATCH ? " (exception caught), "
 		   : " (exception rethrown), ")));
@@ -261,7 +248,6 @@ print_it_exception_catchpoint (bpstat bs)
       uiout->field_string ("reason",
 			   async_reason_lookup (EXEC_ASYNC_BREAKPOINT_HIT));
       uiout->field_string ("disp", bpdisp_text (b->disposition));
-      uiout->field_int ("bkptno", b->number);
     }
   return PRINT_SRC_AND_LOC;
 }
@@ -275,18 +261,10 @@ print_one_exception_catchpoint (struct breakpoint *b,
   enum exception_event_kind kind = classify_exception_breakpoint (b);
 
   get_user_print_options (&opts);
+
   if (opts.addressprint)
-    {
-      annotate_field (4);
-      if (b->loc == NULL || b->loc->shlib_disabled)
-	uiout->field_string ("addr", "<PENDING>");
-      else
-	uiout->field_core_addr ("addr",
-				b->loc->gdbarch, b->loc->address);
-    }
+    uiout->field_skip ("addr");
   annotate_field (5);
-  if (b->loc)
-    *last_loc = b->loc;
 
   switch (kind)
     {
@@ -319,10 +297,10 @@ print_one_detail_exception_catchpoint (const struct breakpoint *b,
   const struct exception_catchpoint *cp
     = (const struct exception_catchpoint *) b;
 
-  if (cp->exception_rx != NULL)
+  if (!cp->exception_rx.empty ())
     {
       uiout->text (_("\tmatching: "));
-      uiout->field_string ("regexp", cp->exception_rx);
+      uiout->field_string ("regexp", cp->exception_rx.c_str ());
       uiout->text ("\n");
     }
 }
@@ -335,12 +313,12 @@ print_mention_exception_catchpoint (struct breakpoint *b)
   enum exception_event_kind kind = classify_exception_breakpoint (b);
 
   bp_temp = b->disposition == disp_del;
-  uiout->text (bp_temp ? _("Temporary catchpoint ")
-			      : _("Catchpoint "));
-  uiout->field_int ("bkptno", b->number);
-  uiout->text ((kind == EX_EVENT_THROW ? _(" (throw)")
-		       : (kind == EX_EVENT_CATCH ? _(" (catch)")
-			  : _(" (rethrow)"))));
+  uiout->message ("%s %d %s",
+		  (bp_temp ? _("Temporary catchpoint ") : _("Catchpoint")),
+		  b->number,
+		  (kind == EX_EVENT_THROW
+		   ? _("(throw)") : (kind == EX_EVENT_CATCH
+				     ? _("(catch)") : _("(rethrow)"))));
 }
 
 /* Implement the "print_recreate" breakpoint_ops method for throw and
@@ -370,16 +348,25 @@ print_recreate_exception_catchpoint (struct breakpoint *b,
   print_recreate_thread (b, fp);
 }
 
+/* Implement the "allocate_location" breakpoint_ops method for throw
+   and catch catchpoints.  */
+
+static bp_location *
+allocate_location_exception_catchpoint (breakpoint *self)
+{
+  return new bp_location (self, bp_loc_software_breakpoint);
+}
+
 static void
-handle_gnu_v3_exceptions (int tempflag, char *except_rx,
+handle_gnu_v3_exceptions (int tempflag, std::string &&except_rx,
 			  const char *cond_string,
 			  enum exception_event_kind ex_event, int from_tty)
 {
   std::unique_ptr<compiled_regex> pattern;
 
-  if (except_rx != NULL)
+  if (!except_rx.empty ())
     {
-      pattern.reset (new compiled_regex (except_rx, REG_NOSUB,
+      pattern.reset (new compiled_regex (except_rx.c_str (), REG_NOSUB,
 					 _("invalid type-matching regexp")));
     }
 
@@ -387,17 +374,13 @@ handle_gnu_v3_exceptions (int tempflag, char *except_rx,
 
   init_catchpoint (cp.get (), get_current_arch (), tempflag, cond_string,
 		   &gnu_v3_exception_catchpoint_ops);
-  /* We need to reset 'type' in order for code in breakpoint.c to do
-     the right thing.  */
-  cp->type = bp_breakpoint;
   cp->kind = ex_event;
-  cp->exception_rx = except_rx;
+  cp->exception_rx = std::move (except_rx);
   cp->pattern = std::move (pattern);
 
   re_set_exception_catchpoint (cp.get ());
 
-  install_breakpoint (0, cp.get (), 1);
-  cp.release ();
+  install_breakpoint (0, std::move (cp), 1);
 }
 
 /* Look for an "if" token in *STRING.  The "if" token must be preceded
@@ -410,13 +393,13 @@ handle_gnu_v3_exceptions (int tempflag, char *except_rx,
    STRING is updated to point to the "if" token, if it exists, or to
    the end of the string.  */
 
-static char *
+static std::string
 extract_exception_regexp (const char **string)
 {
   const char *start;
   const char *last, *last_space;
 
-  start = skip_spaces_const (*string);
+  start = skip_spaces (*string);
 
   last = start;
   last_space = start;
@@ -430,34 +413,28 @@ extract_exception_regexp (const char **string)
 
       /* No "if" token here.  Skip to the next word start.  */
       last_space = skip_to_space (last);
-      last = skip_spaces_const (last_space);
+      last = skip_spaces (last_space);
     }
 
   *string = last;
   if (last_space > start)
-    return savestring (start, last_space - start);
-  return NULL;
+    return std::string (start, last_space - start);
+  return std::string ();
 }
 
-/* Deal with "catch catch", "catch throw", and "catch rethrow"
-   commands.  */
+/* See breakpoint.h.  */
 
-static void
-catch_exception_command_1 (enum exception_event_kind ex_event,
-			   char *arg_entry,
-			   int tempflag, int from_tty)
+void
+catch_exception_event (enum exception_event_kind ex_event,
+		       const char *arg, bool tempflag, int from_tty)
 {
-  char *except_rx;
   const char *cond_string = NULL;
-  struct cleanup *cleanup;
-  const char *arg = arg_entry;
 
   if (!arg)
     arg = "";
-  arg = skip_spaces_const (arg);
+  arg = skip_spaces (arg);
 
-  except_rx = extract_exception_regexp (&arg);
-  cleanup = make_cleanup (xfree, except_rx);
+  std::string except_rx = extract_exception_regexp (&arg);
 
   cond_string = ep_parse_optional_if_clause (&arg);
 
@@ -469,41 +446,41 @@ catch_exception_command_1 (enum exception_event_kind ex_event,
       && ex_event != EX_EVENT_RETHROW)
     error (_("Unsupported or unknown exception event; cannot catch it"));
 
-  handle_gnu_v3_exceptions (tempflag, except_rx, cond_string,
+  handle_gnu_v3_exceptions (tempflag, std::move (except_rx), cond_string,
 			    ex_event, from_tty);
-
-  discard_cleanups (cleanup);
 }
 
 /* Implementation of "catch catch" command.  */
 
 static void
-catch_catch_command (char *arg, int from_tty, struct cmd_list_element *command)
+catch_catch_command (const char *arg, int from_tty,
+		     struct cmd_list_element *command)
 {
-  int tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
+  bool tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
 
-  catch_exception_command_1 (EX_EVENT_CATCH, arg, tempflag, from_tty);
+  catch_exception_event (EX_EVENT_CATCH, arg, tempflag, from_tty);
 }
 
 /* Implementation of "catch throw" command.  */
 
 static void
-catch_throw_command (char *arg, int from_tty, struct cmd_list_element *command)
+catch_throw_command (const char *arg, int from_tty,
+		     struct cmd_list_element *command)
 {
-  int tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
+  bool tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
 
-  catch_exception_command_1 (EX_EVENT_THROW, arg, tempflag, from_tty);
+  catch_exception_event (EX_EVENT_THROW, arg, tempflag, from_tty);
 }
 
 /* Implementation of "catch rethrow" command.  */
 
 static void
-catch_rethrow_command (char *arg, int from_tty,
+catch_rethrow_command (const char *arg, int from_tty,
 		       struct cmd_list_element *command)
 {
-  int tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
+  bool tempflag = get_cmd_context (command) == CATCH_TEMPORARY;
 
-  catch_exception_command_1 (EX_EVENT_RETHROW, arg, tempflag, from_tty);
+  catch_exception_event (EX_EVENT_RETHROW, arg, tempflag, from_tty);
 }
 
 
@@ -554,12 +531,12 @@ initialize_throw_catchpoint_ops (void)
   ops->print_recreate = print_recreate_exception_catchpoint;
   ops->print_one_detail = print_one_detail_exception_catchpoint;
   ops->check_status = check_status_exception_catchpoint;
+  ops->allocate_location = allocate_location_exception_catchpoint;
 }
 
-initialize_file_ftype _initialize_break_catch_throw;
-
+void _initialize_break_catch_throw ();
 void
-_initialize_break_catch_throw (void)
+_initialize_break_catch_throw ()
 {
   initialize_throw_catchpoint_ops ();
 
