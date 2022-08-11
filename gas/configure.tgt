@@ -58,6 +58,15 @@ case ${cpu} in
   cr16*)		cpu_type=cr16 endian=little ;;
   crisv32)		cpu_type=cris arch=crisv32 ;;
   crx*)			cpu_type=crx endian=little ;;
+  e2k)
+        if test $enable_e2k_opcodes = yes ; then
+	    cpu_type=e2k
+        else
+            cpu_type=stub
+        fi
+
+        endian=little
+        ;;
   epiphany*)		cpu_type=epiphany endian=little ;;
   fido)			cpu_type=m68k ;;
   hppa*)		cpu_type=hppa ;;
@@ -183,6 +192,13 @@ case ${generic_target} in
   dlx-*-*)				fmt=elf ;;
 
   bpf-*-*)				fmt=elf ;;
+
+  e2k-*-linux-gnu)			fmt=elf em=linux ;;
+  e2k-*-linux-uclibc)			fmt=elf em=e2k-uclibc ;;
+  e2k-*-kpda)				fmt=elf em=kpda ;;
+
+  stub-*-linux*)                        fmt=elf em=linux ;;
+
   epiphany-*-*)				fmt=elf ;;
 
   fr30-*-*)				fmt=elf ;;

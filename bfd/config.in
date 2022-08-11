@@ -302,6 +302,9 @@
    */
 #undef LT_OBJDIR
 
+/* Define if we should enable new PM ABI */
+#undef NEW_PM_ABI
+
 /* Name of package */
 #undef PACKAGE
 

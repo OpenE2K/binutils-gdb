@@ -9,6 +9,7 @@ ${EMULATION_NAME}_allow_dynamic_entries_in_relocatable_link
 
 fragment <<EOF
 
+#include "hashtab.h"
 #include "elfxx-sparc.h"
 
 static int link_mixed_eir = 0;
@@ -39,11 +40,8 @@ static void
 ${LDEMUL_AFTER_PARSE} (void)
 {
   _bfd_sparc_elf_after_parse (link_mixed_eir);
-  gld${EMULATION_NAME}_after_parse ();
+  ldelf_after_parse ();
 }
-
-static bfd_boolean gld${EMULATION_NAME}_load_symbols
-(lang_input_statement_type *);
 
 static bfd_boolean
 pure_eir_finder (bfd *abfd ATTRIBUTE_UNUSED,
@@ -64,8 +62,8 @@ ${LDEMUL_RECOGNIZED_FILE} (lang_input_statement_type *entry)
       && bfd_sections_find_if (entry->the_bfd, pure_eir_finder, NULL))
     return TRUE;
 
-  /* Otherwise, the standard implementation from 'elf32.em' will do.  */
-  return gld${EMULATION_NAME}_load_symbols (entry);
+  /* Otherwise, the standard implementation from 'ldelf.c' will do.  */
+  return ldelf_load_symbols (entry);
 }
 
 static bfd_boolean

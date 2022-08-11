@@ -111,7 +111,7 @@ typedef struct e2k_als {
   /* PRED_NUM[0] should be non-negative if an operation in this ALS
      is under %pred{PRED_NUM}, PRED_NUM[1] should be non-negative
      only for merge operations - it's a merge pred. */
-  e2k_pred preds[3];
+  e2k_pred preds[4];
 
   expressionS exp;
 
@@ -162,10 +162,10 @@ struct option md_longopts[] = {
 #define OPTION_CPU              (OPTION_MD_BASE)
   {"mcpu", required_argument, NULL, OPTION_CPU},
 
-#if ! defined TE_KPDA
+#if ! defined TE_KPDA && ! defined TE_E2K_UCLIBC
 #define OPTION_32               (OPTION_MD_BASE + 1)
   {"mptr32", no_argument, NULL, OPTION_32},
-#endif /* ! TE_KPDA  */
+#endif /* ! TE_KPDA && ! TE_E2K_UCLIBC  */
 
   /* Let lcc_q pass us `-mptr64'.  */
 #define OPTION_64               (OPTION_MD_BASE + 2)
@@ -189,10 +189,10 @@ struct option md_longopts[] = {
   {"permissive", no_argument, NULL, OPTION_PERMISSIVE},
 #define OPTION_PREPROCESS       (OPTION_MD_BASE + 9)
   {"preprocess", no_argument, NULL, OPTION_PREPROCESS},
-#if ! defined TE_KPDA
+#if ! defined TE_KPDA && ! defined TE_E2K_UCLIBC
 #define OPTION_128_64           (OPTION_MD_BASE + 10)
   {"mptr128-64", no_argument, NULL, OPTION_128_64},
-#endif /* ! TE_KPDA  */
+#endif /* ! TE_KPDA && ! TE_E2K_UCLIBC  */
 
   {"", no_argument, NULL, 0},
 };
@@ -277,7 +277,7 @@ s_e2k_section (int push)
   else
     obj_elf_section (push);
 
-  if (strcmp (bfd_get_section_name (stdoutput, now_seg), ".rodata") == 0)
+  if (strcmp (bfd_section_name (now_seg), ".rodata") == 0)
     rodata_section = now_seg; /* record_alignment (now_seg, 4);  */
 }
 
@@ -299,10 +299,14 @@ static struct ilabel_list *last_ilabel;
 static struct ilabel_list *ss_ilabel, *cs0_ilabel, *cs1_ilabel;
 static struct ilabel_list *aa2f1_ilabel[4];
 
+/* FIXME: what's the maximal number of different ilabel locations per wide
+   instruction? I used to believe that it was 10 until I met a wide instruction
+   containing 11 different ilabels. Hopefully, 20 will be enough for now. To be
+   revisited . . .  */
 static struct {
   struct ilabel_list *list;
   u_int32_t off;
-} ilabels[10];
+} ilabels[20];
 
 int ilabels_num;
 
@@ -348,6 +352,51 @@ s_e2k_lcomm (int ignore ATTRIBUTE_UNUSED)
     symbol_get_bfdsym (symbolP)->flags |= BSF_OBJECT;
 }
 
+static int parse_generic_register (char **pstr, e2k_generic_register *preg);
+static void encode_reg_in_src1 (u_int8_t *src1, e2k_generic_register *preg);
+
+/* Здесь могут кодироваться еще некие нечисловые регистры, так что define'ом
+   в общем случае не обойдешься. */
+#define encode_reg_in_dst(dst, preg) encode_reg_in_src1 (dst, preg)
+
+
+static void
+s_e2k_reg (int ignore ATTRIBUTE_UNUSED)
+{
+  e2k_generic_register reg;
+  u_int8_t code;
+  int i;
+  char *save_input_line_pointer;
+  char buf[5] = "0x00";
+
+  if (! parse_generic_register (&input_line_pointer, &reg))
+    {
+      as_bad (_("general-purpose register should be specified as an argument "
+		"to .reg directive"));
+      return;
+    }
+
+  /* Get the register's code suitable for ALS.{SRC{1,2,3},DST} (special
+     registers that may be used only for DST canNOT be encoded by .reg),
+     ...  */
+  encode_reg_in_dst (&code, &reg);
+
+  /* , ... get its string representation and ...  */
+  for (i = 0; i < 2; i++)
+    {
+      u_int8_t digit = code & 0xf;
+      buf[3 - i] = digit <= 9 ? '0' + digit : 'a' + digit - 10;
+      code >>= 4;
+    }
+
+  /* ... pretend that it has been provided by the user via `.byte'. This
+     saves one the trouble of copy/pasting the internals of the `.byte'
+     handler.  */
+  save_input_line_pointer = input_line_pointer;
+  input_line_pointer = buf;
+  cons (1);
+  input_line_pointer = save_input_line_pointer;
+}
 
 
 const pseudo_typeS md_pseudo_table[] =
@@ -378,6 +427,7 @@ const pseudo_typeS md_pseudo_table[] =
   {"bss", s_e2k_bss, 0},
   {"label", s_e2k_label, 0},
   {"lcomm", s_e2k_lcomm, 0},
+  {"reg", s_e2k_reg, 0},
   {0, 0, 0}
 };
 
@@ -385,14 +435,25 @@ const char *
 e2k_target_format ()
 {
 #if !defined TE_KPDA
-
   if (e2k_arch_size == 128)
-    return "elf32-e2k";
+    return (
+# if ! defined TE_E2K_UCLIBC
+	    "elf64-e2k-pm"
+# else /* defined TE_E2K_UCLIBC  */
+	    "elf32-e2k-pm-uclibc"
+# endif /* define TE_E2K_UCLIBC  */
+	    );
 
+#if ! defined TE_E2K_UCLIBC
   return e2k_arch_size == 64 ? "elf64-e2k" : "elf32-e2k";
+#else /* defined TE_E2K_UCLIBC  */
+  gas_assert (e2k_arch_size == 64);
+  return "elf64-e2k-uclibc";
+#endif /* defined TE_E2K_UCLIBC  */
 
 #else /* TE_KPDA  */
 
+  gas_assert (e2k_arch_size == 64);
   return "elf64-e2k-kpda";
 
 #endif /* TE_KPDA  */
@@ -414,18 +475,19 @@ e2k_mach (void)
 
   switch (mcpu)
     {
-    case 6:
-      mach = bfd_mach_e2k_ev6;
-      break;
     case 5:
       mach = bfd_mach_e2k_ev5;
       break;
     case 4:
+    case 6:
       {
 	/* Currently we distinguish binaries for different processors only for
-	   `elbrus-v4'. Particularly, the output binary may be intended for
-	   execution on `elbrus-8c', `elbrus-1c+' and any `elbrus-v4'
-	   processor.  */
+	   `elbrus-v{4,6}'. Particularly, the output binary may be intended for
+	   execution only on `elbrus-8c', `elbrus-1c+' or any `elbrus-v{X>=4}'
+	   processor when we are talking about elbrus-v4. With respect to
+	   elbrus-v6 the output may be intended for execution only on one of
+	   elbrus-{1{2,6}c,2c3} processors of this series or any
+	   `elbrus-v{X>=6}'.  */
 	mach = output_mach;
 	break;
       }
@@ -454,7 +516,7 @@ e2k_mach (void)
   else
     addend = e2k_arch_size == 64 ? 0 : 1;
 
-  return 3 * mach + addend;
+  return 4 * mach + addend;
 }
 
 void
@@ -490,17 +552,27 @@ md_parse_option (int c, const char *arg)
   switch (c)
     {
 #if ! defined TE_KPDA
+# if ! defined TE_E2K_UCLIBC
     case OPTION_32:
+    case OPTION_128_64:
+# endif /* ! defined TE_E2K_UCLIBC  */
     case OPTION_64:
     case OPTION_128:
-    case OPTION_128_64:
+
       {
 	const char **list, **l;
 
         if (c == OPTION_128)
           e2k_arch_size = 128;
         else
-          e2k_arch_size = c == OPTION_32 ? 32 : 64;
+          e2k_arch_size = (
+#if ! defined TE_E2K_UCLIBC
+			   c == OPTION_32
+			   ? 32
+			   :
+#endif /* ! defined TE_E2K_UCLIBC  */
+			   64
+			   );
         
 	list = bfd_target_list ();
 	for (l = list; *l != NULL; l++)
@@ -517,7 +589,7 @@ md_parse_option (int c, const char *arg)
 	      }
 	    else
 	      {
-		if (CONST_STRNEQ (*l, "elf32-e2k"))
+		if (CONST_STRNEQ (*l, "elf64-e2k"))
 		  break;
 	      }
           }
@@ -535,12 +607,7 @@ md_parse_option (int c, const char *arg)
 #endif /* TE_KPDA  */
 
     case OPTION_CPU:
-      if (strcmp (arg, "generic") == 0)
-        mcpu = 0;
-      else if (strcmp (arg, "elbrus-v1") == 0
-               || strcmp (arg, "elbrus") == 0)
-        mcpu = 1;
-      else if (strcmp (arg, "elbrus-v2") == 0
+      if (strcmp (arg, "elbrus-v2") == 0
                || strcmp (arg, "elbrus-2cm") == 0)
 	mcpu = 2;
       else if (strcmp (arg, "elbrus-2c+") == 0)
@@ -572,14 +639,36 @@ md_parse_option (int c, const char *arg)
 	  output_mach = bfd_mach_e2k_1cplus;
 	  forward_incompat = 1;
 	}
-      else if (strcmp (arg, "elbrus-v5") == 0
-               || strcmp (arg, "elbrus-8c2") == 0)
-        mcpu = 5;
-      else if (strcmp (arg, "elbrus-v6") == 0
-	       || strcmp (arg, "elbrus-12c") == 0
-	       || strcmp (arg, "elbrus-2c3") == 0
-	       || strcmp (arg, "elbrus-16c") == 0)
-	mcpu = 6;
+      else if (strcmp (arg, "elbrus-v5") == 0)
+	mcpu = 5;
+      else if (strcmp (arg, "elbrus-8c2") == 0)
+	{
+	  mcpu = 5;
+	  forward_incompat = 1;
+	}
+      else if (strcmp (arg, "elbrus-v6") == 0)
+	{
+	  mcpu = 6;
+	  output_mach = bfd_mach_e2k_ev6;
+	}
+      else if (strcmp (arg, "elbrus-12c") == 0)
+	{
+	  mcpu = 6;
+	  output_mach = bfd_mach_e2k_12c;
+	  forward_incompat = 1;
+	}
+      else if (strcmp (arg, "elbrus-16c") == 0)
+	{
+	  mcpu = 6;
+	  output_mach = bfd_mach_e2k_16c;
+	  forward_incompat = 1;
+	}
+      else if (strcmp (arg, "elbrus-2c3") == 0)
+	{
+	  mcpu = 6;
+	  output_mach = bfd_mach_e2k_2c3;
+	  forward_incompat = 1;
+	}
       else
         {        
           as_bad (_("invalid -mcpu argument"));
@@ -613,10 +702,11 @@ md_parse_option (int c, const char *arg)
 static const char *
 cpu_name (void)
 {
-  static const char *names[] = {"generic", "elbrus-v1", "elbrus-v2",
-                                "elbrus-v3", "elbrus-v4", "elbrus-v5"};
+  static const char *names[] = {"", "",
+				"elbrus-v2", "elbrus-v3",
+				"elbrus-v4", "elbrus-v5"};
 
-  gas_assert (mcpu >= 0 && mcpu <= 5);
+  gas_assert (mcpu >= 2 && mcpu <= 5);
   return names[mcpu];
 }
 
@@ -658,7 +748,7 @@ typedef struct {
         u_int32_t abnt : 1;
         u_int32_t abnf : 1;
         u_int32_t abg : 2;
-        u_int32_t x3 : 1;
+        u_int32_t crp : 1;
         u_int32_t vfdi : 1;
         u_int32_t srp : 1;
         u_int32_t bap : 1;
@@ -676,28 +766,14 @@ typedef struct {
       u_int32_t abpf : 1;
       u_int32_t abnt : 1;
       u_int32_t abnf : 1;
-      u_int32_t abg : 2;
+      u_int32_t abg : 1;
+      u_int32_t crp : 1;
       u_int32_t vfdi : 1;
+      u_int32_t srp : 1;
       u_int32_t bap : 1;
       u_int32_t eap : 1;
       u_int32_t ipd : 1;
-    } set;
-
-    struct {
-      u_int32_t ctcond : 1;
-      u_int32_t ctop : 1;
-      u_int32_t alct : 1;
-      u_int32_t alcf : 1;
-      u_int32_t abpt : 1;
-      u_int32_t abpf : 1;
-      u_int32_t abnt : 1;
-      u_int32_t abnf : 1;
-      u_int32_t abg : 2;
-      u_int32_t vfdi : 1;
-      u_int32_t bap : 1;
-      u_int32_t eap : 1;
-      u_int32_t ipd : 1;
-    } dflt;
+    } set, dflt;
 
     u_int8_t started;
   } ss;
@@ -896,8 +972,12 @@ md_begin ()
   int lose = 0;
   register unsigned int i = 0;
 
-  /* Reproduce the behaviour of LAS.  */
-  default_ipd = mcpu < 2 ? 2 : 3;
+  /* FIXME: this is a temporary assert inserted simultaneously with the
+     elimination of `mcpu < 2' case when deciding on default IPD.  */
+  gas_assert (mcpu >= 2);
+
+  /* IPD should be set to 3 by default starting from elbrus-v2.  */
+  default_ipd = 3;
 
   /* Set the default alignment for the `.text' `section to (2**3) == 8'. As far
      as I understand, all subsequent `.align' directives setting smaller
@@ -1333,10 +1413,11 @@ static const int dummy_table[3][8] =
   /* LITERAL_64 */ {  1,      0,      1,      0,      1,      0,      0,      0    }
 };
 
-/* В литеральных слогах может потребоваться размещать максимум 6 литералов: для каждого
-   из каналов ALS0 - ALS5 только src2 может представлять собой литерал из LTS. Откуда еще
-   могут взяться ссылки на литералы? */
-#define MAX_LITERAL_NMB 6
+/* There may be at most 6 ALS* commands (including GETSP and {LD,ST}AA*) and 1
+   SETWD referencing LTSx syllables. GAS parser shouldn't allow to encode more
+   than (6 + 1) commands of this kind which could potentially overflow this
+   array.  */
+#define MAX_LITERAL_NMB (6 + 1)
 static literal_placement allowed_placements[MAX_LITERAL_NMB];
 
 
@@ -1373,6 +1454,7 @@ static void encode_long_lit_in_src2 (u_int8_t *, literal_placement *);
 #define O_islocal32     O_md17
 #define O_ap            O_md18
 #define O_pl            O_md19
+#define O_dynopt	O_md20
 
 
 static int
@@ -1527,6 +1609,12 @@ parse_literal (char **pstr, e2k_literal_size max_short_lit_size,
     save_input_line_pointer = input_line_pointer;
     input_line_pointer = copy_str;
     expression (&exp);
+
+    if (input_line_pointer[0] != '\0')
+      /* FIXME: not quite perfect as it displays only a substring limited
+	 by COPY_STR[] of the remaining to parse string.  */
+      as_bad (_("junk at `%s'"), input_line_pointer);
+
     input_line_pointer = save_input_line_pointer;
 
     *pstr = str;
@@ -1771,6 +1859,12 @@ encode_reg (int arg_idx, e2k_register_format fmt,
 {
   unsigned int i;
 
+  /* See special registers' encodings in parse_special_register () and 6.3.2
+     of iset-vX.single.  */
+  if ((reg >= 192 && reg <= 223)
+      && (arg_idx >= 1 && arg_idx <= 3))
+    as_bad (_("special register not allowed in position of SRC%d"), arg_idx);
+
   for (i = 0; i < free_als->real_als_nmb; i++)
     {
       u_int8_t *p;
@@ -1866,9 +1960,6 @@ encode_lit_ref_in_src2 (int f, int p)
     }
 }
 
-/* Здесь могут кодироваться еще некие нечисловые регистры, так что define'ом
-   в общем случае не обойдешься. */
-#define encode_reg_in_dst(dst, preg) encode_reg_in_src1 (dst, preg)
 
 #if 0
 static int
@@ -1967,7 +2058,10 @@ parse_src3 (char **pstr, e2k_register_format fmt, int into_ales,
 
   /* Like parse_src1. I hope that src2 is always preceeded by `,'. */
   if (comma_expected && ! slurp_char (&s, ','))
-    return 0;
+    {
+      as_bad (_("comma followed by src3 expected at `%s'"), s);
+      return 0;
+    }
 
   slurp_char (&s, ' ');
 
@@ -1985,7 +2079,7 @@ parse_src3 (char **pstr, e2k_register_format fmt, int into_ales,
     {
       if (reg.fmt != fmt && reg.fmt != SINGLE && reg.fmt != DOUBLE)
         {
-          as_bad ("register of invalid format in second operand (src2)");
+          as_bad (_("register of invalid format at position of src3"));
           return 0;
         }
 
@@ -2006,7 +2100,7 @@ parse_src3 (char **pstr, e2k_register_format fmt, int into_ales,
     }
   else
     {
-      as_bad (_("invalid src3"));
+      as_bad (_("invalid src3 at `%s'"), s);
       return 0;
     }
 
@@ -2077,7 +2171,10 @@ parse_dst (char **pstr, e2k_register_format fmt)
   /* Like similar conditions in parse_src{1,2} - I hope that dst is
      always preceeded by `,' to avoid code duplication. */
   if (! slurp_char (&s, ','))
-    return 0;
+    {
+      as_bad (_("comma followed by dst expected at `%s'"), s);
+      return 0;
+    }
 
   if (parse_generic_register (&s, &reg))
     {
@@ -2106,7 +2203,7 @@ parse_dst (char **pstr, e2k_register_format fmt)
       u_int8_t special_dst;
       if (! parse_special_register_for_dst (&s, &special_dst))
         {
-          as_bad (_("invalid third argument (dst)"));
+          as_bad (_("invalid third argument (dst) at `%s'"), s);
           return 0;
         }
 
@@ -2236,12 +2333,11 @@ parse_state_register (char **str, u_int8_t als_fmt)
   if ((mcpu != 0 || reg->min_cpu != 1 || reg->max_cpu != 6)
       && (mcpu < reg->min_cpu || mcpu > reg->max_cpu))
     {
-      if (mcpu == 0)
-	as_bad (_("CU register `%s' is not available in generic case"),
-		reg->name);
-      else
-	as_bad (_("CU register `%s' is not available on elbrus-v%d"),
-		reg->name, mcpu);
+      /* This is a temporary assert inserted simultaneously with the
+	 removal of the below user error message in "generic" case.  */
+      gas_assert (mcpu >= 2);
+      as_bad (_("CU register `%s' is not available on elbrus-v%d"),
+	      reg->name, mcpu);
 
       return 0;
     }
@@ -3098,6 +3194,10 @@ parse_alopf11_lit8_args (char **pstr, const e2k_opcode_templ *op)
 /* FIXME: the function is declared below.  */
 static void start_ss_syllable (int set_ilabel);
 
+#define IBRANCH 1
+#define RBRANCH 2
+static int parse_ctcond (char **pstr, int ibranch);
+
 static int
 parse_alf2_args (char **pstr, const e2k_opcode_templ *op)
 {
@@ -3147,6 +3247,11 @@ parse_alf2_args (char **pstr, const e2k_opcode_templ *op)
 
     CHECK (parse_src2 (&s, alf->arg_fmt[0]));
     CHECK (parse_dst (&s, alf->arg_fmt[1]));
+
+    /* The execution of `I{BRANCH,CALL}D' is controlled by `ctcond' rather
+       than by `alj_cond' unlike ordinary AL instructions!  */
+    if (alf->alopf == ALOPF12_IBRANCHD || alf->alopf == ALOPF12_ICALLD)
+      CHECK (parse_ctcond (&s, alf->alopf == ALOPF12_IBRANCHD ? IBRANCH : 0));
     
     *pstr = s;
 
@@ -3195,7 +3300,13 @@ parse_alf2_args (char **pstr, const e2k_opcode_templ *op)
         && (free_als->u[0].alf1.dst >= 0xd1 && free_als->u[0].alf2.dst <= 0xd3))
       {
         gas_assert (free_als->plcmnt_nmb >= 1);
-        gas_assert (free_als->pos[0] == 0);
+        if (free_als->pos[0] != 0)
+	  {
+	    as_bad (_("`%s' to `%%ctpr{1,2,3}' registers may be encoded in "
+		      "the 0-th channel only"),
+		    alf->opc == 0x61 ? "movtd" : "getpl");
+	    return 0;
+	  }
         free_als->plcmnt_nmb = 1;
       }
 
@@ -3276,7 +3387,14 @@ struct mu_reg
 
   /* Specifies whether `mmurw,2 %rX, %mmu_reg' is allowed or not. Note that the
      only valid channel for MMURW seems to be ALC2 which has already been taken
-     into account in `opcode_templ'.  */
+     into account in `opcode_templ'. While the zero value of this field means
+     "not writable anywhere", non-zero stands for the minimal iset starting from
+     which the register becomes writable (consider `%us_cl_{b,up,m*}' which have
+     been present since elbrus-v1, but become writable starting from elbrus-v6
+     only, see Bug #107736). Note, however, that this field may still contain 1
+     being less than MIN_CPU for initially writable registers. This shouldn't
+     break anything but at the same time saves me the trouble of reworking
+     mu-regs.def to match the new meaning of this field. */
   int writable;
 };
 
@@ -3333,12 +3451,11 @@ parse_mu_reg (char **pstr, struct mu_reg **preg)
   if ((mcpu != 0 || reg->min_cpu != 1)
       && (mcpu < reg->min_cpu))
     {
-      if (mcpu == 0)
-	as_bad (_("MU register `%s' is not available for generic e2k machine"),
-		reg->name);
-      else
-	as_bad (_("MU register `%s' is not available for elbrus-v%d"),
-		reg->name, mcpu);
+      /* This is a temporary assert inserted simultaneously with the
+	 removal of the below user error message in "generic" case.  */
+      gas_assert (mcpu >= 2);
+      as_bad (_("MU register `%s' is not available for elbrus-v%d"),
+	      reg->name, mcpu);
 
       return 0;
     }
@@ -3444,6 +3561,12 @@ parse_mmurw_args (char **pstr, const e2k_opcode_templ *op)
         as_bad (_("`%s' is not writable"), mmu_reg->name);
         break;
       }
+    else if (mcpu < mmu_reg->writable)
+      {
+	as_bad (_("`%s' is not writable on `elbrus-v%d'"),
+		mmu_reg->name, mcpu);
+        break;
+      }
 
     sprintf (fake_buf, "%d,", mmu_reg->addr);
     fake = &fake_buf[0];
@@ -3532,6 +3655,9 @@ parse_mova_args (char **pstr, const e2k_opcode_templ *op)
              {"am=", 1, 0},
              {"be=", 1, 15}};
 
+  /* Specify if the corresponding parameter has already been seen.  */
+  int seen[4] = {0, 0, 0, 0};
+
   int is_movaq =  mova->opc == 5;
   /* FIXME: find out if IND may be used uninitialized below.  */
   u_int8_t ind = 0;
@@ -3583,41 +3709,49 @@ parse_mova_args (char **pstr, const e2k_opcode_templ *op)
   for (i = 0; i < (is_movaq ? 2 : 1); i++)
     wc.aa2f1[chn + i] |= mova->opc << 12;
 
-  if (! slurp_char (&s, ' '))
-    {
-      as_bad (_("` ' expected at `%s'"), s);
-      return 0;
-    }
+  /* Space may be present if the channel number has been specified in the
+     normal way (i.e. `mova,chn %dst') or absent in case of `mova, chn %dst'
+     where the generic GAS parser removes space between CHN and DST). */
+  slurp_char (&s, ' ');
 
-  for (i = 0; i < 4; i++)
+  /* `16 == 4 * 4' stupidly takes into account that 4 MOVA* parameters may be
+     shuffled.  */
+  for (i = 0; i < 16; i++)
     {
-      int j;
       u_int8_t param_val;
+      int k = i % 4;
 
-      if (! slurp_str (&s, param[i].name))
-        {
-          as_bad (_("`%s' expected at `%s'"), param[i].name, s);
-          return 0;
-        }
+      if (! slurp_str (&s, param[k].name))
+	continue;
+
+      if (seen[k])
+	{
+	  as_bad (_("`%s' has already been seen"), param[k].name);
+	  return 0;
+	}
+
+      seen[k] = 1;
 
       if (! parse_number (&s, &param_val, sizeof (param_val), 0))
         {
           as_bad (_("numeric value should be specified for `%s'"),
-                  param[i].name);
-          return 0;
-        }
-      if (param_val > param[i].max)
-        {
-          as_bad (_("%d exceeds maximal value for %s"), param_val,
-                  param[i].name);
+                  param[k].name);
           return 0;
         }
 
-      if (i != 1 || !is_movaq)
+      if (param_val > param[k].max)
         {
+          as_bad (_("%d exceeds maximal value for %s"), param_val,
+                  param[k].name);
+          return 0;
+        }
+
+      if (k != 1 || !is_movaq)
+        {
+	  int j;
           /* Encode all parameters except for `ind' for MOVAQ . . . */
           for (j = 0; j < (is_movaq ? 2 : 1); j++)
-            wc.aa2f1[chn + j] |= param_val << param[i].bit_offset;
+            wc.aa2f1[chn + j] |= param_val << param[k].bit_offset;
         }
       else
         {
@@ -3863,7 +3997,7 @@ parse_alf5_args (char **pstr, const e2k_opcode_templ *op)
   do {
     CHECK (parse_src2 (&s, alf->arg_fmt));
     /* It's a shame. Deal uniformly with all commas. */
-    CHECK (slurp_char (&s, ','));
+    CHECK_MSG (slurp_char (&s, ','), _("comma expected at `%s'"), s);
     CHECK (parse_state_register (&s, 5));
     
 
@@ -4106,9 +4240,54 @@ parse_aasti (char **pstr)
   return 1;
 }
 
+/* This one parses arguments of LDAA{b,h,w,d,q{,p}} instructions.  */
+static int
+parse_alf19_args (char **pstr, const e2k_opcode_templ *op)
+{
+  char *s = *pstr;
+  const e2k_alf9_opcode_templ *alf = (const e2k_alf9_opcode_templ *) op;
+
+  do {
+    u_int8_t aad_num;
+    unsigned i;
+
+    free_als->need_ales = 1;
+    free_als->ales.alef2.opce = NONE_VALUE;
+    /* FIXME: this should be encoded within e2k_alf9_opcode_templ, of
+       course.  */
+    free_als->ales.alef2.opc2
+      = strcmp (op->name, "ldaaqp") == 0 ? EXT1_VALUE : EXT_VALUE;
+
+    CHECK_MSG (slurp_str (&s, "%aad"), _(", %%aad expected "));
+    CHECK_MSG (parse_number (&s, &aad_num, sizeof (aad_num), 0),
+               _("%%aad index expected"));
+    CHECK_MSG (aad_num <= 31, _("invalid %%aad index specified"));
+
+    for (i = 0; i < free_als->real_als_nmb; i++)
+      free_als->u[i].alf10.opce1_hi |= aad_num << 3;
+
+    /* This deserves a dedicated parse function since it may be an
+       expression.  */
+    parse_aasti (&s);
+
+    CHECK (parse_dst (&s, alf->arg_fmt));
+
+    if (! parse_mas (&s, 1))
+      {
+        as_bad (_("Invalid MAS specified"));
+        return 0;
+      }
+
+    *pstr = s;
+    return 1;
+  }
+  while (0);
+
+  return 0;
+}
 
 
-/* This one parses arguments of STAA{b,h,w,d,q} instructions.  */
+/* This one parses arguments of STAA{b,h,w,d,q{,p}} instructions.  */
 static int
 parse_alf10_args (char **pstr, const e2k_opcode_templ *op)
 {
@@ -4338,7 +4517,8 @@ parse_alopf21_args (char **pstr, const e2k_opcode_templ *op)
 
   do {
     CHECK (parse_src1 (&s, alf->arg_fmt[0]));
-    CHECK (slurp_char (&s, ','));
+    CHECK_MSG (slurp_char (&s, ','),
+               _("comma followed with src2 expected at `%s'"), s);
     CHECK (parse_src2 (&s, alf->arg_fmt[1]));
     CHECK (parse_src3 (&s, alf->arg_fmt[2], 1, 1));
     CHECK (parse_dst (&s, alf->arg_fmt[3]));
@@ -4406,6 +4586,7 @@ parse_alf_args (char **pstr, const e2k_opcode_templ *op)
     [ALOPF7] = parse_alf7_args,
     [ALOPF17] = parse_alf7_args,
     [ALOPF8] = parse_alf8_args,
+    [ALOPF19] = parse_alf19_args,
     [AAURR] = parse_aaurr_args,
     [ALOPF10] = parse_alf10_args,
     [AAURW] = parse_aaurw_args,
@@ -4498,9 +4679,7 @@ parse_alf_args (char **pstr, const e2k_opcode_templ *op)
 	   || ((alf->alopf == ALOPF10 || alf->alopf == AAURW)
 	       && ((e2k_alf10_opcode_templ *) alf)->arg_fmt == QUAD)
 	   || ((alf->alopf == AAURR
-		 /* Note that `LDDAA*' operations haven't been actually
-		    supported yet . . .  */
-		/* || alf->alopf == ALOPF19  */)
+		|| alf->alopf == ALOPF19)
 	       && ((e2k_alf9_opcode_templ *) alf)->arg_fmt == QUAD))
     {
       /* It's one of the quad stores (including STAAQ and AAURWQ) or either of
@@ -4559,7 +4738,12 @@ parse_alf_args (char **pstr, const e2k_opcode_templ *op)
     /* Parse arguments. This is specific to a particular encoding.  */
     CHECK (parse_alf_fn[alf->alopf] (&s, op));
 
-    CHECK (parse_als_pred_optional (&s));
+    /* The execution of `I{BRANCH,CALL}D' is controlled by `ct_cond', which
+       has already been processed in `parse_alf2_args ()'. `alj_cond' is not
+       applicable to these instructions and is said to result in `exc_illegal
+       _opcode'. Therefore, don't attempt to parse it here.  */
+    if (alf->alopf != ALOPF12_IBRANCHD && alf->alopf != ALOPF12_ICALLD)
+      CHECK (parse_als_pred_optional (&s));
 
     /* At this point we have created a new ALS. It's possible to set an operation
        code and some other attributes now. I also set a so-called `finish function'
@@ -4603,6 +4787,7 @@ parse_incr_args (char **pstr, const e2k_opcode_templ *op ATTRIBUTE_UNUSED)
   int chn;
   unsigned incr;
   e2k_als *related_als;
+  e2k_pred incr_pred;
 
   if (free_als == &free_alses[0])
     {
@@ -4635,6 +4820,11 @@ parse_incr_args (char **pstr, const e2k_opcode_templ *op ATTRIBUTE_UNUSED)
       as_bad (_("index of `%%aaincr' expected"));
       return 0;
     }
+
+  if (slurp_char (&s, '?')
+      && parse_pred (&s, &incr_pred, 1))
+    related_als->preds[3] = incr_pred;
+
 
   for (i = 0; i < related_als->real_als_nmb; i++)
     related_als->u[i].alf10.opce1_lo |= ((incr << 4) | 0x4);
@@ -4695,7 +4885,7 @@ parse_copf2_args (char **pstr, const e2k_opcode_templ *op)
              SDISP  .*/
           slurp_str (&s, "disp=");
 
-          save_input_line_pointer= input_line_pointer;
+          save_input_line_pointer = input_line_pointer;
           input_line_pointer = s;
           expression (&cs0_exp);
           s = input_line_pointer;
@@ -4703,11 +4893,12 @@ parse_copf2_args (char **pstr, const e2k_opcode_templ *op)
 
           if (cs0_exp.X_op == O_constant)
             {
-              /* FIXME: verify CS0.sdisp somehow for the sake of Bug #83996.  */
+              /* FIXME: verify CS0.disp in SDISP somehow for the sake of
+		 Bug #83996.  */
               if (copf2->ctp_opc == 2 && (cs0_exp.X_add_number < 0
                                           || cs0_exp.X_add_number >= 32))
                 {
-                  as_bad (_("invalid value for CS0.sdisp specified"));
+                  as_bad (_("invalid value for CS0.disp in SDISP specified"));
                   return 0;
                 }
 
@@ -4718,9 +4909,21 @@ parse_copf2_args (char **pstr, const e2k_opcode_templ *op)
             }
           else if (cs0_exp.X_op == O_symbol || cs0_exp.X_op == O_plt)
             {
+	      if (copf2->ctp_opc == 2)
+		{
+		  as_bad (_("CS0.disp in SDISP should encode an immediate "
+			    "value"));
+		  return 0;
+		}
+
               /* We'll probably need a relocation. */
               wc.cs0.pexp = &cs0_exp;
             }
+	  else
+	    {
+	      as_bad (_("invalid expression at `%s'"), input_line_pointer);
+	      return 0;
+	    }
         }
       else
         {
@@ -5022,14 +5225,17 @@ int
 parse_wait_args (char **pstr,
                  const e2k_opcode_templ *op ATTRIBUTE_UNUSED)
 {
-  static const char *param[12] = {
+  static const char *param[14] = {
     "all_c=", "all_e=", "st_c=", "ld_c=", "fl_c=", "ma_c=", "trap=",
-    "sas=", "sal=", "las=", "lal=", "mt="
+    /* These have been added starting from elbrus-v5.  */
+    "sas=", "sal=",
+    /* These are available in elbrus-v6.  */
+    "las=", "lal=", "mt=", "int=", "mem_mod="
   };
 
   /* This array is used to track if the corresponding parameter has been
      specified explicitly.  */
-  int val[12] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+  int val[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
   char *str = *pstr;
 
@@ -5050,8 +5256,12 @@ parse_wait_args (char **pstr,
                 {
                   u_int8_t param_val;
 
-                  if ((mcpu < 2 && j > 5)
-		      || (mcpu < 5 && j > 6)
+		  /* FIXME: this a temporary assert inserted simultaneously
+		     with the elimination of `mcpu < 2' case from the runtime
+		     condition below.  */
+		  gas_assert (mcpu >= 2);
+
+                  if ((mcpu < 5 && j > 6)
 		      || (mcpu < 6 && j > 8))
                     {
                       as_bad (_("Invalid `%s' WAIT parameter for %s"), param[j],
@@ -5156,8 +5366,13 @@ parse_copf4_args (char **pstr ATTRIBUTE_UNUSED, const e2k_opcode_templ *op)
 
   if (strcmp (op->name, "flushr") == 0)
     wc.cs1.val.fields.call.param |= 1;
-  else
+  else if (strcmp (op->name, "flushc") == 0)
     wc.cs1.val.fields.call.param |= 2;
+  else if (strcmp (op->name, "fillr") == 0)
+    wc.cs1.val.fields.call.param |= 4;
+  /* This should be `fillc'.  */
+  else
+    wc.cs1.val.fields.call.param |= 8;
 
   wc.cs1.set = 1;
 
@@ -5257,9 +5472,6 @@ parse_pl_ctcond (char **pstr, u_int32_t *psrc)
 
   return 0;
 }
-
-#define IBRANCH 1
-#define RBRANCH 2
 
 static int
 parse_ctcond (char **pstr, int ibranch)
@@ -5452,19 +5664,24 @@ parse_ct_args (char **pstr, const e2k_opcode_templ *op)
 }
 
 int
-parse_hcall_args (char **pstr, const e2k_opcode_templ *op)
+parse_hicall_args (char **pstr, const e2k_opcode_templ *op)
 {
   char *str = *pstr;
 
   start_ss_syllable (1);
   do
     {
-      u_int8_t hdisp;
       u_int8_t wbs;
+      char *save_input_line_pointer;
+      int is_hcall = (op->name[0] == 'h');
       wc.ss.val.fields.ctop = 0;
+
+      save_input_line_pointer = input_line_pointer;
+      input_line_pointer = str;
+      expression (&cs0_exp);
+      str = input_line_pointer;
+      input_line_pointer = save_input_line_pointer;
       
-      CHECK_MSG (parse_number (&str, &hdisp, sizeof (hdisp), 2),
-		 _("hdisp value expected"));
       slurp_char (&str, ',');
 
       if (wc.cs0.set)
@@ -5474,12 +5691,47 @@ parse_hcall_args (char **pstr, const e2k_opcode_templ *op)
           break;
         }
 
-      /* Encode `CS0.ctp_opc = HCALL'.  */
+      if (cs0_exp.X_op == O_constant)
+	{
+	  /* Check the value of hdisp parameter of HCALL. Note that it's encoded
+	     in `CS0.disp[4:1]' unlike sdisp which is encoded in
+	     `CS0.disp[4:0]'. This is taken into account below . . .  */
+	  if (is_hcall && (cs0_exp.X_add_number < 0
+			   || cs0_exp.X_add_number >= 16))
+	    {
+	      as_bad (_("invalid value for CS0.disp in HCALL specified"));
+	      return 0;
+	    }
+
+	  wc.cs0.val.fields.disp = (u_int32_t) cs0_exp.X_add_number;
+	  /* . . . by shifting the parsed hdisp value (but not the disp one
+	     for ICALL!) by one bit to the left.  */
+	  if (is_hcall)
+	    wc.cs0.val.fields.disp <<= 1;
+	    
+	}
+      else if (cs0_exp.X_op == O_symbol || cs0_exp.X_op == O_plt)
+	{
+	  if (is_hcall)
+	    {
+	      as_bad (_("CS0.disp in HCALL should encode an immediate "
+			"value"));
+	      return 0;
+	    }
+
+	  /* We'll probably need a relocation. */
+	  wc.cs0.pexp = &cs0_exp;
+	}
+      else
+	{
+	  as_bad (_("invalid expression at `%s'"), input_line_pointer);
+	  return 0;
+	}
+
+
+      /* Encode `CS0.ctp_opc = {H,I}CALL == 0' (see Table B.4.1).  */
       wc.cs0.val.fields.ctp_opc = 0;
-      wc.cs0.val.fields.disp = hdisp << 1;
       wc.cs0.set = 1;
-
-
 
       /* Should I really consider it optional?  */
       slurp_str (&str, "wbs=");
@@ -5499,8 +5751,9 @@ parse_hcall_args (char **pstr, const e2k_opcode_templ *op)
 
       wc.cs1.set = 1;
       wc.cs1.val.fields.call.opc = 5;
-      /* Set CS1.param.wbs and `CS1.param.ctopc = HCALL'.  */
-      wc.cs1.val.fields.call.param = (2 << 7) | wbs;
+      /* Set CS1.param.wbs and `CS1.param.ctopc = {H,I}CALL == {2,1}'
+	 (see Table B.4.2.1).  */
+      wc.cs1.val.fields.call.param = ((is_hcall ? 2 : 1) << 7) | wbs;
 
       /* Can call be followed by ctcond at all? Certainly it can.  */
       if (! parse_ctcond (&str, 0))
@@ -5602,8 +5855,8 @@ parse_ibranch_args (char **pstr, const e2k_opcode_templ *op)
 }
 
 int
-parse_done_hret_glaunch_args (char **pstr,
-			      const e2k_opcode_templ *op)
+parse_done_hiret_glaunch_args (char **pstr,
+			       const e2k_opcode_templ *op)
 {
   char *s = *pstr;
 
@@ -5624,16 +5877,22 @@ parse_done_hret_glaunch_args (char **pstr,
       return 0;
     }
 
-  /* See Table B.4.1 in iset.single.  */
+  /* According to Table B.4.1 in iset.single providing the values to be encoded
+     in CS0.ctp_opc `DONE == IRET == HRET == GLAUNCH == 3', whereas the only
+     option for CS0.ctpr is 0.  */
   wc.cs0.val.fields.ctpr = 0;
   wc.cs0.val.fields.ctp_opc = 3;
 
-  /* If this is HRET or GLAUNCH take care of setting CS0.param.type
-     appropriately (FIXME: `param' is to be added yet). Otherwise silently
-     leave `CS0.disp' equal to zero for DONE. Note that DONE has C0F2 format
-     unlike the first two instructions. Hardly can I understand what role `disp'
-     value can play for it. Moreover, it's not prescribed by our iset.  */
-  if (op->name[0] == 'h')
+  /* If this is either of {H,I}RET or GLAUNCH take care of setting
+     CS0.param.type  according to Table B.4.1.1 (FIXME: this field is to be
+     introduced yet, below I make use of the fact that it occupies the same
+     bits as CS0.disp). Otherwise silently leave `CS0.disp' equal to zero for
+     DONE. Note that DONE has C0F2 format unlike the first two instructions.
+     Hardly can I understand what role `disp' value can play for it. Moreover,
+     it's not prescribed by our iset.  */
+  if (op->name[0] == 'i')
+    wc.cs0.val.fields.disp = 2;
+  else if (op->name[0] == 'h')
     wc.cs0.val.fields.disp = 3;
   else if (op->name[0] == 'g')
     wc.cs0.val.fields.disp = 4;
@@ -6101,8 +6360,8 @@ replace_nested_commas (char *s, size_t *pidx, size_t *plen)
 
           int l = 0;
           int llen = 0;
-          int min;
-          int max;
+          int min = 0;
+          int max = 0;
           
 
           f = slurp_fmt (&s[i], &ref, &row, &flen);
@@ -6257,8 +6516,8 @@ md_assemble (char *str)
   
   if (insn_tmpl)
     {
-      size_t replace_idx;
-      size_t replace_len;
+      size_t replace_idx = 0;
+      size_t replace_len = 0;
 
       /* Take care of restoring the original STR by getting rid of '\0'
 	 inserted above. It's not necessary to restore a space ' ' in fact, but
@@ -6448,7 +6707,7 @@ md_section_align (segT segment, valueT size)
       if (size != 0)
         record_alignment (segment, 4);
       else
-        bfd_set_section_alignment (stdoutput, segment, 0);
+        bfd_set_section_alignment (segment, 0);
     }
 
   return size;
@@ -6458,8 +6717,16 @@ md_section_align (segT segment, valueT size)
 int
 tc_e2k_fix_adjustable (struct fix *fixP)
 {
+  /* Prevent local symbols from being replaced with the containing sections
+     in relocation entries so as not to lose info on the size of the former.
+     Obviously this should be done for `R_E2K_*_SIZE relocations and for
+     relocations intended to produce AP in PM so as not to obtain the one
+     extended to the end of GD because of unavailable info on its size (see
+     Bug #121736).   */
   if (fixP->fx_r_type == BFD_RELOC_SIZE32
-      || fixP->fx_r_type == BFD_RELOC_SIZE64)
+      || fixP->fx_r_type == BFD_RELOC_SIZE64
+      || (e2k_arch_size == 128
+	  && fixP->fx_r_type == BFD_RELOC_E2K_AP))
     return 0;
 
   return 1;
@@ -6708,7 +6975,7 @@ start_wide_command (void)
     {
       int j;
       memset (&free_alses[i], 0, sizeof (free_alses[i]));
-      for (j = 0; j < 3; j++)
+      for (j = 0; j < 4; j++)
         {
           free_alses[i].preds[j].pred_num = -1;
           free_alses[i].preds[j].negated = 0;
@@ -6774,15 +7041,7 @@ hsyll_same_expr (struct hsyll *phs, expressionS *exp, unsigned int idx)
         return 1;
       return 0;
     }
-  else if (exp->X_op == O_symbol
-	   || exp->X_op == O_gotoff
-           || exp->X_op == O_got
-	   || exp->X_op == O_gotplt
-           || exp->X_op == O_tls_ie
-	   || exp->X_op == O_size
-           || exp->X_op == O_ap_got
-	   || exp->X_op == O_pl_got
-           || exp->X_op == O_islocal32)
+  else if (is_symbol (exp))
     {
       if (phs->owner->exp.X_op != exp->X_op
           || phs->owner->exp.X_add_symbol != exp->X_add_symbol
@@ -6825,8 +7084,21 @@ place_literal (literal_placement *pplcmnt, int plcmnt_idx, int prove, int finali
         {
           int pos_msk = 1 << (((pos >> 1) << 1) + 1 - (pos & 0x1));
           if ((wc.busy_lts & pos_msk) != 0
-              && (pplcmnt->size[plcmnt_idx] > 1
-                  || ! hsyll_same_expr (&wc.lts[pplcmnt->pos[plcmnt_idx] + i], &pplcmnt->exp, i)))
+              && (
+#if 0
+		  /* This condition used to prevent us from merging wider than
+		     16-bit (i.e. 32 and 64-bit) identical literals. However,
+		     it hasn't been required since ugly `lit_ref's started
+		     being treated separately from regular literals. It is
+		     necessarily disabled now that we are going to get rid of
+		     `lit_ref's in LCC by replacing them with duplicating
+		     literal values (Bug #124870) and (TODO!) is to be
+		     eventually removed if the new approach does not result
+		     in any trouble.  */
+		  pplcmnt->size[plcmnt_idx] > 1
+		  ||
+#endif /* 0  */
+		  ! hsyll_same_expr (&wc.lts[pplcmnt->pos[plcmnt_idx] + i], &pplcmnt->exp, i)))
             /* Очередной полу-литерал занят другим значением. Возвращаемся,
                ничего не испортив. */
             return 0;
@@ -6852,7 +7124,7 @@ static int
 place_literals (void)
 {
   int i;
-  int crnt_idx[MAX_LITERAL_NMB] = {0, 0, 0, 0, 0, 0};
+  int crnt_idx[MAX_LITERAL_NMB] = {0, 0, 0, 0, 0, 0, 0};
   literal_placement *pplcmnt[MAX_LITERAL_NMB];
   /* В начале мы не можем сказать ни об одном размещении, является ли оно
      действительным (см. использование ниже). */
@@ -7149,10 +7421,17 @@ place_alses (void)
 
       static const u_int16_t al_to_rlp_mrgc[][2]
         = {{RLP0, MRGC0}, {RLP0, MRGC0}, {RLP0, MRGC0},
-           {RLP1, MRGC1}, {RLP1, MRGC1}, {RLP1, MRGC1}};
+           {RLP1, MRGC1}, {RLP1, MRGC1}, {RLP1, MRGC1},
+	   /* These two correspond to AM{2,5} "ALC"es. TODO(?): in theory the
+	      first of them could be used to encode RPC == MRGC0 acting on {S/L
+	      /C}RP, but this is not currently used in the underlying algorithm
+	      and doesn't probably make much sense.  */
+	   {RLP0, -1}, {RLP1, -1}};
 
-      static u_int16_t al_to_mask[] = {0x1, 0x2, 0x4, 0x1, 0x2, 0x4};
-      static u_int16_t al_to_neg[] = {0x1, 0x2, 0x4, 0x1, 0x2, 0x4};
+      /* The trailing two elements in {MASK,NEG}[] correspond to RLP{0,1}
+	 acting on AM{2,5} respectively.  */
+      static u_int16_t al_to_mask[] = {0x1, 0x2, 0x4, 0x1, 0x2, 0x4, 0x8, 0x8};
+      static u_int16_t al_to_neg[] = {0x1, 0x2, 0x4, 0x1, 0x2, 0x4, 0x4, 0x4};
       unsigned j;
       int al_num = pals[i]->pos[pals[i]->optimal_plcmnt_idx];
       /* This will be used when setting al[] bits in HS when packing the wide
@@ -7249,31 +7528,85 @@ place_alses (void)
 
       {
         unsigned l;
-        for (l = 0; l < 3; l++)
+        for (l = 0; l < 4; l++)
           {
             unsigned k;
+	    /* `l == {0,2,3}' correspond to %p{red,cnt}X encoded in RLP, while
+	       `l == 1' stands for MRGC predicate.  */
             int op_idx = (l < 2) ? l : 0;
 
+	    /* No predicate of the type under consideration (i.e. ` ? %p{red,
+	       cnt}X' or MRGC) acting on this ALS.  */
             if (pals[i]->preds[l].pred_num < 0)
-            continue;
+	      continue;
 
             for (k = 0; k < pals[i]->real_als_nmb; k++)
               {
                 int real_al_num = pals[i]->real_alses[al_num][k];
+		/* preds[3] acts on AM{2,5} matching ALC{2,5} in fact. There
+		   should be no `AMj's matching other ALCes.  */
+		if (l == 3)
+		  {
+		    if (real_al_num == 2)
+		      real_al_num = 6;
+		    else if (real_al_num == 5)
+		      real_al_num = 7;
+		    else
+		      gas_assert (0);
+		  }
 
                 for (j = 0; j < 6; j++)
                   {
+		    /* Does this already employed CDS<j> half syllable encode
+		       the same operation as we need?  */
                     if (wc.cds[j].rlp_mrgc.opc == al_to_rlp_mrgc[real_al_num][op_idx])
                       {
+			u_int16_t opc = al_to_rlp_mrgc[real_al_num][op_idx];
 #if 0
-                        /* Having more than one RLP/MRGC acting on the same ALC should be
+                        /* With things like `? %predX, %pcntY' possible there
+			   may be more than one RLP acting on the same ALC,
+			   which is why this assert is commented out. should be
                            impossible at least while an explicit rlp command is not
                            introduced. In the latter case this situation may very
                            well become a user error. */
-                        gas_assert ((wc.cds[j].rlp_mrgc.mask & al_to_mask[real_al_num]) == 0);
+                        gas_assert ((wc.cds[j].rlp_mrgc.mask
+				     & al_to_mask[real_al_num]) == 0);
 #endif /* 0  */
-                        if (wc.cds[j].rlp_mrgc.pred == pals[i]->preds[l].pred_fld)
+			/* Does this already employed CDS<j> half syllable encode
+			   the same predicate as we need?  */
+                        if (wc.cds[j].rlp_mrgc.pred
+			    == pals[i]->preds[l].pred_fld)
                           {
+			    /* Should one check for a possible inconsistency
+			       because of CDS.neg[2] shared between CDS.mask[2,3]?  */
+			    if ((al_to_mask[real_al_num] == 0x4
+				 && (wc.cds[j].rlp_mrgc.mask & 0x8) != 0)
+				|| (al_to_mask[real_al_num] == 0x8
+				    && (wc.cds[j].rlp_mrgc.mask & 0x4) != 0))
+			      {
+				/* Only RLP{0,1} and `MRGC0 together with RPC
+				   == MRGC0' may act on such a combination of
+				   "target syllables" as CDS.mask[3] seems to
+				   be reserved for MRGC1 up to iset-v6.  */
+				gas_assert (opc == RLP0 || opc == RLP1
+					    || (/* RPC predicates may emerge
+						   starting from elbrus-v3
+						   only.  */
+						mcpu > 2
+						&& opc == MRGC0));
+
+				if ((pals[i]->preds[l].negated
+				     && (wc.cds[j].rlp_mrgc.neg
+					 & al_to_neg[real_al_num]) == 0)
+				    || (! pals[i]->preds[l].negated
+					&& (wc.cds[j].rlp_mrgc.neg
+					    & al_to_neg[real_al_num]) != 0))
+				  continue;
+			      }
+
+			    /* This CDS half-syllable may be safely shared
+			       between an already encoded operation and the
+			       new one.  */
                             wc.cds[j].rlp_mrgc.mask |= al_to_mask[real_al_num];
                             if (pals[i]->preds[l].negated)
                               wc.cds[j].rlp_mrgc.neg |= al_to_neg[real_al_num];
@@ -7497,8 +7830,10 @@ pack_wide_command (void)
   int i;
   int crnt_syll = 0, lts_cntr = 0, cds_cntr = 0, pls_cntr = 0;
   e2k_hs *hs;
-  char *obj_buf, *bufs[10];
-  fragS *sub_frags[10];
+  /* FIXME: `bufs[]' and `sub_frags[]' arrays should obviously contain one
+     element more than `ilabels[]'.  */
+  char *obj_buf, *bufs[21];
+  fragS *sub_frags[21];
   u_int16_t *hsyllables;
   unsigned hsyllable_cntr;
 
@@ -7549,11 +7884,17 @@ pack_wide_command (void)
   if (wc.ss.started)
     {
       /* If the same internal lable is attached both to SS and CS0 (consider
-         IBRANCH) or SS and CS1 (consider CALL) give preference to CS0 and CS1
-         respectively.  */
+         IBRANCH) or SS and CS1 (consider CALL) or SS and ALS0 (consider I{CALL,
+	 BRANCH}D) give preference to CS0, CS1 and ALS0 respectively.
+
+	 FIXME: ICALL is encoded in three syllables at once: SS, CS0 and CS1.
+	 Despite the fact that the label eventually points to CS1, which is
+	 probably OK as this is the most informative syllable, I suspect that
+	 this case turns out to be workable only by chance . . .  */
       if (ss_ilabel != NULL
           && !((wc.cs0.set && cs0_ilabel == ss_ilabel)
-               || (wc.cs1.set && cs1_ilabel == ss_ilabel)))
+               || (wc.cs1.set && cs1_ilabel == ss_ilabel)
+	       || ((wc.busy_al & (1 << 0)) && wc.al[0].label == ss_ilabel)))
         {
           ilabels[ilabels_num].list = ss_ilabel;
           ilabels[ilabels_num++].off = 4 * crnt_syll;
@@ -8639,6 +8980,96 @@ parse_vfdi_args (char **pstr ATTRIBUTE_UNUSED,
   return 1;
 }
 
+static int
+parse_and_encode_rpc_optional (char **pstr)
+{
+  e2k_pred pred;
+
+  /* Missing RPC is quite OK.  */
+  if (slurp_char (pstr, '?') == 0)
+    return 1;
+
+  /* Let `%pcntX' be used in place of RPC as iset-v{X>=3}.single doesn't
+     seem to prohibit this.  */
+  if (! parse_pred (pstr, &pred, 1))
+    return 0;
+
+  if (mcpu == 2)
+    {
+      /* The predicate has been successfully parsed, but it is not supported
+	 for this CPU.  */
+      as_bad (_("Recovery Point Conditions are not supported for elbrus-v2"));
+      return 0;
+    }
+
+  /* We are called before RLP and MRGC predicates are assigned to CDS half-
+     syllables, therefore, the hi part of CDS0 from which allocation typically
+     starts should be free.  */
+  gas_assert (wc.cds[0].rlp_mrgc.mask == 0);
+
+  /* Note that RPC has the same encoding as MRGC0 (see C.10.2; this lets later
+     encoded MRGC0 predicates share the hi part of CDS0 with us) and ...  */
+#define RPC MRGC0
+  wc.cds[0].rlp_mrgc.opc = RPC;
+
+  /* ... this is the mask value irrelevant to MRGC0 (1, 2 and 4 are used to
+     encode ALC{0,1,2} MRGC0 acts on respectively) that distinguishes them.  */
+  wc.cds[0].rlp_mrgc.mask = 0x8;
+  wc.cds[0].rlp_mrgc.pred = pred.pred_fld;
+
+  if (pred.negated)
+    wc.cds[0].rlp_mrgc.neg = 0x4;
+
+  return 1;
+}
+
+/* Starting from elbrus-v3 SRP can't be encoded together with CRP as this
+   combination of bits is used for SLRP, whereas on elbrus-v2 this is
+   formally possible. However, do these instructions together make any
+   sense even on elbrus-v2? This is rather doubtful which is why this
+   combination is prohibited for all isets by virtue of `SET_FIELD (..,
+   dfl = 0)'. FIXME: more intuitive error messages should be emitted on
+   an attempt to combine these instructions.  */
+int
+parse_srp_args (char **pstr,
+                const e2k_opcode_templ *op ATTRIBUTE_UNUSED)
+{
+  start_ss_syllable (1);
+
+  /* Starting from iset-v3.single SRP implies `SS.(crp aka rp_opc_lo) == 0'
+     whereas `SS.crp == 1' corresponds to SLRP.  */
+  SET_FIELD (ss, crp, 0, 0 /* ensure that it can't be overridden!  */);
+  SET_FIELD (ss, srp, 1, 0);
+
+  return parse_and_encode_rpc_optional (pstr);
+}
+
+int
+parse_crp_args (char **pstr,
+                const e2k_opcode_templ *op ATTRIBUTE_UNUSED)
+{
+  start_ss_syllable (1);
+
+  SET_FIELD (ss, crp, 1, 0);
+  /* Starting from iset-v3.single CRP implies SS.(srp aka rp_opc_hi) == 0.  */
+  SET_FIELD (ss, srp, 0, 0 /* ensure that it can't be overridden!  */);
+
+  return parse_and_encode_rpc_optional (pstr);
+}
+
+int
+parse_slrp_args (char **pstr,
+		 const e2k_opcode_templ *op ATTRIBUTE_UNUSED)
+{
+  start_ss_syllable (1);
+
+  /* SLRP appeared in iset-v3 and requires `SS.(crp aka rp_opc_lo) == SS.(srp
+     aka rp_opc_hi) == 1'.  */
+  SET_FIELD (ss, crp, 1, 0 /* ensure that it can't be overridden!  */);
+  SET_FIELD (ss, srp, 1, 0);
+
+  return parse_and_encode_rpc_optional (pstr);
+}
 
 int
 parse_bap_args (char **pstr ATTRIBUTE_UNUSED,
@@ -9032,6 +9463,8 @@ e2k_parse_name (char *name, expressionS *e, char *nextcharP)
           || (e2k_arch_size == 128
               && (next_end = e2k_end_of_match (&input_line_pointer[1], "PL"))
               && (type = O_pl))
+	  || ((next_end = e2k_end_of_match (&input_line_pointer[1], "DYNOPT"))
+              && (type = O_dynopt))
 	  )
         {
 	  /* It's the place where the start of a symbol reference with an
@@ -9120,8 +9553,24 @@ e2k_cons_fix_new (fragS *frag,
       else if (nbytes == 8)
         reloc = BFD_RELOC_E2K_64_DTPREL;
       else
-        as_bad (_("unsupported relocation size %d"), nbytes);
+	{
+	  /* Formally assign a relocation even for a value of an unsuitable
+	     size to prevent as_fatal () later.  */
+	  reloc = BFD_RELOC_E2K_32_DTPREL;
+	  as_bad (_("invalid @TLS_DTPREL value size %d, should be 4 or 8"),
+		  nbytes);
+	}
 
+      break;
+
+    case O_got:
+      /* Assign a meaningful relocation no matter whether NBYTES is suitable or
+	 not so as to prevent a repetetive as_bad () below in this function and
+	 as_fatal () in resolve_symbol_value () later if NBYTES doesn't match
+	 the relocation.  */
+      reloc = BFD_RELOC_E2K_GOT;
+      if (nbytes != 4)
+	as_bad (_("invalid @GOT value size %d, should be 4"), nbytes);
       break;
 
     case O_gotoff:
@@ -9130,7 +9579,13 @@ e2k_cons_fix_new (fragS *frag,
       else if (nbytes == 8)
 	reloc = BFD_RELOC_E2K_GOTOFF64;
       else
-	as_bad (_("unsupported gotoff relocation size %d"), nbytes);
+	{
+	  /* Formally assign a relocation even for a value of an unsuitable
+	     size to prevent as_fatal () later.  */
+	  reloc = BFD_RELOC_32_GOTOFF;
+	  as_bad (_("invalid @GOTOFF value size %d, should be 4 or 8"),
+		  nbytes);
+	}
       break;
 
     case O_size:
@@ -9139,21 +9594,67 @@ e2k_cons_fix_new (fragS *frag,
       else if (nbytes == 8)
         reloc = BFD_RELOC_SIZE64;
       else
-        as_bad (_("unsupported relocation size %d"), nbytes);
+	{
+	  /* Formally assign a relocation even for a value of an unsuitable
+	     size to prevent as_fatal () later.  */
+	  reloc = BFD_RELOC_SIZE32;
+	  as_bad (_("invalid @SIZE value size %d, should be 4 or 8"), nbytes);
+	}
 
       break;
 
     case O_ap:
-      gas_assert (e2k_arch_size == 128 && nbytes == 16);
+      gas_assert (e2k_arch_size == 128);
+      /* Formally assign a relocation even for a value of an unsuitable
+	 size to prevent as_fatal () later.  */
       reloc = BFD_RELOC_E2K_AP;
+      if (nbytes != 16)
+	as_bad (_("invalid @AP value size %d, should be 16"), nbytes);
       break;
 
     case O_pl:
-      gas_assert (e2k_arch_size == 128 && (nbytes == 8 || nbytes == 16));
+      gas_assert (e2k_arch_size == 128);
+      /* Formally assign a relocation even for a value of an unsuitable
+	 size to prevent as_fatal () later.  */
       reloc = BFD_RELOC_E2K_PL;
+      /* FIXME: there's probably no point in allowing for 8-byte @PL values
+	 here nowadays. Indeed, the only way to obtain such a value is via
+	 a meaningless `.dword sym@PL'.  */
+      if (nbytes != 8 && nbytes != 16)
+	as_bad (_("invalid @PL value size %d, should be 8 or 16"), nbytes);
+
+      break;
+
+    case O_dynopt:
+      if (nbytes == 4)
+	reloc = BFD_RELOC_E2K_DYNOPT32;
+      else if (nbytes == 8 )
+	reloc = BFD_RELOC_E2K_DYNOPT64;
+      else
+	{
+	  /* Formally assign a relocation even for a value of an unsuitable
+	     size to prevent as_fatal () later.  */
+	  reloc = BFD_RELOC_E2K_DYNOPT32;
+	  as_bad (_("invalid @DYNOPT value size %d, should be 4 or 8"), nbytes);
+	}
+      break;
+
+    case O_gotplt:
+    case O_tls_gdmod:
+    case O_tls_gdrel:
+    case O_tls_le:
+    case O_tls_ie:
+    case O_plt:
+    case O_islocal:
+      /* Formally assign a "valid" relocation even for unsupported types of
+	 values to prevent as_fatal () in `resolve_symbol_value ()' later.  */
+      reloc = BFD_RELOC_E2K_GOT;
+      as_bad (_("unsupported value type"));
       break;
 
     default:
+      /* TODO: recall if something different from a symbolic relocation
+	 may come here.  */
       break;
     }
 
@@ -9184,6 +9685,9 @@ e2k_cons_fix_new (fragS *frag,
 
   if (reloc == BFD_RELOC_NONE)
     {
+      /* FIXME(?): something different from a known relocation against a symbol
+	 must have been obtained for the value under consideration. What can it
+	 be  and why should it be limited to sizes of 4 and 8?  */
       switch (nbytes)
         {
         case 4:
@@ -9221,7 +9725,7 @@ e2k_add_magic_info (void)
   magic_size_aligned = (magic_size + 3) & 0xfffffffc;
 
   magic_sec = subseg_new (".magic", 0);
-  bfd_set_section_flags (stdoutput, magic_sec, SEC_HAS_CONTENTS | SEC_READONLY);
+  bfd_set_section_flags (magic_sec, SEC_HAS_CONTENTS | SEC_READONLY);
 
   /* Follow the standard note section layout:
      First write the length of the name string.  */
@@ -9249,10 +9753,24 @@ e2k_add_magic_info (void)
   memcpy (p, magic, magic_size);
 }
 
+#if defined TE_E2K_UCLIBC
+static void
+e2k_add_uclibc_poison (void)
+{
+  bfd_elf_add_obj_attr_int (stdoutput, OBJ_ATTR_GNU, Tag_GNU_E2K_UCLIBC, 1);
+
+}
+#endif /* defined TE_E2K_UCLIBC  */
+
+
 void
 e2k_end (void)
 {
   e2k_add_magic_info ();
+
+#if defined TE_E2K_UCLIBC
+  e2k_add_uclibc_poison ();
+#endif /* defined TE_E2K_UCLIBC  */
 }
 
 /* `.eh_frame' section in PM should be relocated at runtime and therefore
@@ -9282,4 +9800,33 @@ e2k_cfi_reloc_for_encoding (int encoding)
     }
 
   return BFD_RELOC_NONE;
+}
+
+/* Given a symbolic attribute NAME, return the proper integer value.
+   Returns -1 if the attribute is not known.  */
+
+int
+e2k_convert_symbolic_attribute (const char *name)
+{
+  static const struct
+  {
+    const char * name;
+    const int    tag;
+  }
+  attribute_table[] =
+    {
+#define T(tag) {#tag, tag}
+      T (Tag_GNU_E2K_UCLIBC),
+#undef T
+    };
+  unsigned int i;
+
+  if (name == NULL)
+    return -1;
+
+  for (i = 0; i < ARRAY_SIZE (attribute_table); i++)
+    if (strcmp (name, attribute_table[i].name) == 0)
+      return attribute_table[i].tag;
+
+  return -1;
 }

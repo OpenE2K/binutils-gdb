@@ -5,7 +5,10 @@
 #include "libiberty.h"
 #include "opcode/e2k.h"
 
-int mcpu;
+/* Imply `-mcpu=elbrus-v2' by default now that support for `-mcpu={generic,
+   elbrus-v1}' is to be removed from `e2k-linux-as' (see Bug #96498,
+   Comment #11).  */
+int mcpu = 2;
 
 #define MAX_E2K_NUM_OPCODES 16384
 struct e2k_opcode_templ *e2k_opcode_templs[MAX_E2K_NUM_OPCODES];
@@ -192,6 +195,11 @@ init_opcode_templs ()
 
   COPF4_VEC_ENTRY (flushr);
   COPF4_VEC_ENTRY (flushc);
+  if (mcpu >= 6)
+    {
+      COPF4_VEC_ENTRY (fillr);
+      COPF4_VEC_ENTRY (fillc);
+    }
 
   SETCMD_VEC_ENTRY (setbn, 0);
   SETCMD_VEC_ENTRY (setbp, 1);
@@ -208,7 +216,10 @@ init_opcode_templs ()
   E2K_OPCODE_VEC_ENTRY (call, parse_ct_args);
 
   if (mcpu >= 6)
-    E2K_OPCODE_VEC_ENTRY (hcall, parse_hcall_args);
+    {
+      E2K_OPCODE_VEC_ENTRY (hcall, parse_hicall_args);
+      E2K_OPCODE_VEC_ENTRY (icall, parse_hicall_args);
+    }
 
   E2K_OPCODE_VEC_ENTRY (ipd, parse_ipd_args);
 
@@ -217,6 +228,15 @@ init_opcode_templs ()
   E2K_OPCODE_VEC_ENTRY (abn, parse_abn_args);
   E2K_OPCODE_VEC_ENTRY (abp, parse_abp_args);
   E2K_OPCODE_VEC_ENTRY (abg, parse_abg_args);
+
+  E2K_OPCODE_VEC_ENTRY (srp, parse_srp_args);
+
+  if (mcpu >= 2)
+    E2K_OPCODE_VEC_ENTRY (crp, parse_crp_args);
+
+  if (mcpu >= 3)
+    E2K_OPCODE_VEC_ENTRY (slrp, parse_slrp_args);
+
   E2K_OPCODE_VEC_ENTRY (bap, parse_bap_args);
   E2K_OPCODE_VEC_ENTRY (eap, parse_eap_args);
 
@@ -226,12 +246,13 @@ init_opcode_templs ()
 
   E2K_OPCODE_VEC_ENTRY (ibranch, parse_ibranch_args);
   E2K_OPCODE_VEC_ENTRY (rbranch, parse_ibranch_args);
-  E2K_OPCODE_VEC_ENTRY (done, parse_done_hret_glaunch_args);
+  E2K_OPCODE_VEC_ENTRY (done, parse_done_hiret_glaunch_args);
 
   if (mcpu >= 6)
     {
-      E2K_OPCODE_VEC_ENTRY (hret, parse_done_hret_glaunch_args);
-      E2K_OPCODE_VEC_ENTRY (glaunch, parse_done_hret_glaunch_args);
+      E2K_OPCODE_VEC_ENTRY (iret, parse_done_hiret_glaunch_args);
+      E2K_OPCODE_VEC_ENTRY (hret, parse_done_hiret_glaunch_args);
+      E2K_OPCODE_VEC_ENTRY (glaunch, parse_done_hiret_glaunch_args);
     }
 
   E2K_OPCODE_VEC_ENTRY (wait, parse_wait_args);

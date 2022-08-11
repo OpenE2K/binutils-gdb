@@ -41,6 +41,7 @@ START_RELOC_NUMBERS (elf_e2k_reloc_type)
   RELOC_NUMBER (R_E2K_32_RELATIVE, 10)
   RELOC_NUMBER (R_E2K_32_IRELATIVE, 11)
   RELOC_NUMBER (R_E2K_32_SIZE, 12)
+  RELOC_NUMBER (R_E2K_32_DYNOPT, 13)
 
   /* 64-bit ones.  */
   RELOC_NUMBER (R_E2K_64_ABS, 50)
@@ -61,6 +62,7 @@ START_RELOC_NUMBERS (elf_e2k_reloc_type)
      this will make it impossible to use these relocations in 32-bit mode, but
      they shouldn't be intended for that in fact . . .  */
   RELOC_NUMBER (R_E2K_64_GOTOFF_LIT, 256)
+  RELOC_NUMBER (R_E2K_64_DYNOPT, 257)
 
   /* All TLS-specific 32, 64-bit and common relocations are grouped here,
      which is rather inconsistent.  */
@@ -100,6 +102,7 @@ END_RELOC_NUMBERS (R_E2K_max)
 #define EF_E2K_4MB_PAGES        8
 #define EF_E2K_INCOMPAT         16
 #define EF_E2K_PM               32
+#define EF_E2K_PACK_SEGMENTS    64
 
 /* Three bit E2K machine type field.  */
 
@@ -127,6 +130,9 @@ END_RELOC_NUMBERS (R_E2K_max)
    after they are eliminated from the Kernel.  */
 #define E_E2K_MACH_8C	    19
 #define E_E2K_MACH_1CPLUS   20
+#define E_E2K_MACH_12C	    21
+#define E_E2K_MACH_16C	    22
+#define E_E2K_MACH_2C3	    23
 
 
 
@@ -159,6 +165,21 @@ enum
   DT_EXPORT_PLSZ,
 
   DT_REAL_PLTGOT,
+};
+
+/* Object attribute tags.  */
+enum
+{
+  /* For `vendor == OBJ_ATTR_GNU' 0-3 tags are generic. According to `gnu_obj_
+     attrs_arg_type ()' even-numbered GNU tags take integers and odd-numbered
+     ones take strings. According to a comment in this function and as.info
+     `(Tag & 0x2) should be also equal to 0' for architecture dependent ones,
+     which  is why 5 may be used for the next E2K-specific string GNU attribute
+     and 8 for the integer one. FIXME: alternatively `vendor == OBJ_ATTR_PROC'
+     attributes implying no limitations on the values of Tags could be used for
+     the same purpose, but they would require the implementation of an
+     additional E2K-specific method to retrieve the type of the attribute.  */
+ Tag_GNU_E2K_UCLIBC = 4
 };
 
 #endif /* _ELF_E2K_H */

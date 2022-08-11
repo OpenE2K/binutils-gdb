@@ -50,6 +50,7 @@ enum
   R_E2K_GOTPLT = 114,
   R_E2K_ISLOCAL = 115,
   R_E2K_ISLOCAL32 = 118,
+  R_E2K_64_GOTOFF_LIT = 256,
 };
 
 } // End namespace elfcpp.

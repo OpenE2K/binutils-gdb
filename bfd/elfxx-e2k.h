@@ -72,12 +72,14 @@ struct _bfd_e2k_elf_link_hash_table
   /* PLTGOT header, its size and offsets at which it should be adjusted at
      link time.  */
   const unsigned int *plt_got_header;
+  unsigned int plt_got_header_nop_offset;
   unsigned int plt_got_link_map_ld_offset;
   unsigned int plt_got_dl_fixup_ld_offset;
   unsigned int plt_got_header_size;
 
 
   const unsigned int *plt_got_primary_entry;
+  unsigned int plt_got_entry_nop_offset;
   unsigned int plt_got_target_ld_offset;
   unsigned int plt_got_primary_entry_size;
 
@@ -136,6 +138,9 @@ struct _bfd_e2k_elf_link_hash_table
   /* The numbers of primary and secondary PLT entries in the current link.  */
   bfd_vma primary_plt_num;
   bfd_vma secondary_plt_num;
+
+  int ranges_num;
+  void *ranges;
 };
 
 /* This variable should be accessible from multiple modules. Moreover, it
@@ -185,7 +190,7 @@ extern bfd_boolean _bfd_e2k_elf_final_link
 
 /* Methods of struct elf_backend_data */
 
-extern void _bfd_e2k_elf_info_to_howto
+extern bfd_boolean _bfd_e2k_elf_info_to_howto
   (bfd *, arelent *, Elf_Internal_Rela *);
 
 extern bfd_boolean _bfd_e2k_elf_add_symbol_hook
@@ -221,6 +226,8 @@ extern unsigned int _bfd_e2k_elf_action_discarded
 
 extern bfd_boolean simulating_mode;
 
+//extern bfd_boolean pack_cud_gd;
+
 extern int simulate_relocate_section (bfd *input_bfd,
                                       asection *input_section,
                                       bfd_byte *contents,
@@ -243,10 +250,7 @@ _bfd_e2k_elf_reloc_type_class (const struct bfd_link_info *,
 extern bfd_boolean _bfd_e2k_elf_finish_dynamic_sections
   (bfd *, struct bfd_link_info *);
 
-extern void _bfd_e2k_elf_post_process_headers_1
-  (bfd *, struct bfd_link_info *, bfd_boolean);
-
-extern void _bfd_e2k_elf_post_process_headers
+extern bfd_boolean _bfd_e2k_elf_init_file_header
   (bfd *, struct bfd_link_info *);
 
 extern bfd_boolean _bfd_e2k_elf_ignore_discarded_relocs
@@ -287,7 +291,8 @@ extern long _bfd_e2k_elf_get_synthetic_symtab
 extern void _bfd_e2k_elf_after_parse (int);
 
 extern void _bfd_e2k_elf_after_open (int, int, int, bfd_boolean, bfd_boolean,
-                                     bfd_boolean, bfd_boolean, bfd_boolean);
+                                     bfd_boolean, bfd_boolean, bfd_boolean,
+				     bfd_boolean);
 
 extern const struct bfd_elf_special_section _bfd_e2k_elf_special_sections[];
 

@@ -306,6 +306,7 @@ BFD32_BACKENDS = \
 	elf32-dlx.lo \
 	elf32-e2k.lo \
 	elf32-e2k-pm.lo \
+	elf32-e2k-pm-uclibc.lo \
 	elf32-epiphany.lo \
 	elf32-fr30.lo \
 	elf32-frv.lo \
@@ -359,6 +360,8 @@ BFD32_BACKENDS = \
 	elf32.lo \
 	elflink.lo \
 	elfxx-e2k.lo \
+	elfxx-e2k-pm.lo \
+	elfxx-e2k-uclibc.lo \
 	elfxx-sparc.lo \
 	elfxx-tilegx.lo \
 	i386aout.lo \
@@ -444,6 +447,7 @@ BFD32_BACKENDS_CFILES = \
 	elf32-dlx.c \
 	elf32-e2k.c \
 	elf32-e2k-pm.c \
+	elf32-e2k-pm-uclibc.c \
 	elf32-epiphany.c \
 	elf32-fr30.c \
 	elf32-frv.c \
@@ -497,6 +501,8 @@ BFD32_BACKENDS_CFILES = \
 	elf32.c \
 	elflink.c \
 	elfxx-e2k.c \
+	elfxx-e2k-pm.c \
+	elfxx-e2k-uclibc.c \
 	elfxx-sparc.c \
 	elfxx-tilegx.c \
 	i386aout.c \
@@ -556,6 +562,9 @@ BFD64_BACKENDS = \
 	elf32-score7.lo \
 	elf64-alpha.lo \
 	elf64-e2k.lo \
+	elf64-e2k-kpda.lo \
+	elf64-e2k-pm.lo \
+	elf64-e2k-uclibc.lo \
 	elf64-gen.lo \
 	elf64-hppa.lo \
 	elf64-ia64.lo \
@@ -598,6 +607,9 @@ BFD64_BACKENDS_CFILES = \
 	elf32-score7.c \
 	elf64-alpha.c \
 	elf64-e2k.c \
+	elf64-e2k-kpda.c \
+	elf64-e2k-pm.c \
+	elf64-e2k-uclibc.c \
 	elf64-gen.c \
 	elf64-hppa.c \
 	elf64-ia64-vms.c \
@@ -956,7 +968,7 @@ DISTCLEANFILES = $(BUILD_CFILES) $(BUILD_HFILES) libtool-soversion
 bfdver.h: $(srcdir)/version.h $(srcdir)/development.sh $(srcdir)/Makefile.in
 	@echo "creating $@"
 	@bfd_version=`echo "$(VERSION)" | $(SED) -e 's/\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\).*/\1.00\2.00\3.00\4.00\5/' -e 's/\([^\.]*\)\..*\(..\)\..*\(..\)\..*\(..\)\..*\(..\)$$/\1\2\3\4\5/'` ;\
-	bfd_version_string="\"$(VERSION)-23.008\"" ;\
+	bfd_version_string="\"$(VERSION)-25.014\"" ;\
 	bfd_soversion="$(VERSION)" ;\
 	bfd_version_package="\"$(PKGVERSION)\"" ;\
 	report_bugs_to="\"$(REPORT_BUGS_TO)\"" ;\

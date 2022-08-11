@@ -61,10 +61,7 @@ template <class type> struct alignof_helper { char __slot1; type __slot2; };
 #  endif
 # endif
 # include <stdlib.h>
-
-#ifdef __linux__
 # include <stdint.h>
-#endif /* __linux__  */
 
 # ifndef MAX
 #  define MAX(a,b) ((a) > (b) ? (a) : (b))

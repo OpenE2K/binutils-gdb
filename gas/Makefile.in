@@ -531,6 +531,8 @@ TARGET_CPU_CFILES = \
 	config/tc-d10v.c \
 	config/tc-d30v.c \
 	config/tc-dlx.c \
+	config/tc-e2k.c \
+	config/tc-stub.c \
 	config/tc-epiphany.c \
 	config/tc-fr30.c \
 	config/tc-frv.c \
@@ -607,6 +609,8 @@ TARGET_CPU_HFILES = \
 	config/tc-d10v.h \
 	config/tc-d30v.h \
 	config/tc-dlx.h \
+	config/tc-e2k.h \
+	config/tc-stub.h \
 	config/tc-epiphany.h \
 	config/tc-fr30.h \
 	config/tc-frv.h \
@@ -914,6 +918,10 @@ config/tc-d30v.$(OBJEXT): config/$(am__dirstamp) \
 	config/$(DEPDIR)/$(am__dirstamp)
 config/tc-dlx.$(OBJEXT): config/$(am__dirstamp) \
 	config/$(DEPDIR)/$(am__dirstamp)
+config/tc-e2k.$(OBJEXT): config/$(am__dirstamp) \
+	config/$(DEPDIR)/$(am__dirstamp)
+config/tc-stub.$(OBJEXT): config/$(am__dirstamp) \
+	config/$(DEPDIR)/$(am__dirstamp)
 config/tc-epiphany.$(OBJEXT): config/$(am__dirstamp) \
 	config/$(DEPDIR)/$(am__dirstamp)
 config/tc-fr30.$(OBJEXT): config/$(am__dirstamp) \
@@ -1163,6 +1171,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-d10v.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-d30v.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-dlx.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-e2k.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-epiphany.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-fr30.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-frv.Po@am__quote@
@@ -1206,6 +1215,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-sh.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-sparc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-spu.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-stub.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-tic30.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-tic4x.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@config/$(DEPDIR)/tc-tic54x.Po@am__quote@

@@ -253,6 +253,14 @@ main (int argc, char **argv)
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 
+#if 0
+  /* FIXME: without this hack bfd.mo will be searched in `/usr/share/locale/.../
+     LC_MESSAGES/' ignoring the prefix at which it's actually installed! The
+     same probably applies to other ld dependencies: libiberty, libopcodes,
+     . . . What a drawback in localization it is!  */
+  bindtextdomain ("bfd", LOCALEDIR);
+#endif /* 0  */
+
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
 

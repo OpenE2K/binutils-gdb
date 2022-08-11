@@ -348,3 +348,173 @@ _bfd_elf_allocate_ifunc_dyn_relocs (struct bfd_link_info *info,
 
   return TRUE;
 }
+
+/* Leave the underlying function in place since E2K needs it.  */
+
+/* Similar to _bfd_elf_get_synthetic_symtab, optimized for unsorted PLT
+   entries.  PLT is the PLT section.  PLT_SYM_VAL is a function pointer
+   which returns an array of PLT entry symbol values.  */
+
+long
+_bfd_elf_ifunc_get_synthetic_symtab
+  (bfd *abfd, long symcount ATTRIBUTE_UNUSED,
+   asymbol **syms ATTRIBUTE_UNUSED, long dynsymcount, asymbol **dynsyms,
+   asymbol **ret, asection *plt,
+   int kind,
+   void *dummy,
+   bfd_vma *(*get_plt_sym_val) (bfd *, asymbol **, asection *, asection *,
+                                int, void *))
+{
+  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
+  asection *relplt;
+  asymbol *s;
+  const char *relplt_name;
+  bfd_boolean (*slurp_relocs) (bfd *, asection *, asymbol **, bfd_boolean);
+  arelent *p;
+  long count, i, n;
+  size_t size;
+  Elf_Internal_Shdr *hdr;
+  char *names;
+  bfd_vma *plt_sym_val;
+  const char *plt_sfx;
+  size_t plt_sfx_sz;
+
+  switch (kind)
+    {
+    case 0:
+      plt_sfx = "@plt";
+      plt_sfx_sz = sizeof ("@plt");
+      break;
+    case 1:
+      plt_sfx = "@secondary_plt";
+      plt_sfx_sz = sizeof ("@secondary_plt");
+      break;
+    case 2:
+      plt_sfx = "@plt.got";
+      plt_sfx_sz = sizeof ("@plt.got");
+      break;
+    default:
+      return -1;
+    }
+
+  *ret = NULL;
+
+  if (plt == NULL)
+    return 0;
+
+  if ((abfd->flags & (DYNAMIC | EXEC_P)) == 0)
+    return 0;
+
+  if (dynsymcount <= 0)
+    return 0;
+
+  /* When looking for primary and secondary PLT entries one should iterate
+     over `.rela.plt', whereas for `.plt.got' entries (recall that they are
+     created for functions a pointer to which should be resolved in a non-lazy
+     way (in a shared library?)) - over `.rela.dyn'.  */
+  if (kind == 0 || kind == 1)
+    {
+      relplt_name = bed->relplt_name;
+      if (relplt_name == NULL)
+        relplt_name = bed->rela_plts_and_copies_p ? ".rela.plt" : ".rel.plt";
+      relplt = bfd_get_section_by_name (abfd, relplt_name);
+    }
+  else
+    {
+      /* FIXME: currently this function is called with `kind == 2' for E2K
+         only. How should I properly choose between `.rel{,a}.dyn' on other
+         platforms?  */
+      relplt_name = ".rela.dyn";
+
+      /* FIXME: is it worthwhile to iterate over a potentially huge `.rela.dyn'
+         for just a few relocations related to `.plt.got' entries? There are a
+         couple of such entries in libc.so . . .  */
+      relplt = bfd_get_section_by_name (abfd, relplt_name);
+    }
+
+  if (relplt == NULL)
+    return 0;
+
+  hdr = &elf_section_data (relplt)->this_hdr;
+  if (hdr->sh_link != elf_dynsymtab (abfd)
+      || (hdr->sh_type != SHT_REL && hdr->sh_type != SHT_RELA))
+    return 0;
+
+  slurp_relocs = get_elf_backend_data (abfd)->s->slurp_reloc_table;
+  if (! (*slurp_relocs) (abfd, relplt, dynsyms, TRUE))
+    return -1;
+
+  count = relplt->size / hdr->sh_entsize;
+  size = count * sizeof (asymbol);
+  p = relplt->relocation;
+  for (i = 0; i < count; i++, p += bed->s->int_rels_per_ext_rel)
+    {
+      size += strlen ((*p->sym_ptr_ptr)->name) + plt_sfx_sz;
+      if (p->addend != 0)
+	{
+#ifdef BFD64
+	  size += sizeof ("+0x") - 1 + 8 + 8 * (bed->s->elfclass == ELFCLASS64);
+#else
+	  size += sizeof ("+0x") - 1 + 8;
+#endif
+	}
+    }
+
+  plt_sym_val = get_plt_sym_val (abfd, dynsyms, plt, relplt, kind, dummy);
+  if (plt_sym_val == NULL)
+    return -1;
+
+  s = *ret = (asymbol *) bfd_malloc (size);
+  if (s == NULL)
+    {
+      free (plt_sym_val);
+      return -1;
+    }
+
+  names = (char *) (s + count);
+  p = relplt->relocation;
+  n = 0;
+  for (i = 0; i < count; i++, p += bed->s->int_rels_per_ext_rel)
+    {
+      size_t len;
+      bfd_vma addr;
+
+      addr = plt_sym_val[i];
+      if (addr == (bfd_vma) -1)
+	continue;
+
+      *s = **p->sym_ptr_ptr;
+      /* Undefined syms won't have BSF_LOCAL or BSF_GLOBAL set.  Since
+	 we are defining a symbol, ensure one of them is set.  */
+      if ((s->flags & BSF_LOCAL) == 0)
+	s->flags |= BSF_GLOBAL;
+      s->flags |= BSF_SYNTHETIC;
+      s->section = plt;
+      s->value = addr - plt->vma;
+      s->name = names;
+      s->udata.p = NULL;
+      len = strlen ((*p->sym_ptr_ptr)->name);
+      memcpy (names, (*p->sym_ptr_ptr)->name, len);
+      names += len;
+      if (p->addend != 0)
+	{
+	  char buf[30], *a;
+
+	  memcpy (names, "+0x", sizeof ("+0x") - 1);
+	  names += sizeof ("+0x") - 1;
+	  bfd_sprintf_vma (abfd, buf, p->addend);
+	  for (a = buf; *a == '0'; ++a)
+	    ;
+	  len = strlen (a);
+	  memcpy (names, a, len);
+	  names += len;
+	}
+      memcpy (names, plt_sfx, plt_sfx_sz);
+      names += plt_sfx_sz;
+      ++s, ++n;
+    }
+
+  free (plt_sym_val);
+
+  return n;
+}

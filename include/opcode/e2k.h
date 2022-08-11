@@ -30,6 +30,7 @@
 #define AAURR			23
 #define AAURW			24
 #define ALOPF17			25
+#define ALOPF19			26
 
 #define ALF_PART                                \
   u_int8_t alopf;                               \
@@ -68,6 +69,11 @@
 
 /* ALES.opce values.  */
 #define NONE    0xc0
+
+/* See Table B.2.6 in `iset-v6.single'.  */
+#define QPCHECKS	0xc0
+#define QPCHECKD	0xc1
+#define QPCHECKQ	0xc2
 
 
 /* It seems that LAS doesn't support %xr's, that's
@@ -372,7 +378,7 @@ int parse_setcmd_args (char **, const e2k_opcode_templ *);
 int parse_setsft_args (char **, const e2k_opcode_templ *);
 int parse_wait_args (char **, const e2k_opcode_templ *);
 int parse_ct_args (char **, const e2k_opcode_templ *);
-int parse_hcall_args (char **, const e2k_opcode_templ *);
+int parse_hicall_args (char **, const e2k_opcode_templ *);
 int parse_ipd_args (char **, const e2k_opcode_templ *);
 
 int parse_loop_mode_args (char **, const e2k_opcode_templ *);
@@ -380,6 +386,9 @@ int parse_alc_args (char **, const e2k_opcode_templ *);
 int parse_abn_args (char **, const e2k_opcode_templ *);
 int parse_abp_args (char **, const e2k_opcode_templ *);
 int parse_abg_args (char **, const e2k_opcode_templ *);
+int parse_srp_args (char **, const e2k_opcode_templ *);
+int parse_crp_args (char **, const e2k_opcode_templ *);
+int parse_slrp_args (char **, const e2k_opcode_templ *);
 int parse_bap_args (char **, const e2k_opcode_templ *);
 int parse_eap_args (char **, const e2k_opcode_templ *);
 
@@ -388,7 +397,7 @@ int parse_pass_args (char **, const e2k_opcode_templ *);
 int parse_andp_args (char **, const e2k_opcode_templ *);
 int parse_landp_args (char **, const e2k_opcode_templ *);
 int parse_ibranch_args (char **, const e2k_opcode_templ *);
-int parse_done_hret_glaunch_args (char **, const e2k_opcode_templ *);
+int parse_done_hiret_glaunch_args (char **, const e2k_opcode_templ *);
 
 int parse_incr_args (char **, const e2k_opcode_templ *);
 int parse_mova_args (char **, const e2k_opcode_templ *);

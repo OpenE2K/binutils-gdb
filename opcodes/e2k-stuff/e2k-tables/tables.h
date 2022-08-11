@@ -559,8 +559,10 @@ e2k_oper elbrus_v5_long_ext1_opers [] =
 
 e2k_oper elbrus_v6_long_ext1_opers [] =
 {
+{0x25, {{"QPSRAD", 0},                  {"QPSRAD", 0},                  {"", 0}                        }, 0},
 {0x28, {{"PCMPP", 0},                   {"", 0},                        {"", 0}                        }, 0},
 {0x2c, {{"QPCMPP", 0},                  {"", 0},                        {"", 0}                        }, 0},
+{0x33, {{"QPCHECK", 0},                 {"", 0},                        {"", 0}                        }, 0},
 {0x35, {{"QPCEXT", 0},                  {"QPCEXT", 0},                  {"", 0}                        }, 0},
 {0x60, {{"QPMRGP", 0},                  {"QPMRGP", 0},                  {"", 0}                        }, 0},
 };

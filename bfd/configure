@@ -830,6 +830,7 @@ enable_targets
 enable_64_bit_archive
 with_mmap
 enable_secureplt
+enable_new_pm_abi
 enable_separate_code
 enable_leading_mingw64_underscores
 with_separate_debug_dir
@@ -1487,6 +1488,7 @@ Optional Features:
   --enable-targets        alternative target configurations
   --enable-64-bit-archive force 64-bit archives
   --enable-secureplt      Default to creating read-only plt entries
+  --enable-new-pm-abi      Enable new PM ABI on E2K
   --enable-separate-code  enable -z separate-code in ELF linker by default
   --enable-leading-mingw64-underscores
                           Enable leading underscores on 64 bit mingw targets
@@ -11728,7 +11730,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11731 "configure"
+#line 11733 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -11834,7 +11836,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 11837 "configure"
+#line 11839 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12490,6 +12492,22 @@ fi
 if test $use_secureplt = true; then
 
 $as_echo "#define USE_SECUREPLT 1" >>confdefs.h
+
+fi
+
+# Check whether --enable-new-pm-abi was given.
+if test "${enable_new_pm_abi+set}" = set; then :
+  enableval=$enable_new_pm_abi; case "${enableval}" in
+  yes)  new_pm_abi=true  ;;
+  no)   new_pm_abi=false ;;
+  *)    as_fn_error $? "bad value ${enableval} for new-pm-abi option" "$LINENO" 5 ;;
+esac
+else
+  new_pm_abi=false
+fi
+if test $new_pm_abi = true; then
+
+$as_echo "#define NEW_PM_ABI 1" >>confdefs.h
 
 fi
 
@@ -14755,6 +14773,13 @@ do
     d10v_elf32_vec)		 tb="$tb elf32-d10v.lo elf32.lo $elf" ;;
     d30v_elf32_vec)		 tb="$tb elf32-d30v.lo elf32.lo $elf" ;;
     dlx_elf32_be_vec)		 tb="$tb elf32-dlx.lo elf32.lo $elf" ;;
+    e2k_elf32_vec)		 tb="$tb elf32-e2k.lo elfxx-e2k.lo elf-ifunc.lo $elf"; want64=true;;
+    e2k_pm_elf32_vec)		 tb="$tb elf32-e2k-pm.lo elfxx-e2k-pm.lo elfxx-e2k.lo elf-ifunc.lo $elf";;
+    e2k_pm_uclibc_elf32_vec)	 tb="$tb elf32-e2k-pm-uclibc.lo elfxx-e2k-pm.lo elfxx-e2k-uclibc.lo elfxx-e2k.lo elf-ifunc.lo $elf";;
+    e2k_elf64_vec)		 tb="$tb elf64-e2k.lo elfxx-e2k.lo elf-ifunc.lo $elf"; target_size=64;;
+    e2k_kpda_elf64_vec)		 tb="$tb elf64-e2k-kpda.lo elfxx-e2k.lo elf-ifunc.lo $elf"; target_size=64;;
+    e2k_pm_elf64_vec)		 tb="$tb elf64-e2k-pm.lo elfxx-e2k-pm.lo elfxx-e2k.lo elf-ifunc.lo $elf";;
+    e2k_uclibc_elf64_vec)	 tb="$tb elf64-e2k-uclibc.lo elfxx-e2k-uclibc.lo elfxx-e2k.lo elf-ifunc.lo $elf";;
     elf32_be_vec)		 tb="$tb elf32-gen.lo elf32.lo $elf" ;;
     elf32_le_vec)		 tb="$tb elf32-gen.lo elf32.lo $elf" ;;
     elf64_be_vec)		 tb="$tb elf64-gen.lo elf64.lo $elf"; target_size=64 ;;

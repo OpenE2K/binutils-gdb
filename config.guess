@@ -968,7 +968,7 @@ EOF
 	echo "$UNAME_MACHINE"-axis-linux-"$LIBC"
 	exit ;;
     e2k:Linux:*:*)
-	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
+	echo "$UNAME_MACHINE"-mcst-linux-"$LIBC"
 	exit ;;
     frv:Linux:*:*)
 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
@@ -976,9 +976,6 @@ EOF
     hexagon:Linux:*:*)
 	echo "$UNAME_MACHINE"-unknown-linux-"$LIBC"
 	exit ;;
-    e2k:Linux:*.*)
-        echo "${UNAME_MACHINE}-mcst-linux-gnu"
-        exit ;;
     i*86:Linux:*:*)
 	echo "$UNAME_MACHINE"-pc-linux-"$LIBC"
 	exit ;;

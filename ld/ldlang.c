@@ -6952,7 +6952,11 @@ lang_check (void)
 	 relocs for other link purposes than a final link).  */
       if ((bfd_link_relocatable (&link_info)
 	   || link_info.emitrelocations)
-	  && (compatible == NULL
+	  && (/* For E2K we may have more appropriate compatibility tests in
+		 "merge_private_bfd_data ()" along with more meaningful error
+		 messages.  */
+	      (! ldemul_disable_standard_compatibility_tests ()
+	       && compatible == NULL)
 	      || (bfd_get_flavour (input_bfd)
 		  != bfd_get_flavour (link_info.output_bfd)))
 	  && (bfd_get_file_flags (input_bfd) & HAS_RELOC) != 0)
@@ -6964,7 +6968,11 @@ lang_check (void)
 	  /* einfo with %F exits.  */
 	}
 
-      if (compatible == NULL)
+      /* For E2K we have got more appropriate compatibility tests in
+	 "merge_private_bfd_data ()" along with more meaningful error
+	 messages.  */
+      if (! ldemul_disable_standard_compatibility_tests ()
+	  && compatible == NULL)
 	{
 	  if (command_line.warn_mismatch)
 	    einfo (_("%X%P: %s architecture of input file `%pB'"

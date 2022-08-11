@@ -220,6 +220,8 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   NULL,	/* extra_map_file_text */
   ${LDEMUL_EMIT_CTF_EARLY-NULL},
   ${LDEMUL_EXAMINE_STRTAB_FOR_CTF-NULL},
-  ${LDEMUL_PRINT_SYMBOL-NULL}
+  ${LDEMUL_PRINT_SYMBOL-NULL},
+  NULL,
+  NULL
 };
 EOF

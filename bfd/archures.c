@@ -131,9 +131,15 @@ DESCRIPTION
 .#define bfd_mach_sparc_v9m		20 {* with OSA2015 and M7 add'ns.  *}
 .#define bfd_mach_sparc_v8plusm8	21 {* with OSA2017 and M8 add'ns.  *}
 .#define bfd_mach_sparc_v9m8		22 {* with OSA2017 and M8 add'ns.  *}
+.#define bfd_mach_sparc_v8plus_r1000	23 {* with r1000 add'ns.  *}
+.#define bfd_mach_sparc_v9_r1000	24 {* with r1000 add'ns.  *}
+.#define bfd_mach_sparc_v8plus_r2000	25 {* with r2000 add'ns.  *}
+.#define bfd_mach_sparc_v9_r2000	26 {* with r2000 add'ns.  *}
+.#define bfd_mach_sparc_v8plus_r2000_plus	27 {* with r2000+ add'ns.  *}
+.#define bfd_mach_sparc_v9_r2000_plus	28 {* with r2000+ add'ns.  *}
 .{* Nonzero if MACH has the v9 instruction set.  *}
 .#define bfd_mach_sparc_v9_p(mach) \
-.  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9m8 \
+.  ((mach) >= bfd_mach_sparc_v8plus && (mach) <= bfd_mach_sparc_v9_mcst \
 .   && (mach) != bfd_mach_sparc_sparclite_le)
 .{* Nonzero if MACH is a 64 bit sparc architecture.  *}
 .#define bfd_mach_sparc_64bit_p(mach) \
@@ -144,7 +150,10 @@ DESCRIPTION
 .   && (mach) != bfd_mach_sparc_v8pluse \
 .   && (mach) != bfd_mach_sparc_v8plusv \
 .   && (mach) != bfd_mach_sparc_v8plusm \
-.   && (mach) != bfd_mach_sparc_v8plusm8)
+.   && (mach) != bfd_mach_sparc_v8plusm8 \
+.   && (mach) != bfd_mach_sparc_v8plus_r1000 \
+.   && (mach) != bfd_mach_sparc_v8plus_r2000 \
+.   && (mach) != bfd_mach_sparc_v8plus_r2000_plus)
 .  bfd_arch_spu,       {* PowerPC SPU.  *}
 .#define bfd_mach_spu		256
 .  bfd_arch_mips,      {* MIPS Rxxxx.  *}
@@ -522,6 +531,27 @@ DESCRIPTION
 .  bfd_arch_lm32,      {* Lattice Mico32.  *}
 .#define bfd_mach_lm32		1
 .  bfd_arch_microblaze,{* Xilinx MicroBlaze.  *}
+.  bfd_arch_e2k,       {* MCST E2K. *}
+.{* It's crucial that the underlying `bfd_mach_e2k*' have the same values as *}
+.{* the corresponding `E_E2K_MACH_*'s!!! *}
+.#define bfd_mach_e2k_generic    0
+.#define bfd_mach_e2k_ev1        1
+.{* This is interpreted as the common subset of all Elbrus V2 iterations.
+.   Currently it is the same as the common subset of all elbrus-2c+.  *}
+.#define bfd_mach_e2k_ev2        2
+.#define bfd_mach_e2k_ev3        3
+.#define bfd_mach_e2k_ev4        4
+.#define bfd_mach_e2k_ev5        5
+.#define bfd_mach_e2k_ev6        6
+.{* Values 16, 17 and 18 used to be reserved for the first three iterations
+.   of `elbrus-v2'. See `include/elf/e2k.h' for why they can't be reused right
+.   now. *}
+.#define bfd_mach_e2k_8c	 19
+.#define bfd_mach_e2k_1cplus	 20
+.#define bfd_mach_e2k_12c	 21
+.#define bfd_mach_e2k_16c	 22
+.#define bfd_mach_e2k_2c3	 23
+
 .  bfd_arch_tilepro,   {* Tilera TILEPro.  *}
 .  bfd_arch_tilegx,    {* Tilera TILE-Gx.  *}
 .#define bfd_mach_tilepro	1
@@ -620,6 +650,7 @@ extern const bfd_arch_info_type bfd_d10v_arch;
 extern const bfd_arch_info_type bfd_d30v_arch;
 extern const bfd_arch_info_type bfd_dlx_arch;
 extern const bfd_arch_info_type bfd_bpf_arch;
+extern const bfd_arch_info_type bfd_e2k_arch;
 extern const bfd_arch_info_type bfd_epiphany_arch;
 extern const bfd_arch_info_type bfd_fr30_arch;
 extern const bfd_arch_info_type bfd_frv_arch;
@@ -709,6 +740,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_d30v_arch,
     &bfd_dlx_arch,
     &bfd_bpf_arch,
+    &bfd_e2k_arch,
     &bfd_epiphany_arch,
     &bfd_fr30_arch,
     &bfd_frv_arch,

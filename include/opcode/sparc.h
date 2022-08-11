@@ -59,8 +59,10 @@ enum sparc_opcode_arch_val
                             multiply and Fujitsu fp multiply-add.  */
   SPARC_OPCODE_ARCH_V9M, /* V9 with OSA2015 and M7 additions.  */
   SPARC_OPCODE_ARCH_M8,  /* V9 with OSA2017 and M8 additions.  */
-  SPARC_OPCODE_ARCH_V9_MCST, /* V9B with MCST additions.  */
-  SPARC_OPCODE_ARCH_MAX = SPARC_OPCODE_ARCH_V9_MCST,
+  SPARC_OPCODE_ARCH_R1000, /* V9B with R1000 additions.  */
+  SPARC_OPCODE_ARCH_R2000, /* V9B with R{1,2}000 additions.  */
+  SPARC_OPCODE_ARCH_R2000_PLUS, /* V9B with R{1,2}000 and R2000+ additions.  */
+  SPARC_OPCODE_ARCH_MAX = SPARC_OPCODE_ARCH_R2000_PLUS,
   SPARC_OPCODE_ARCH_BAD  /* Error return from sparc_opcode_lookup_arch.  */
 };
 
@@ -81,7 +83,7 @@ typedef struct sparc_opcode_arch
      EG: For v7 this would be
      (SPARC_OPCODE_ARCH_MASK (..._V6) | SPARC_OPCODE_ARCH_MASK (..._V7)).
      These are short's because sparc_opcode.architecture is.  */
-  short supported;
+  int supported;
   /* Bitmaps describing the set of hardware capabilities implemented
      by the opcode arch.  */
   int hwcaps;
@@ -116,7 +118,11 @@ typedef struct sparc_opcode
   unsigned int flags;
   unsigned int hwcaps;
   unsigned int hwcaps2;
-  short architecture;	/* Bitmask of sparc_opcode_arch_val's.  */
+  int architecture;	/* Bitmask of sparc_opcode_arch_val's. FIXME: while
+			   the original short is still wide enough for
+			   `SPARC_OPCODE_ARCH_V9_MCST == 15'th bit to fit into
+			   it, its signed nature breaks `(1 << arch) <=
+			   needed_arch_mask' comparison in `sparc_ip ()'.  */
 } sparc_opcode;
 
 /* Struct for ASIs - to handle ASIs introduced in a specific architecture */
@@ -124,7 +130,7 @@ typedef struct
 {
   int value;
   const char *name;
-  short architecture;
+  int architecture;
 } sparc_asi;
 
 /* FIXME: Add F_ANACHRONISTIC flag for v9.  */
@@ -199,6 +205,11 @@ typedef struct
 #define HWCAP2_FPCMPSHL  0x00400000 /* Partition compare with shifted result */
 #define HWCAP2_RLE       0x00800000 /* Run-length encoded burst and length */
 #define HWCAP2_SHA3      0x01000000 /* SHA3 instruction */
+
+
+/* Intended for R2000+ (Bug #117014).  */
+#define HWCAP2_SAPPHIRE_PLUS	\
+			 0x02000000
 
 
 /* All sparc opcodes are 32 bits, except for the `set' instruction (really a

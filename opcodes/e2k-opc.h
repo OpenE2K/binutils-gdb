@@ -1365,6 +1365,31 @@
 }
 {
 	static e2k_alf9_opcode_templ dummy =
+		{"ldaab", parse_alf_args, NULL, ALOPF19, MAS, 0x5c, {0, 0, 1, 0, 0, 1}, ARGS_S};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+{
+	static e2k_alf9_opcode_templ dummy =
+		{"ldaah", parse_alf_args, NULL, ALOPF19, MAS, 0x5d, {0, 0, 1, 0, 0, 1}, ARGS_S};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+{
+	static e2k_alf9_opcode_templ dummy =
+		{"ldaaw", parse_alf_args, NULL, ALOPF19, MAS, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+{
+	static e2k_alf9_opcode_templ dummy =
+		{"ldaad", parse_alf_args, NULL, ALOPF19, MAS, 0x5f, {0, 0, 1, 0, 0, 1}, ARGS_D};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+{
+	static e2k_alf9_opcode_templ dummy =
+		{"ldaaq", parse_alf_args, NULL, ALOPF19, MAS, 0x7f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+{
+	static e2k_alf9_opcode_templ dummy =
 		{"aaurr", parse_alf_args, NULL, AAURR, NO_MAS, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
@@ -1425,172 +1450,172 @@
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x8, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x8, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x9, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x9, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xe, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xe, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddd", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xf, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddd", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xf, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddsb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xa, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddsb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xa, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xb, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xb, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddusb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xc, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddusb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xc, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"paddush", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xd, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"paddush", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0xd, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x10, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x10, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x11, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x11, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x16, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x16, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubd", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x17, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubd", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x17, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubsb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x12, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubsb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x12, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x13, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x13, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubusb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x14, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubusb", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x14, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psubush", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x15, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"psubush", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x15, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pmaxsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x3, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"pmaxsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x3, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pmaxub", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x2, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"pmaxub", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x2, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pminsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"pminsh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pminub", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x0, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
+		{"pminub", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x0, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT, 0, 0, EXT, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psadbw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1c, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psadbw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1c, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pmulhuh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1b, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"pmulhuh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1b, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pmulhh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x18, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"pmulhh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x18, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pmullh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x19, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"pmullh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x19, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pmaddh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1a, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"pmaddh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x1a, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pslld", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x4e, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"pslld", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x4e, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psllw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x14, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psllw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x14, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psllh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x15, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psllh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x15, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psrld", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x4c, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psrld", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x4c, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psrlw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x10, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psrlw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x10, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psrlh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x11, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psrlh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x11, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psraw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x12, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psraw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x12, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psrah", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x13, {0, 1, 0, 0, 1, 0}, ARGS_SSS, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
+		{"psrah", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x13, {0, 1, 0, 0, 1, 0}, ARGS_DDD, NONE, {0, EXT, 0, 0, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pfadds", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x30, {1, 1, 0, 1, 1, 0}, ARGS_SSS, NONE, {EXT, EXT, 0, EXT, EXT, 0}, 1};
+		{"pfadds", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x30, {1, 1, 0, 1, 1, 0}, ARGS_DDD, NONE, {EXT, EXT, 0, EXT, EXT, 0}, 1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -1600,7 +1625,7 @@
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pfsubs", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x32, {1, 1, 0, 1, 1, 0}, ARGS_SSS, NONE, {EXT, EXT, 0, EXT, EXT, 0}, 1};
+		{"pfsubs", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x32, {1, 1, 0, 1, 1, 0}, ARGS_DDD, NONE, {EXT, EXT, 0, EXT, EXT, 0}, 1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -3102,37 +3127,37 @@ if (mcpu == 2)
 if (mcpu >= 3)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psllw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x14, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+		{"psllw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x14, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 3)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psllh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x15, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+		{"psllh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x15, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 3)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psrlw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x10, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+		{"psrlw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x10, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 3)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psrlh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x11, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+		{"psrlh", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x11, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 3)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psraw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x12, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+		{"psraw", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x12, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 3)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"psrah", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x13, {1, 0, 0, 1, 0, 0}, ARGS_SSS, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+		{"psrah", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x13, {1, 0, 0, 1, 0, 0}, ARGS_DDD, NONE, {EXT1, 0, 0, EXT1, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 3)
@@ -3438,7 +3463,7 @@ if (mcpu >= 4)
 if (mcpu >= 4)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pfadds", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, {0, 0, EXT, 0, 0, EXT}, 1};
+		{"pfadds", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_DDD, NONE, {0, 0, EXT, 0, 0, EXT}, 1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 4)
@@ -3450,7 +3475,7 @@ if (mcpu >= 4)
 if (mcpu >= 4)
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"pfsubs", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, {0, 0, EXT, 0, 0, EXT}, 1};
+		{"pfsubs", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_DDD, NONE, {0, 0, EXT, 0, 0, EXT}, 1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 4)
@@ -3535,6 +3560,12 @@ if (mcpu >= 5)
 {
 	static e2k_alf10_opcode_templ dummy =
 		{"staaqp", parse_alf_args, NULL, ALOPF10, MAS, 0x20, {0, 0, 1, 0, 0, 1}, ARGS_P};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+if (mcpu >= 5)
+{
+	static e2k_alf9_opcode_templ dummy =
+		{"ldaaqp", parse_alf_args, NULL, ALOPF19, MAS, 0x60, {0, 0, 1, 0, 0, 1}, ARGS_P};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 5)
@@ -4764,6 +4795,12 @@ if (mcpu >= 6)
 if (mcpu >= 6)
 {
 	static e2k_alopf11_opcode_templ dummy =
+		{"qpsrad", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x25, {1, 1, 0, 1, 1, 0}, ARGS_PDP, NONE, {EXT1, EXT1, 0, EXT1, EXT1, 0}, 0};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+if (mcpu >= 6)
+{
+	static e2k_alopf11_opcode_templ dummy =
 		{"pmrgp", parse_alf_args, merge_alopf11, ALOPF11_MERGE, NO_MAS, 0x40, {1, 1, 0, 1, 1, 0}, ARGS_DDD, NONE, {EXT, EXT, 0, EXT, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
@@ -4783,6 +4820,24 @@ if (mcpu >= 6)
 {
 	static e2k_alopf11_opcode_templ dummy =
 		{"clmull", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x14, {1, 1, 0, 1, 1, 0}, ARGS_DDD, NONE, {EXT2, EXT2, 0, EXT2, EXT2, 0}, 0};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+if (mcpu >= 6)
+{
+	static e2k_alopf11_opcode_templ dummy =
+		{"qpchecks", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x33, {1, 0, 0, 1, 0, 0}, ARGS_SSS, QPCHECKS, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+if (mcpu >= 6)
+{
+	static e2k_alopf11_opcode_templ dummy =
+		{"qpcheckd", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x33, {1, 0, 0, 1, 0, 0}, ARGS_DDD, QPCHECKD, {EXT1, 0, 0, EXT1, 0, 0}, 0};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+if (mcpu >= 6)
+{
+	static e2k_alopf11_opcode_templ dummy =
+		{"qpcheckq", parse_alf_args, merge_alopf11, ALOPF11, NO_MAS, 0x33, {1, 0, 0, 1, 0, 0}, ARGS_PPP, QPCHECKQ, {EXT1, 0, 0, EXT1, 0, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 if (mcpu >= 6)

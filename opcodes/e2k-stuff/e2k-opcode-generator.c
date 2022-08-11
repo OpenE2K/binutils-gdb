@@ -1164,7 +1164,7 @@ gen_alopf10 ()
 
   for (i = 0; i < sizeof (ins_name) / sizeof (ins_name[0]); i++)
     {
-      const char *instr_fmt = i < 6 ? "ALOPF10" : "AAURW";
+      const char *instr_fmt = real_name[i] == NULL ? "ALOPF10" : "AAURW";
       instr_cop_chn cop_chn;
 
       if (! fetch_cop_channels (i != 5 ? long_opers : long_ext1_opers,
@@ -1176,8 +1176,8 @@ gen_alopf10 ()
       
       print_common_part ("e2k_alf10_opcode_templ", ins_name[i],
                          "parse_alf_args");
-      print_alf_part (instr_fmt, i < 6 ? "MAS" : "NO_MAS", cop_chn.cop,
-                      cop_chn.channels, fmt[i]);
+      print_alf_part (instr_fmt, real_name[i] == NULL ? "MAS" : "NO_MAS",
+		      cop_chn.cop, cop_chn.channels, fmt[i]);
 
       print_final_part ();
 
@@ -1191,15 +1191,22 @@ static void
 gen_alopf19 ()
 {
   int i;
-  static const char *ins_name[] = {"aaurr", "aaurrd", "aaurrq"};
-  static const char *real_name[] = {"ldaaw", "ldaad", "ldaaq"};
-  static const char *fmt[] = {"ARGS_S", "ARGS_D", "ARGS_Q"};
+  static const char *ins_name[] = {"ldaab", "ldaah", "ldaaw",
+				   "ldaad", "ldaaq", "ldaaqp",
+				   "aaurr", "aaurrd", "aaurrq"};
+  static const char *real_name[] = {NULL, NULL, NULL,
+				    NULL, NULL, NULL,
+				    "ldaaw", "ldaad", "ldaaq"};
+  static const char *fmt[] = {"ARGS_S", "ARGS_S", "ARGS_S",
+			      "ARGS_D", "ARGS_Q", "ARGS_P",
+			      "ARGS_S", "ARGS_D", "ARGS_Q"};
 
-  for (i = 0; i < 3; i++)
+  for (i = 0; i < sizeof (ins_name) / sizeof (ins_name[0]); i++)
     {
+      const char *instr_fmt = real_name[i] == NULL ? "ALOPF19" : "AAURR";
       instr_cop_chn cop_chn;
 
-      if (! fetch_cop_channels (long_opers,
+      if (! fetch_cop_channels (i != 5 ? long_opers : long_ext1_opers,
                                 (real_name[i] != NULL
                                  ? real_name[i]
                                  : ins_name[i]),
@@ -1208,8 +1215,8 @@ gen_alopf19 ()
       
       print_common_part ("e2k_alf9_opcode_templ", ins_name[i],
                          "parse_alf_args");
-      print_alf_part ("AAURR", "NO_MAS", cop_chn.cop, cop_chn.channels,
-                      fmt[i]);
+      print_alf_part (instr_fmt, real_name[i] == NULL ? "MAS" : "NO_MAS",
+		      cop_chn.cop, cop_chn.channels, fmt[i]);
 
       print_final_part ();
 
@@ -1419,44 +1426,44 @@ gen_alopf11 ()
       {"fsqrttd", "ARGS_DDD"},
       {"pfmuls", "ARGS_DDD"},
       {"pfmuld", "ARGS_DDD"},
-      {"paddb", "ARGS_SSS"},
-      {"paddh", "ARGS_SSS"},
-      {"paddw", "ARGS_SSS"},
-      {"paddd", "ARGS_SSS"},
-      {"paddsb", "ARGS_SSS"},
-      {"paddsh", "ARGS_SSS"},
-      {"paddusb", "ARGS_SSS"},
-      {"paddush", "ARGS_SSS"},
-      {"psubb", "ARGS_SSS"},
-      {"psubh", "ARGS_SSS"},
-      {"psubw", "ARGS_SSS"},
-      {"psubd", "ARGS_SSS"},
-      {"psubsb", "ARGS_SSS"},
-      {"psubsh", "ARGS_SSS"},
-      {"psubusb", "ARGS_SSS"},
-      {"psubush", "ARGS_SSS"},
-      {"pmaxsh", "ARGS_SSS"},
-      {"pmaxub", "ARGS_SSS"},
-      {"pminsh", "ARGS_SSS"},
-      {"pminub", "ARGS_SSS"},
-      {"psadbw", "ARGS_SSS"},
-      {"pmulhuh", "ARGS_SSS"},
-      {"pmulhh", "ARGS_SSS"},
-      {"pmullh", "ARGS_SSS"},
-      {"pmaddh", "ARGS_SSS"},
+      {"paddb", "ARGS_DDD"},
+      {"paddh", "ARGS_DDD"},
+      {"paddw", "ARGS_DDD"},
+      {"paddd", "ARGS_DDD"},
+      {"paddsb", "ARGS_DDD"},
+      {"paddsh", "ARGS_DDD"},
+      {"paddusb", "ARGS_DDD"},
+      {"paddush", "ARGS_DDD"},
+      {"psubb", "ARGS_DDD"},
+      {"psubh", "ARGS_DDD"},
+      {"psubw", "ARGS_DDD"},
+      {"psubd", "ARGS_DDD"},
+      {"psubsb", "ARGS_DDD"},
+      {"psubsh", "ARGS_DDD"},
+      {"psubusb", "ARGS_DDD"},
+      {"psubush", "ARGS_DDD"},
+      {"pmaxsh", "ARGS_DDD"},
+      {"pmaxub", "ARGS_DDD"},
+      {"pminsh", "ARGS_DDD"},
+      {"pminub", "ARGS_DDD"},
+      {"psadbw", "ARGS_DDD"},
+      {"pmulhuh", "ARGS_DDD"},
+      {"pmulhh", "ARGS_DDD"},
+      {"pmullh", "ARGS_DDD"},
+      {"pmaddh", "ARGS_DDD"},
 
-      {"pslld", "ARGS_SSS"},
-      {"psllw", "ARGS_SSS"},
-      {"psllh", "ARGS_SSS"},
-      {"psrld", "ARGS_SSS"},
-      {"psrlw", "ARGS_SSS"},
-      {"psrlh", "ARGS_SSS"},
-      {"psraw", "ARGS_SSS"},
-      {"psrah", "ARGS_SSS"},
+      {"pslld", "ARGS_DDD"},
+      {"psllw", "ARGS_DDD"},
+      {"psllh", "ARGS_DDD"},
+      {"psrld", "ARGS_DDD"},
+      {"psrlw", "ARGS_DDD"},
+      {"psrlh", "ARGS_DDD"},
+      {"psraw", "ARGS_DDD"},
+      {"psrah", "ARGS_DDD"},
 
-      {"pfadds", "ARGS_SSS"},
+      {"pfadds", "ARGS_DDD"},
       {"pfaddd", "ARGS_DDD"},
-      {"pfsubs", "ARGS_SSS"},
+      {"pfsubs", "ARGS_DDD"},
       {"pfsubd", "ARGS_DDD"},
 
       {"aptoap", "ARGS_QSQ"},
@@ -1564,6 +1571,7 @@ gen_alopf11 ()
       {"qpsrld", "ARGS_PDP"},
       {"qpsrah", "ARGS_PDP"},
       {"qpsraw", "ARGS_PDP"},
+      {"qpsrad", "ARGS_PDP"},
 
       {"pfdivs", "ARGS_SSS"},
       {"pfdivd", "ARGS_DDD"},
@@ -1950,6 +1958,33 @@ gen_alopf11 ()
 
   gen_alopf11_loads ();
 }
+
+static void
+gen_alopf11_qpcheck ()
+{
+  instr_cop_chn cop_chn;
+  if (fetch_cop_channels (long_ext1_opers, "qpcheck", &cop_chn))
+    {
+      int i;
+      char name[] = "qpcheck?";
+      const char suff[] = {'s', 'd', 'q'};
+      const char *fmt[] = {"ARGS_SSS", "ARGS_DDD", "ARGS_PPP"};
+      const char *opce[] = {"QPCHECKS", "QPCHECKD", "QPCHECKQ"};
+      for (i = 0; i < 3; i++)
+	{
+	  name[7] = suff[i];
+	  print_common_part_with_merge ("e2k_alopf11_opcode_templ",
+                                        name, "parse_alf_args",
+					"merge_alopf11");
+          print_alf_part ("ALOPF11", "NO_MAS", cop_chn.cop, cop_chn.channels,
+			  fmt[i]);
+
+          print_alopf11_tail (opce[i], cop_chn.channels, "EXT1", 0);
+          print_final_part ();
+	}
+    }
+}
+
 
 static void
 gen_alopf11_with_flags ()
@@ -3449,6 +3484,7 @@ main ()
       gen_alopf19 ();
       gen_alopf11 ();
       gen_alopf11_with_flags ();
+      gen_alopf11_qpcheck ();
       gen_alopf12 ();
       gen_alopf13 ();
       gen_alopf15 ();

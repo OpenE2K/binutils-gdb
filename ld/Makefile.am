@@ -213,6 +213,9 @@ ALL_EMULATION_SOURCES = \
 	ed30v_o.c \
 	ed30velf.c \
 	eelf32_dlx.c \
+	eelf32_e2k.c \
+	eelf32_e2k_pm.c \
+	eelf32_e2k_pm_uclibc.c \
 	eelf32_sparc.c \
 	eelf32_sparc_sol2.c \
 	eelf32_sparc_vxworks.c \
@@ -418,6 +421,10 @@ ALL_64_EMULATION_SOURCES = \
 	eelf32mipswindiss.c \
 	eelf64_aix.c \
 	eelf64bpf.c \
+	eelf64_e2k.c \
+	eelf64_e2k_pm.c \
+	eelf64_e2k_kpda.c \
+	eelf64_e2k_uclibc.c \
 	eelf64_ia64.c \
 	eelf64_ia64_fbsd.c \
 	eelf64_ia64_vms.c \
@@ -613,7 +620,7 @@ if AMDEP
 else
   GENDEPDIR=
 endif
-GENSCRIPTS = $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "$(GENDEPDIR)" "${LIB_PATH}" "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@
+GENSCRIPTS = $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "$(GENDEPDIR)" "${LIB_PATH}" "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@ @enable_debian_multiarch@
 GEN_DEPENDS = $(srcdir)/genscripts.sh stringify.sed
 
 @TDIRS@
@@ -937,6 +944,13 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppa64linux.Pc@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386pep.Pc@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emmo.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k_pm.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k_pm_uclibc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_pm.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_kpda.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_uclibc.Pc@am__quote@
 
 # We need this for automake to use YLWRAP.
 EXTRA_ld_new_SOURCES = deffilep.y ldlex.l
@@ -985,13 +999,13 @@ development.exp: $(BFDDIR)/development.sh
 noinst_LTLIBRARIES = libldtestplug.la libldtestplug2.la \
 		     libldtestplug3.la libldtestplug4.la
 libldtestplug_la_SOURCES = testplug.c
-libldtestplug_la_CFLAGS= -g -O2
+libldtestplug_la_CFLAGS= -g -O0
 libldtestplug_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug2_la_SOURCES = testplug2.c
-libldtestplug2_la_CFLAGS= -g -O2
+libldtestplug2_la_CFLAGS= -g -O0
 libldtestplug2_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug3_la_SOURCES = testplug3.c
-libldtestplug3_la_CFLAGS= -g -O2
+libldtestplug3_la_CFLAGS= -g -O0
 libldtestplug3_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug4_la_SOURCES = testplug4.c
 libldtestplug4_la_CFLAGS= -g -O2

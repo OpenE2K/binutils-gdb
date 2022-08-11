@@ -256,8 +256,11 @@ d30v-*-*)		targ_emul=d30velf
 dlx-*-elf*)		targ_emul=elf32_dlx
 			targ_extra_ofiles=ldelfgen.o
 			;;
-e2k-mcst-linux-gnu)     targ_emul=elf64_e2k
-			targ_extra_emuls="elf32_e2k elf32_e2k_pm_latest"
+e2k-mcst-linux-gnu)	targ_emul=elf64_e2k
+			targ_extra_emuls="elf32_e2k elf32_e2k_pm elf64_e2k_pm"
+			;;
+e2k-mcst-linux-uclibc)	targ_emul=elf64_e2k_uclibc
+			targ_extra_emuls="elf32_e2k_pm_uclibc"
                         ;;
 e2k-mcst-kpda)          targ_emul=elf64_e2k_kpda
                         ;;
@@ -1074,6 +1077,10 @@ i[03-9x]86-*-cygwin* | x86_64-*-cygwin*)
 
 alpha*-*-*)
   NATIVE_LIB_DIRS='/usr/local/lib /usr/ccs/lib /lib /usr/lib'
+  ;;
+
+e2k-mcst-kpda)
+  NATIVE_LIB_DIRS='/e2kle/lib /e2kle/usr/lib'
   ;;
 
 esac

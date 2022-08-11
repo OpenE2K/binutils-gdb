@@ -25,6 +25,12 @@ public:
 protected:
   void do_write(Output_file*)
   { }
+
+  // Write to a map file.
+  void
+  do_print_to_mapfile(Mapfile* mapfile) const
+  { mapfile->print_output_data(this, _("** GOT PLT")); }
+
 };
 
 // A class to handle the PLT data.
@@ -43,6 +49,11 @@ public:
 protected:
   void do_write(Output_file*)
   { }
+
+  // Write to a map file.
+  void
+  do_print_to_mapfile(Mapfile* mapfile) const
+  { mapfile->print_output_data(this, _("** PLT")); }
 };
 
 template<int size>
@@ -324,6 +335,7 @@ const Target::Target_info Target_e2k<32>::e2k_info =
   NULL,				// attributes_vendor
   "_start",			// entry_symbol_name
   32,				// hash_entry_size
+  elfcpp::SHT_PROGBITS,		// unwind_section_type
 };
 
 template<>
@@ -352,6 +364,7 @@ const Target::Target_info Target_e2k<64>::e2k_info =
   NULL,				// attributes_vendor
   "_start",			// entry_symbol_name
   64,				// hash_entry_size
+  elfcpp::SHT_PROGBITS,		// unwind_section_type
 };
 
 // Class for performing E2K-specific sophisticated relocations for which
@@ -576,6 +589,7 @@ Target_e2k<size>::Scan::local(
     case elfcpp::R_E2K_64_TLS_LE:
     case elfcpp::R_E2K_GOT:
     case elfcpp::R_E2K_GOTOFF:
+    case elfcpp::R_E2K_64_GOTOFF_LIT:
     case elfcpp::R_E2K_DISP:
     case elfcpp::R_E2K_GOTPLT:
     case elfcpp::R_E2K_ISLOCAL:
@@ -647,6 +661,7 @@ Target_e2k<size>::Scan::global(
       break;
 
     case elfcpp::R_E2K_GOTOFF:
+    case elfcpp::R_E2K_64_GOTOFF_LIT:
       break;
 
     case elfcpp::R_E2K_DISP:
@@ -781,6 +796,7 @@ Target_e2k<size>::Relocate::relocate(
       break;
 
     case elfcpp::R_E2K_GOTOFF:
+    case elfcpp::R_E2K_64_GOTOFF_LIT:
       {
         unsigned int got_offset;
         got_offset = psymval->value(object, 0) - target->got_address ();

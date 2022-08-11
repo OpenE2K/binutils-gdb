@@ -15281,6 +15281,14 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+case "$target" in
+    e2k*)
+
+$as_echo "#define INHIBIT_RAW_INSN 1" >>confdefs.h
+
+        ;;
+esac
+
 targ=$target
 . $srcdir/../bfd/config.bfd
 if test "x$targ_underscore" = "xyes"; then

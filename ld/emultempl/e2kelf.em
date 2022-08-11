@@ -19,14 +19,23 @@
 # MA 02110-1301, USA.
 #
 
-# This file is sourced from elf32.em, and defines extra e2k-elf
+# This file is sourced from elf.em, and defines extra e2k-elf
 # specific routines.
 #
 # Define some shell vars to insert bits of code into the standard elf
 # parse_args and list_options functions.
 #
+
+# Create packed PM ELFs for glibc by default and never for uclibc.
+if test -z "$E2K_UCLIBC"; then
+	PACK_CG=TRUE
+else
+	PACK_CG=FALSE
+fi
+
 fragment <<EOF
 
+#include "safe-ctype.h"
 #include "elfxx-e2k.h"
 
 static int e2k_ipd;
@@ -53,6 +62,9 @@ static bfd_boolean inside_marked_objects;
    which make it so difficult to compare output files produced by different
    assemblers.  */
 static bfd_boolean simulate;
+
+/* Use the default based on the above PACK_CG setting.  */
+static bfd_boolean pack_cg = $PACK_CG;
 
 static bfd_boolean ignore_pure_eir_files;
 
@@ -83,6 +95,12 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_IGNORE_PURE_EIR_FILES            315
 '
 
+if test -z "$E2K_UCLIBC" ; then
+PARSE_AND_LIST_PROLOGUE=$PARSE_AND_LIST_PROLOGUE'
+#define OPTION_UNPACKED_CUD_GD			316
+'
+fi
+
 PARSE_AND_LIST_LONGOPTS='
   { "e2k-ipd", required_argument, NULL, OPTION_E2K_IPD },
   { "e2k-x86app", no_argument, NULL, OPTION_E2K_X86APP },
@@ -100,6 +118,12 @@ PARSE_AND_LIST_LONGOPTS='
   { "simulate", no_argument, NULL, OPTION_SIMULATE},
   { "ignore-pure-eir-files", no_argument, NULL, OPTION_IGNORE_PURE_EIR_FILES},
 '
+
+if test -z "$E2K_UCLIBC" ; then
+PARSE_AND_LIST_LONGOPTS=$PARSE_AND_LIST_LONGOPTS'
+  { "dont-pack-cud-gd", no_argument, NULL, OPTION_UNPACKED_CUD_GD},
+'
+fi
 
 PARSE_AND_LIST_OPTIONS='
   fprintf (file, _("  --link-mixed-eir={1,2,3}\n"));
@@ -190,7 +214,7 @@ PARSE_AND_LIST_ARGS_CASES='
       break;
 
    case OPTION_SIMULATE:
-      simulate = 1;
+      simulate = TRUE;
       break;
 
    case OPTION_IGNORE_PURE_EIR_FILES:
@@ -233,6 +257,14 @@ PARSE_AND_LIST_ARGS_CASES='
       break;
 '
 
+if test -z "$E2K_UCLIBC" ; then
+PARSE_AND_LIST_ARGS_CASES=$PARSE_AND_LIST_ARGS_CASES'
+   case OPTION_UNPACKED_CUD_GD:
+      pack_cg = FALSE;
+      break;
+'
+fi
+
 fragment <<EOF
 
   /* This is called before the hash table is allocated.  */
@@ -254,11 +286,9 @@ e2k_after_parse (void)
   /* LINK_MIXED_EIR should be available by the time we open each input
      file.  */
   _bfd_e2k_elf_after_parse (link_mixed_eir);
-  gld${EMULATION_NAME}_after_parse ();
+  ldelf_after_parse ();
 }
 
-static bfd_boolean gld${EMULATION_NAME}_load_symbols
-(lang_input_statement_type *);
 
 static bfd_boolean
 pure_eir_finder (bfd *abfd ATTRIBUTE_UNUSED,
@@ -279,8 +309,8 @@ e2k_recognized_file (lang_input_statement_type *entry)
       && bfd_sections_find_if (entry->the_bfd, pure_eir_finder, NULL))
     return TRUE;
 
-  /* Otherwise, the standard implementation from 'elf32.em' will do.  */
-  return gld${EMULATION_NAME}_load_symbols (entry);
+  /* Otherwise, the standard implementation from 'elf.em' will do.  */
+  return ldelf_load_symbols (entry);
 }
 
 static bfd_boolean
@@ -306,7 +336,7 @@ e2k_after_open (void)
   _bfd_e2k_elf_after_open (e2k_ipd, e2k_is_x86app, e2k_is_4mpages,
                            arch_set_via_cmdline, restrict_to_arch,
                            relaxed_e2k_machine_check, output_new_e_machine,
-                           simulate);
+                           simulate, pack_cg);
 
   gld${EMULATION_NAME}_after_open ();
 }
@@ -374,7 +404,7 @@ EOF
 
 if test -z "$KPDA"; then
 fragment <<EOF
-  ldfile_output_machine = (ldfile_output_machine / 3) * 3 + addend;
+  ldfile_output_machine = (ldfile_output_machine / 4) * 4 + addend;
 EOF
 fi
 
@@ -415,7 +445,7 @@ place_dsp_section (asection *s, const char *os_name)
          maximal possible alignment at DSP side. This is probably the only way
          to ensure that the section and its symbols are aligned appropriately
          from the point of view of DSP.  */
-      os->section_alignment = 17;
+      os->section_alignment = exp_intop (1U << 17);
     }
 
   lang_add_section (&os->children, s, NULL, os);
@@ -465,7 +495,7 @@ ${LDEMUL_PLACE_ORPHAN} (asection *s, const char *secname, int constraint)
         return place_dsp_section (s, os_name);
     }
 
-  return gld${EMULATION_NAME}_place_orphan (s, secname, constraint);
+  return ldelf_place_orphan (s, secname, constraint);
 }
 EOF
 fi
@@ -567,3 +597,4 @@ LDEMUL_ALLOW_DYNAMIC_ENTRIES_IN_RELOCATABLE_LINK=\
 e2k_allow_dynamic_entries_in_relocatable_link
 LDEMUL_AFTER_OPEN=e2k_after_open
 LDEMUL_SET_OUTPUT_ARCH=e2k_set_output_arch
+LDEMUL_DISABLE_STANDARD_COMPATIBILITY_TESTS=TRUE

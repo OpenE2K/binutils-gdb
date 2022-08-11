@@ -109,4 +109,7 @@ extern int e2k_eh_frame_alignment (void);
 #define tc_cfi_reloc_for_encoding e2k_cfi_reloc_for_encoding
 extern bfd_reloc_code_real_type e2k_cfi_reloc_for_encoding (int encoding);
 
+#define CONVERT_SYMBOLIC_ATTRIBUTE(name) e2k_convert_symbolic_attribute (name)
+extern int e2k_convert_symbolic_attribute (const char *);
+
 #endif /* TC_E2K  */

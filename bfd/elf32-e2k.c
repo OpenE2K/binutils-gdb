@@ -19,17 +19,12 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#if ! defined TARGET_LITTLE_SYM
-
 #include "sysdep.h"
 #include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/e2k.h"
 #include "elfxx-e2k.h"
-
-#endif
-
 
 static int
 elf32_e2k_write_out_phdrs (bfd *abfd,
@@ -111,6 +106,7 @@ static const struct elf_size_info elf32_e2k_size_info = {
 #define bfd_elf32_bfd_reloc_type_lookup         _bfd_e2k_elf_reloc_type_lookup
 #define bfd_elf32_bfd_reloc_name_lookup         _bfd_e2k_elf_reloc_name_lookup
 #define bfd_elf32_bfd_merge_private_bfd_data    _bfd_e2k_elf_merge_private_bfd_data
+
 #define bfd_elf32_mkobject                      _bfd_e2k_elf_mkobject
 #define bfd_elf32_bfd_link_hash_table_create    _bfd_e2k_elf_link_hash_table_create
 #define bfd_elf32_bfd_final_link                _bfd_e2k_elf_final_link
@@ -140,10 +136,11 @@ static const struct elf_size_info elf32_e2k_size_info = {
 #define elf_backend_finish_dynamic_symbol	_bfd_e2k_elf_finish_dynamic_symbol
 #define elf_backend_reloc_type_class            _bfd_e2k_elf_reloc_type_class
 #define elf_backend_finish_dynamic_sections	_bfd_e2k_elf_finish_dynamic_sections
-#define elf_backend_post_process_headers        _bfd_e2k_elf_post_process_headers
+#define elf_backend_init_file_header		_bfd_e2k_elf_init_file_header
 #define elf_backend_ignore_discarded_relocs     _bfd_e2k_elf_ignore_discarded_relocs
 #define elf_backend_hide_symbol                 _bfd_e2k_elf_hide_symbol
-#define elf_backend_object_p                    _bfd_e2k_elf_object_p
+#define elf_backend_object_p			_bfd_e2k_elf_object_p
+
 #define elf_backend_setup_gnu_properties	_bfd_e2k_elf_link_setup_gnu_properties
 
 /* Make tests employing `gc-sections' option PASS. I wonder if any backend-
@@ -170,6 +167,10 @@ static const struct elf_size_info elf32_e2k_size_info = {
 
 #define elf_backend_r_none_info                 R_E2K_NONE
 
+/* Let `bfd_elf_size_dynamic_sections ()' treat a missing PT_GNU_STACK as an
+   unexecutable one to be in line with the Kernel and glibc.  */
+#define elf_backend_default_execstack		0
+
 
 #define ELF_ARCH                bfd_arch_e2k
 
@@ -180,19 +181,13 @@ static const struct elf_size_info elf32_e2k_size_info = {
 
 #define ELF_MAXPAGESIZE         0x1000
 
-#ifndef elf_backend_got_header_size
 /* The first entry in `.got' is reserved for the `_DYNAMIC' link-time
    address.  */
-# define elf_backend_got_header_size             12
-#endif
+#define elf_backend_got_header_size             12
 
-#ifndef TARGET_LITTLE_SYM
-#define TARGET_LITTLE_SYM       e2k_elf32_vec
-#endif
+#define TARGET_LITTLE_SYM	e2k_elf32_vec
 
 #ifndef TARGET_LITTLE_NAME
-#define TARGET_LITTLE_NAME      "elf32-e2k"
+# define TARGET_LITTLE_NAME	"elf32-e2k"
+# include "elf32-target.h"
 #endif
-
-
-#include "elf32-target.h"

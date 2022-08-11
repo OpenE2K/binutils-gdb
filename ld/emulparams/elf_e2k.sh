@@ -5,14 +5,14 @@ MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 ALIGNMENT=8
 ARCH=e2k
-TEMPLATE_NAME=elf32
+TEMPLATE_NAME=elf
 EXTRA_EM_FILE=e2kelf
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
 NO_SMALL_DATA=yes
 
 # I'd like '-rpath' option to take effect when performing the link
-# (see the implementation of after_open () in elf32.em).
+# (see the splitted implementation of after_open () in elf.em and ldelf.c).
 # Am not I going to break anything . . . ?
 
 # . . . as a consequence directories coming from the NATIVE_LIB_DIRS parameter
@@ -36,8 +36,8 @@ LDEMUL_PLACE_ORPHAN=${EMULATION_NAME}_place_orphan
 LDEMUL_AFTER_ALLOCATION=${EMULATION_NAME}_after_allocation;
 
 
-# Support EIR linkage. This variable is used in `elf32.em' to emit the code
-# which prevents us from customizing `__ehdr_start' when linking EIR.
+# Support EIR linkage. This variable is used in `elf.em' to enable the code
+# in ldelf.c preventing us from customizing `__ehdr_start' when linking EIR.
 SUPPORT_EIR=yes
 
 # Delay checking ELF relocations until opening all input files

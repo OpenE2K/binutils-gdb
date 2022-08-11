@@ -716,7 +716,7 @@
 
 /* Values of note segment descriptor types for object files on
    MCST systems. Note name is "MCST".  */
-#define NT_MAGIC        1
+#define NT_MAGIC		1
 
 /* Values of note segment descriptor types for object files.  */
 

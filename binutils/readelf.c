@@ -104,6 +104,7 @@
 #include "elf/d30v.h"
 #include "elf/dlx.h"
 #include "elf/bpf.h"
+#include "elf/e2k.h"
 #include "elf/epiphany.h"
 #include "elf/fr30.h"
 #include "elf/frv.h"
@@ -1632,6 +1633,10 @@ dump_relocations (Filedata *          filedata,
 	case EM_Z80:
 	  rtype = elf_z80_reloc_type (type);
 	  break;
+
+	case EM_MCST_ELBRUS:
+	  rtype = elf_e2k_reloc_type (type);
+	  break;
 	}
 
       if (rtype == NULL)
@@ -2111,6 +2116,22 @@ get_nios2_dynamic_type (unsigned long type)
 }
 
 static const char *
+get_e2k_dynamic_type (unsigned long type)
+{
+  switch (type)
+    {
+    case DT_E2K_LAZY_GOT: return "E2K_LAZY_GOT";
+    case DT_PLTGOTSZ: return "PLTGOTSZ";
+    case DT_INIT_GOT: return "INIT_GOT";
+    case DT_EXPORT_PL: return "EXPORT_PL";
+    case DT_EXPORT_PLSZ: return "EXPORT_PLSZ";
+    case DT_REAL_PLTGOT: return "REAL_PLTGOT";
+    default:          return NULL;
+    }
+}
+
+
+static const char *
 get_solaris_dynamic_type (unsigned long type)
 {
   switch (type)
@@ -2268,6 +2289,9 @@ get_dynamic_type (Filedata * filedata, unsigned long type)
 	    case EM_ALTERA_NIOS2:
 	      result = get_nios2_dynamic_type (type);
 	      break;
+	    case EM_MCST_ELBRUS:
+	      result = get_e2k_dynamic_type (type);
+	      break;
 	    default:
 	      if (filedata->file_header.e_ident[EI_OSABI] == ELFOSABI_SOLARIS)
 		result = get_solaris_dynamic_type (type);
@@ -2387,7 +2411,10 @@ get_machine_name (unsigned e_machine)
     case EM_H8_300:		return "Renesas H8/300";
     case EM_H8_300H:		return "Renesas H8/300H";
     case EM_H8S:		return "Renesas H8S";
+#if 0
     case EM_H8_500:		return "Renesas H8/500";
+#endif /* 0  */
+    case EM_E2K_OLD:		return "MCST Elbrus (old)";
       /* 50 */
     case EM_IA_64:		return "Intel IA-64";
     case EM_MIPS_X:		return "Stanford MIPS-X";
@@ -3151,7 +3178,11 @@ get_machine_flags (Filedata * filedata, unsigned e_flags, unsigned e_machine)
 
   buf[0] = '\0';
 
-  if (e_flags)
+  if (e_flags
+      /* We may have `e_flags == 0x0' at E2K which is worth being
+         described.  */
+      || e_machine == EM_MCST_ELBRUS
+      || e_machine == EM_E2K_OLD)
     {
       switch (e_machine)
 	{
@@ -3624,6 +3655,9 @@ get_machine_flags (Filedata * filedata, unsigned e_flags, unsigned e_machine)
 	  if (e_flags & EF_SPARC_SUN_US3)
 	    strcat (buf, ", ultrasparcIII");
 
+	  if (e_flags & EF_SPARC_MCST)
+	    strcat (buf, ", MCST Sparc");
+
 	  if (e_flags & EF_SPARC_HAL_R1)
 	    strcat (buf, ", halr1");
 
@@ -3815,6 +3849,122 @@ get_machine_flags (Filedata * filedata, unsigned e_flags, unsigned e_machine)
 	      strcat (buf, _(", unknown")); break;
 	    }
 	  break;
+
+	case EM_E2K_OLD:
+	case EM_MCST_ELBRUS:
+	  {
+	    unsigned mach = (e_machine == EM_MCST_ELBRUS
+			     ? EF_E2K_FLAG_TO_MACH (e_flags)
+			     : EF_E2K_OLD_FLAG_TO_MACH (e_flags));
+
+	    switch (mach)
+	      {
+	      case E_E2K_MACH_BASE:
+		strcat (buf, ", generic");
+		break;
+	      case E_E2K_MACH_EV1:
+		strcat (buf, ", elbrus-v1");
+		break;
+	      case E_E2K_MACH_EV2:
+		/* Forward incompatible `elbrus-v2' ELF is currently interpreted
+		   as `elbrus-2c+'-specific one at least until we have got other
+		   processors of `elbrus-v2' family.  */
+		strcat (buf,
+			((e_flags & EF_E2K_INCOMPAT)
+			 ? ", elbrus-2c+" : ", elbrus-v2"));
+		break;
+	      case E_E2K_MACH_EV3:
+		/* Forward incompatible `elbrus-v3' ELF is currently interpreted
+		   as `elbrus-4c'-specific one at least until we have got other
+		   processors of `elbrus-v3' family.  */
+		strcat (buf,
+			((e_flags & EF_E2K_INCOMPAT)
+			 ? ", elbrus-4c" : ", elbrus-v3"));
+		break;
+	      case E_E2K_MACH_EV4:
+		strcat (buf, ", elbrus-v4");
+		break;
+	      case E_E2K_MACH_EV5:
+		/* Forward incompatible `elbrus-v5' ELF is interpreted as the
+		   one fine-tuned for `elbrus-8c2' as there are no other
+		   processors in this series.  */
+		strcat (buf,
+			((e_flags & EF_E2K_INCOMPAT)
+			 ? ", elbrus-8c2" : ", elbrus-v5"));
+		break;
+	      case E_E2K_MACH_EV6:
+		strcat (buf, ", elbrus-v6");
+		break;
+	      case E_E2K_MACH_8C:
+		strcat (buf, ", elbrus-8c");
+		break;
+	      case E_E2K_MACH_1CPLUS:
+		strcat (buf, ", elbrus-1c+");
+		break;
+	      case E_E2K_MACH_12C:
+		strcat (buf, ", elbrus-12c");
+		break;
+	      case E_E2K_MACH_16C:
+		strcat (buf, ", elbrus-16c");
+		break;
+	      case E_E2K_MACH_2C3:
+		strcat (buf, ", elbrus-2c3");
+		break;
+	      default:
+		strcat (buf, ", unknown elbrus processor");
+		break;
+	      }
+
+	    /* Only a new-style ELF may be marked as forward incompatible As for
+	       `elbrus-v1' it's considered to be forward incompatible even if
+	       EF_E2K_INCOMPAT isn't set. A forward incompatible `elbrus-v{2,3,
+	       5}' ELF has already been identified as `elbrus-{2c+,4c,8c2}'
+	       specific above. This flag makes little sense for fine-tuned
+	       `elbrus-{8c,1c+}' and `elbrus-{12c,16c,2c3}' ELFs. Therefore, we
+	       are formally left with generic and `elbrus-v{4,6}' cases here.
+	       They shouldn't be met in practice, though, since there are no
+	       `e2k-linux-{as,ld}' options for producing them.  */
+	    if (e_machine == EM_MCST_ELBRUS
+		&& (mach == E_E2K_MACH_EV1
+		    || ((e_flags & EF_E2K_INCOMPAT)
+			&& (mach == E_E2K_MACH_BASE
+			    || (mach == E_E2K_MACH_EV4
+				|| mach == E_E2K_MACH_EV6)))))
+	      strcat (buf, " (forward incompatible)");
+
+	    if (e_machine == EM_MCST_ELBRUS
+		&& (e_flags & EF_E2K_PM))
+	      {
+		strcat (buf, " (Protected Mode");
+
+		if (e_flags & EF_E2K_PACK_SEGMENTS)
+		  strcat (buf, " with packed CUD and GD");
+
+		strcat (buf, ")");
+	      }
+
+	    switch (e_flags & EF_E2K_IPD)
+	      {
+	      case 1:
+		strcat (buf, ", ipd 0");
+		break;
+	      case 2:
+		strcat (buf, ", ipd 1");
+		break;
+	      case 3:
+		strcat (buf, ", ipd 2");
+		break;
+	      default:
+		strcat (buf, ", default ipd");
+		break;
+	      }
+
+	    if (e_flags & EF_E2K_4MB_PAGES)
+	      strcat (buf, ", 4MB pages");
+	    if (e_flags & EF_E2K_X86APP)
+	      strcat (buf, ", x86 app");
+	  }
+	  break;
 	}
     }
 
@@ -3845,6 +3995,7 @@ get_osabi_name (Filedata * filedata, unsigned int osabi)
     case ELFOSABI_FENIXOS:	return "FenixOS";
     case ELFOSABI_CLOUDABI:	return "Nuxi CloudABI";
     case ELFOSABI_OPENVOS:	return "Stratus Technologies OpenVOS";
+    case ELFOSABI_KPDA:		return "KPDA";
     default:
       if (osabi >= 64)
 	switch (filedata->file_header.e_machine)
@@ -15686,6 +15837,10 @@ display_sparc_hwcaps (unsigned int mask)
 	printf ("%sima", first ? "" : "|"), first = FALSE;
       if (mask & ELF_SPARC_HWCAP_ASI_CACHE_SPARING)
 	printf ("%scspare", first ? "" : "|"), first = FALSE;
+      if (mask & ELF_SPARC_HWCAP_R1000)
+	printf ("%sr1000", first ? "" : "|"), first = FALSE;
+      if (mask & ELF_SPARC_HWCAP_SAPPHIRE)
+	printf ("%ssapphire", first ? "" : "|"), first = FALSE;
     }
   else
     fputc ('0', stdout);
@@ -15721,6 +15876,8 @@ display_sparc_hwcaps2 (unsigned int mask)
 	printf ("%sfjdes", first ? "" : "|"), first = FALSE;
       if (mask & ELF_SPARC_HWCAP2_FJAES)
 	printf ("%sfjaes", first ? "" : "|"), first = FALSE;
+      if (mask & ELF_SPARC_HWCAP2_SAPPHIRE_PLUS)
+	printf ("%ssapphire+", first ? "" : "|"), first = FALSE;
     }
   else
     fputc ('0', stdout);
@@ -18895,6 +19052,33 @@ print_stapsdt_note (Elf_Internal_Note *pnote)
 }
 
 static const char *
+get_mcst_note_type (unsigned e_type)
+{
+  static char buff[64];
+
+  switch (e_type)
+    {
+    case NT_MAGIC:
+      return _("NT_MAGIC (magic conjuration used by certifiers)");
+
+    default:
+      break;
+    }
+
+  snprintf (buff, sizeof (buff), _("Unknown note type: (0x%08x)"), e_type);
+  return buff;
+}
+
+static int
+print_mcst_note (Elf_Internal_Note *pnote)
+{
+  if (pnote->type == NT_MAGIC)
+    printf (_("    Secret phrase: %s\n"), pnote->descdata);
+
+  return 1;
+}
+
+static const char *
 get_ia64_vms_note_type (unsigned e_type)
 {
   static char buff[64];
@@ -19603,6 +19787,9 @@ process_note (Elf_Internal_Note *  pnote,
   else if (const_strneq (pnote->namedata, "stapsdt"))
     nt = get_stapsdt_note_type (pnote->type);
 
+  else if (const_strneq (pnote->namedata, "MCST"))
+    nt = get_mcst_note_type (pnote->type);
+
   else
     /* Don't recognize this note name; just use the default set of
        note type strings.  */
@@ -19630,6 +19817,8 @@ process_note (Elf_Internal_Note *  pnote,
     return print_gnu_note (filedata, pnote);
   else if (const_strneq (pnote->namedata, "stapsdt"))
     return print_stapsdt_note (pnote);
+  else if (const_strneq (pnote->namedata, "MCST"))
+    return print_mcst_note (pnote);
   else if (const_strneq (pnote->namedata, "CORE"))
     return print_core_note (pnote);
   else if (((const_strneq (pnote->namedata, "GA")

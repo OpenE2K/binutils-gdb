@@ -30,19 +30,18 @@
 /* In case we're on a 32-bit machine, construct a 64-bit "-1" value.  */
 #define MINUS_ONE (0xffffffffffffffffULL)
 
-
-
-#define ABI_64_P(abfd) \
-  (get_elf_backend_data (abfd)->s->elfclass == ELFCLASS64)
+#define ELF64_P(abfd) (get_elf_backend_data (abfd)->s->elfclass == ELFCLASS64)
 
 #define ABI_PM_P(abfd) \
   ((elf_elfheader (abfd)->e_flags & EF_E2K_PM) == EF_E2K_PM)
 
+#define ABI_64_P(abfd) (ELF64_P (abfd) && ! ABI_PM_P (abfd))
+
 #define ELF_R_TYPE(abfd, i)                     \
-  (ABI_64_P (abfd) ? ELF64_R_TYPE (i) : ELF32_R_TYPE (i))
+  (ELF64_P (abfd) ? ELF64_R_TYPE (i) : ELF32_R_TYPE (i))
 
 #define ELF_R_SYM(abfd, i)                      \
-  (ABI_64_P (abfd) ? ELF64_R_SYM (i) : ELF32_R_SYM (i))
+  (ELF64_P (abfd) ? ELF64_R_SYM (i) : ELF32_R_SYM (i))
 
 
 /* REMINDER: this function has been originally implemented in commit
@@ -189,6 +188,11 @@ static reloc_howto_type _bfd_e2k_elf_howto_table[] =
          bfd_elf_generic_reloc, "R_E2K_32_ABS", FALSE,
          0x00000000, 0xffffffff, FALSE),
 
+  [R_E2K_32_DYNOPT] =
+  HOWTO (R_E2K_32_DYNOPT, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_32_DYNOPT", FALSE,
+         0x00000000, 0xffffffff, FALSE),
+
   [R_E2K_32_PC] =
   HOWTO (R_E2K_32_PC, 0, 2, 32, TRUE, 0, complain_overflow_bitfield,
          bfd_elf_generic_reloc, "R_E2K_32_PC", FALSE,
@@ -204,9 +208,14 @@ static reloc_howto_type _bfd_e2k_elf_howto_table[] =
          bfd_elf_generic_reloc, "R_E2K_PL_GOT", FALSE,
          0x00000000, 0xffffffff, FALSE),
 
-  [R_E2K_64_ABS] = 
+  [R_E2K_64_ABS] =
   HOWTO (R_E2K_64_ABS, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
          bfd_elf_generic_reloc, "R_E2K_64_ABS", FALSE,
+         0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  [R_E2K_64_DYNOPT] =
+  HOWTO (R_E2K_64_DYNOPT, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_64_DYNOPT", FALSE,
          0x0000000000000000ULL, MINUS_ONE, FALSE),
 
   [R_E2K_64_ABS_LIT] =
@@ -223,6 +232,51 @@ static reloc_howto_type _bfd_e2k_elf_howto_table[] =
          0, complain_overflow_bitfield,
          _bfd_e2k_elf_64_pc_lit_reloc, "R_E2K_64_PC_LIT", FALSE,
          0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  [R_E2K_32_JMP_SLOT] =
+  HOWTO (R_E2K_32_JMP_SLOT, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_32_JMP_SLOT", FALSE,
+	 0x00000000, 0xffffffff, FALSE),
+
+  [R_E2K_32_COPY] =
+  HOWTO (R_E2K_32_COPY, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_32_COPY", FALSE,
+         0x00000000, 0xffffffff, FALSE),
+
+  [R_E2K_32_RELATIVE] =
+  HOWTO (R_E2K_32_RELATIVE, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_32_RELATIVE", FALSE,
+         0x00000000, 0xffffffff, FALSE),
+
+  [R_E2K_32_IRELATIVE] =
+  HOWTO (R_E2K_32_IRELATIVE, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_32_IRELATIVE", FALSE,
+         0x00000000, 0xffffffff, FALSE),
+
+  [R_E2K_64_JMP_SLOT] =
+  HOWTO (R_E2K_64_JMP_SLOT, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_64_JMP_SLOT", FALSE,
+	 0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  [R_E2K_64_COPY] =
+  HOWTO (R_E2K_64_COPY, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_64_COPY", FALSE,
+	 0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  [R_E2K_64_RELATIVE] =
+  HOWTO (R_E2K_64_RELATIVE, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_64_RELATIVE", FALSE,
+	 0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  [R_E2K_64_RELATIVE_LIT] =
+  HOWTO (R_E2K_64_RELATIVE_LIT, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_64_RELATIVE_LIT", FALSE,
+	 0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  [R_E2K_64_IRELATIVE] =
+  HOWTO (R_E2K_64_IRELATIVE, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_64_IRELATIVE", FALSE,
+	 0x0000000000000000ULL, MINUS_ONE, FALSE),
 
   [R_E2K_TLS_GDMOD] =
   HOWTO (R_E2K_TLS_GDMOD, 0, 2, 32, FALSE, 0, complain_overflow_unsigned,
@@ -258,23 +312,50 @@ static reloc_howto_type _bfd_e2k_elf_howto_table[] =
          bfd_elf_generic_reloc, "R_E2K_TLS_32_DTPREL", FALSE,
          0x00000000, 0xffffffff, FALSE),
 
-  [R_E2K_TLS_64_DTPREL] = 
+  [R_E2K_TLS_64_DTPREL] =
   HOWTO (R_E2K_TLS_64_DTPREL, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
          bfd_elf_generic_reloc, "R_E2K_TLS_64_DTPREL", FALSE,
          0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  /* These ones are not emitted by GAS but HOWTOs for them are required to
+     prevent GDB from barfing on them.  */
+  [R_E2K_TLS_32_DTPMOD] =
+  HOWTO (R_E2K_TLS_32_DTPMOD, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_TLS_32_DTPMOD", FALSE,
+	 0x00000000, 0xffffffff, FALSE),
+     
+  [R_E2K_TLS_64_DTPMOD] =
+  HOWTO (R_E2K_TLS_64_DTPMOD, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_TLS_64_DTPMOD", FALSE,
+	 0x0000000000000000ULL, MINUS_ONE, FALSE),
+
+  [R_E2K_TLS_TPOFF32] =
+  HOWTO (R_E2K_TLS_TPOFF32, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_TLS_TPOFF32", FALSE,
+	 0x00000000, 0xffffffff, FALSE),
+
+  [R_E2K_TLS_TPOFF64] =
+  HOWTO (R_E2K_TLS_TPOFF64, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
+         bfd_elf_generic_reloc, "R_E2K_TLS_TPOFF64", FALSE,
+	 0x0000000000000000ULL, MINUS_ONE, FALSE),
 
   /* The next two howtos aren't used by BFD in fact, except for producing
      relocation dumps. Therefore, the fields are initialized in a rather random
      manner. I wonder, how `{src,dst}_mask' fields can be expressed for 128-bit
      items using the 64-bit `bfd_vma' type . . .  */
-     
-  [R_E2K_AP] = 
-  HOWTO (R_E2K_AP, 0, 8, 128, FALSE, 0, complain_overflow_bitfield,
+
+  /* Now that `struct reloc_howto_struct' has been packed and `size == 8'
+     (this value used to match `bfd_get_reloc_size () == 16') and `bitsize ==
+     128' can be no longer encoded, stupidly set these fileds to 0 for `R_E2K_
+     {AP,PL}' and get ready to process these relocations specially wherever
+     needed.  */
+  [R_E2K_AP] =
+  HOWTO (R_E2K_AP, 0, 0, 0, FALSE, 0, complain_overflow_bitfield,
          bfd_elf_generic_reloc, "R_E2K_AP", FALSE,
          0x0000000000000000ULL, MINUS_ONE, FALSE),
 
-  [R_E2K_PL] = 
-  HOWTO (R_E2K_PL, 0, 8, 128, FALSE, 0, complain_overflow_bitfield,
+  [R_E2K_PL] =
+  HOWTO (R_E2K_PL, 0, 0, 0, FALSE, 0, complain_overflow_bitfield,
          bfd_elf_generic_reloc, "R_E2K_PL", FALSE,
          0x0000000000000000ULL, MINUS_ONE, FALSE),
 
@@ -422,6 +503,10 @@ _bfd_e2k_elf_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       return &_bfd_e2k_elf_howto_table[R_E2K_AP];
     case BFD_RELOC_E2K_PL:
       return &_bfd_e2k_elf_howto_table[R_E2K_PL];
+    case BFD_RELOC_E2K_DYNOPT64:
+      return &_bfd_e2k_elf_howto_table[R_E2K_64_DYNOPT];
+    case BFD_RELOC_E2K_DYNOPT32:
+      return &_bfd_e2k_elf_howto_table[R_E2K_32_DYNOPT];
     default:
       break;
     }
@@ -448,14 +533,258 @@ _bfd_e2k_elf_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   return NULL;
 }
 
+
+/* These ones are set to values of the respective options. See my comments
+   in `elfxx-e2k.h' on why they are not placed into e2k link hash table.  */
+static int e2k_ipd;
+static int e2k_is_x86app;
+static int e2k_is_4mpages;
+static bfd_boolean arch_set_via_cmdline;
+static bfd_boolean restrict_to_arch;
+static bfd_boolean relaxed_e2k_machine_check;
+static bfd_boolean output_new_e_machine = TRUE;
+bfd_boolean simulating_mode;
+static bfd_boolean pack_cud_gd;
+
+static int link_mixed_eir_phase;
+
+bfd_boolean e2k_dsp_linux_mode;
+
+
+struct cud_gd_range
+{
+  bfd_vma min;
+  bfd_vma max;
+  bfd_vma align;
+  bfd_signed_vma delta;
+  /* This field should be of no use except for during the initialization
+     of htab->ranges[]. Consider eliminating it.  */
+  bfd_boolean in_cud;
+};
+
+static int
+compare_cud_gd_ranges (const void *a, const void *b)
+{
+  const struct cud_gd_range *first = (const struct cud_gd_range *) a;
+  const struct cud_gd_range *second = (const struct cud_gd_range *) b;
+
+  /* Taking into account that the ranges are not allowed to overlap (at least
+     at present) which is going to be checked during the initialization of
+     htab->ranges[] below, just use MIN field to order them.  */
+
+  return first->min < second->min ? -1 : (first->min > second->min ? 1 : 0);
+}
+
+#ifdef HAVE_e2k_elf64_vec
+bfd_vma
+orig_offset_in_cud (struct bfd_link_info *info, bfd_vma offset)
+{
+  struct _bfd_e2k_elf_link_hash_table *htab = _bfd_e2k_elf_hash_table (info);
+
+  if (! ABI_PM_P (htab->elf.dynobj)
+      || htab->ranges == NULL)
+    return offset;
+
+  int i;
+  struct cud_gd_range *ranges = htab->ranges;
+  for (i = 0; i < htab->ranges_num; i++)
+    {
+      if (! ranges[i].in_cud)
+	continue;
+
+      bfd_vma orig_off = offset - ranges[i].delta;
+      if (orig_off >= ranges[i].min && orig_off < ranges[i].max)
+	return orig_off;
+    }
+
+  return offset;
+}
+#endif
+
+#ifndef HAVE_e2k_elf64_vec
+static
+#endif
+bfd_vma
+adjust_offset_in_cud_gd (struct bfd_link_info *info, bfd_vma offset)
+{
+  int i;
+  struct _bfd_e2k_elf_link_hash_table *htab;
+  struct cud_gd_range *ranges;
+
+  /* Zero offset corresponds to NULL both in CUD and GD. It's probably the
+     only valid offset not belonging to any of PT_LOAD segments.  */
+  if (offset == 0)
+    return 0;
+
+  if (! pack_cud_gd)
+    return offset;
+
+  htab = _bfd_e2k_elf_hash_table (info);
+
+  if (! ABI_PM_P (htab->elf.dynobj))
+    return offset;
+
+  if (htab->ranges == NULL)
+    {
+      struct elf_segment_map *m;
+      Elf_Internal_Phdr *phdrs = elf_tdata (info->output_bfd)->phdr;
+      Elf_Internal_Phdr *p;
+      int num = 0;
+      bfd_vma max_page_aligned;
+      bfd_vma cud_size, gd_size;
+
+      for (m = elf_seg_map (info->output_bfd), p = phdrs; m != NULL;
+	   m = m->next, p++)
+	{
+	  if (p->p_type == PT_LOAD)
+	    num++;
+	}
+
+      ranges = (struct cud_gd_range *) bfd_alloc (htab->elf.dynobj,
+						  (sizeof (struct cud_gd_range)
+						   * num));
+
+      /* FIXME ...  */
+      if (ranges == NULL)
+	{
+	  /* Hopefully this will make the linkage fail.  */
+	  _bfd_error_handler (_("allocation of address ranges for CUD and GD "
+				"failed"));
+	  /* There's no point in trying anymore.  */
+	  pack_cud_gd = FALSE;
+	  return offset;
+	}
+
+      for (m = elf_seg_map (info->output_bfd), p = phdrs, i = 0; m != NULL;
+	   m = m->next, p++)
+	{
+	  if (p->p_type == PT_LOAD)
+	    {
+	      if (p->p_align < 0x1000
+		  || ((p->p_vaddr - p->p_offset) & (p->p_align - 1)) != 0)
+		{
+		  _bfd_error_handler (_("inappropriately aligned segments "
+					"cannot be packed"));
+		  pack_cud_gd = FALSE;
+		  return offset;
+		}
+		  
+	      ranges[i].min = p->p_vaddr;
+	      ranges[i].max = p->p_vaddr + p->p_memsz;
+	      ranges[i].align = p->p_align;
+	      ranges[i].in_cud = (p->p_flags & PF_X) ? TRUE : FALSE;
+	      i++;
+	    }
+	}
+
+      qsort (ranges, num, sizeof (struct cud_gd_range), compare_cud_gd_ranges);
+
+      cud_size = gd_size = 0;
+      max_page_aligned = 0;
+      for (i = 0; i < num; i++)
+	{
+	  bfd_vma min_page_aligned = ranges[i].min & ~(ranges[i].align - 1);
+	  bfd_vma b, r, pos;
+
+	  /* MAX_PAGE_ALIGNED corresponds to the preceding segment in this
+	     comparison, of course.  */
+	  if (min_page_aligned < max_page_aligned)
+	    {
+	      _bfd_error_handler (_("compactification of CUD/GD segments "
+				    "with overlapping pages is not supported"));
+	      pack_cud_gd = FALSE;
+	      return offset;
+	    }
+
+	  max_page_aligned = (ranges[i].max + 0xfffULL) & ~(0xfffULL);
+
+
+	  if (ranges[i].in_cud)
+	    pos = cud_size;
+	  else
+	    pos = gd_size;
+
+	  pos = (pos + 0xfffULL) & ~0xfffULL;
+	  r = ranges[i].min & (ranges[i].align - 1);
+	  b = (pos + ranges[i].align - (r + 1)) / ranges[i].align;
+	  pos = b * ranges[i].align + r;
+
+	  ranges[i].delta = pos - ranges[i].min;
+	  pos += ranges[i].max - ranges[i].min;
+
+	  if (ranges[i].in_cud)
+	    cud_size = pos;
+	  else
+	    gd_size = pos;
+	}
+
+      htab->ranges_num = num;
+      htab->ranges = ranges;
+    }
+  else
+    ranges = htab->ranges;
+
+  /* FIXME: consider optimizing this search.  */
+  for (i = 0; i < htab->ranges_num; i++)
+    {
+      if (offset < ranges[i].min)
+	break;
+
+      if (offset >= ranges[i].max)
+	continue;
+
+      return offset + ranges[i].delta;
+    }
+
+  /* Give a chance to an "_end"-like symbol formally lying one byte beyond
+     its range.  */
+  int j;
+  j = htab->ranges_num - 1;
+  if (offset == ranges[j].max)
+    return offset + ranges[j].delta;
+
+  /* If the trailing address range in CUD (GD) didn't match look for another
+     trailing range GD (CUD) respectively.  */
+  bfd_boolean in_cud = !ranges[j].in_cud;
+  for (i = j - 1; i >= 0; i--)
+    {
+      if (ranges[i].in_cud == in_cud)
+	{
+	  if (offset == ranges[i].max)
+	    return offset + ranges[i].delta;
+	  else
+	    /* No point in trying any longer as we have checked trailing ranges
+	       both in CUD and GD.  */
+	    break;
+	}
+    }
+    
+    
+
+  /* FIXME: this may happen for ABS symbols.  */
+#if 0
+  _bfd_error_handler (_("address 0x%lx doesn't correspond to any "
+			"PT_LOAD segment and thus can't be reliably "
+			"compactified"), offset);
+#endif /* 0  */
+  return offset;
+}
+
+#define WSZ(wsz) \
+  /* LTS0  */ (0x00000010 | (wsz << 5))
+
 /* A pattern for Protected Mode self-init function header.  */
 static const unsigned int selfinit_header[] =
 {
   /*    0: */
   /* HS    */ 0x00008011,
-  /* CS1   */ 0x00000000,  /* setwd wsz = 0x4, nfx = 0x1  */
+  /* CS1   */ 0x00000000,  /* setwd wsz = 0x{4,8}, nfx = 0x1  */
   /* LTS1  */ 0x00000000,
-  /* LTS0  */ 0x00000090,
+#ifndef NEW_PM_ABI
+  /* LTS0  */ WSZ (0x4)
+#else /* defined NEW_PM_ABI  */
+  /* LTS0  */ WSZ (0x8),
+#endif /* defined NEW_PM_ABI  */
 };
 
 
@@ -567,12 +896,16 @@ add_selfinit_ap (struct bfd_link_info *info,
                  bfd_vma relocation,
 		 bfd_vma size,
 		 bfd_vma addend,
-		 bfd_vma targ_off)
+		 bfd_vma targ_off,
+                 const char *name ATTRIBUTE_UNUSED)
 {
   bfd *output_bfd = info->output_bfd;
   struct _bfd_e2k_elf_link_hash_table *htab = _bfd_e2k_elf_hash_table (info);
   unsigned char *ptr;
   unsigned int i;
+
+  // printf ("%s: AP\n", name);
+  // fflush (NULL);
 
   BFD_ASSERT (htab->selfinit_off + sizeof (selfinit_ap)
 	      + sizeof (selfinit_tail) <= htab->selfinit->size);
@@ -612,7 +945,8 @@ add_selfinit_ap (struct bfd_link_info *info,
 	bfd_put_32 (output_bfd, addq[i], ptr + 4 + 4 * i);
     }
   else
-    bfd_put_32 (output_bfd, relocation, ptr + 12);
+    bfd_put_32 (output_bfd, adjust_offset_in_cud_gd (info, relocation),
+		ptr + 12);
 
   if (relocation == 0 || size == 0)
     {
@@ -629,7 +963,7 @@ add_selfinit_ap (struct bfd_link_info *info,
   /* Customize the addend to be added to the obtained %qr0.  */
   bfd_put_32 (output_bfd, addend, ptr + 52);
 
-  bfd_put_32 (output_bfd, targ_off, ptr + 68);
+  bfd_put_32 (output_bfd, adjust_offset_in_cud_gd (info, targ_off), ptr + 68);
 
   htab->selfinit_off += sizeof (selfinit_ap);
   add_selfinit_tail (info);
@@ -638,12 +972,16 @@ add_selfinit_ap (struct bfd_link_info *info,
 static void
 add_selfinit_pl (struct bfd_link_info *info,
                  bfd_vma relocation,
-		 bfd_vma targ_off)
+		 bfd_vma targ_off,
+                 const char *name ATTRIBUTE_UNUSED)
 {
   bfd *output_bfd = info->output_bfd;
   struct _bfd_e2k_elf_link_hash_table *htab = _bfd_e2k_elf_hash_table (info);
   unsigned char *ptr;
   unsigned int i;
+
+  // printf ("%s: PL\n", name);
+  // fflush (NULL);
 
   BFD_ASSERT (htab->selfinit_off + sizeof (selfinit_pl)
 	      + sizeof (selfinit_tail) <= htab->selfinit->size);
@@ -679,33 +1017,16 @@ add_selfinit_pl (struct bfd_link_info *info,
       bfd_put_32 (output_bfd, addd, ptr + 12);
     }
   else
-    bfd_put_32 (output_bfd, relocation, ptr + 20);
+    {
+      bfd_put_32 (output_bfd, adjust_offset_in_cud_gd (info, relocation),
+		  ptr + 20);
+    }
 
-  bfd_put_32 (output_bfd, targ_off, ptr + 36);
+  bfd_put_32 (output_bfd, adjust_offset_in_cud_gd (info, targ_off), ptr + 36);
 
   htab->selfinit_off += sizeof (selfinit_pl);
   add_selfinit_tail (info);
 }
-
-
-
-
-/* These ones are set to values of the respective options. See my comments
-   in `elfxx-e2k.h' on why they are not placed into e2k link hash table.  */
-static int e2k_ipd;
-static int e2k_is_x86app;
-static int e2k_is_4mpages;
-static bfd_boolean arch_set_via_cmdline;
-static bfd_boolean restrict_to_arch;
-static bfd_boolean relaxed_e2k_machine_check;
-static bfd_boolean output_new_e_machine = TRUE;
-bfd_boolean simulating_mode;
-
-static int link_mixed_eir_phase;
-
-bfd_boolean e2k_dsp_linux_mode;
-
-
 
 void
 _bfd_e2k_elf_after_parse (int phase)
@@ -726,7 +1047,8 @@ _bfd_e2k_elf_after_open (int ipd,
                          bfd_boolean restrict_to,
                          bfd_boolean machine_check,
                          bfd_boolean new_e_machine,
-                         bfd_boolean simulate)
+                         bfd_boolean simulate,
+			 bfd_boolean pack_cg)
 {
   /* Note that in S-records test INFO->HTAB turns out to be zero somehow when
      this function gets called . . .  */
@@ -739,6 +1061,7 @@ _bfd_e2k_elf_after_open (int ipd,
   relaxed_e2k_machine_check = machine_check;
   output_new_e_machine = new_e_machine;
   simulating_mode = simulate;
+  pack_cud_gd = pack_cg;
 }
 
 static bfd_boolean
@@ -755,7 +1078,7 @@ check_magic (bfd *abfd, asection *magic_sec)
   data = xmalloc (magic_sec->size);
   if (! bfd_get_section_contents (abfd, magic_sec, data, 0, magic_sec->size))
     {
-      _bfd_error_handler (_("%B: cannot read contents of section %A\n"),
+      _bfd_error_handler (_("%pB: cannot read contents of section %pA\n"),
                           abfd, magic_sec);
     }
 
@@ -790,7 +1113,7 @@ decorated_arch_name (bfd *abfd)
   /* FIXME: it's too early to check `hdr->e_machine == EM_MCST_ELBRUS' for
      OBFD here, since it may have not been set up so far.  */
   bfd_boolean fi = (hdr->e_flags & EF_E2K_INCOMPAT) != 0;
-  unsigned long mach = abfd->arch_info->mach / 3;
+  unsigned long mach = abfd->arch_info->mach / 4;
 
   switch (mach)
     {
@@ -805,22 +1128,36 @@ decorated_arch_name (bfd *abfd)
     case bfd_mach_e2k_ev4:
       return fi ? "forward incompatible elbrus-v4" : "elbrus-v4";
     case bfd_mach_e2k_ev5:
-      return fi ? "forward incompatible elbrus-v5" : "elbrus-v5";
+      return fi ? "elbrus-8c2" : "elbrus-v5";
     case bfd_mach_e2k_ev6:
       return fi ? "forward incompatible elbrus-v6" : "elbrus-v6";
     case bfd_mach_e2k_8c:
       return "elbrus-8c";
     case bfd_mach_e2k_1cplus:
       return "elbrus-1c+";
+    case bfd_mach_e2k_12c:
+      return "elbrus-12c";
+    case bfd_mach_e2k_16c:
+      return "elbrus-16c";
+    case bfd_mach_e2k_2c3:
+      return "elbrus-2c3";
     default:
       BFD_ASSERT (0);
       return NULL;
     }
 }
 
+static const char *
+bitness (unsigned long mach)
+{
+  static const char *names[] = {"64-bit", "32-bit", "PM", "any"};
+  return names[mach % 4];
+}
+  
+
 bfd_boolean
 _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
-                                       bfd_boolean protected_mode ATTRIBUTE_UNUSED)
+                                       bfd_boolean uclibc_output ATTRIBUTE_UNUSED)
 {
   unsigned long imach, omach;
   int incompatible_input;
@@ -840,7 +1177,9 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
     e8c,
     e1cplus,
     ev5,
-    ev6,
+    e12c,
+    e16c,
+    e2c3,
     /* The related bit in mask stands for "all future processor models".  */
     ev7
   };
@@ -849,6 +1188,7 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
      can be executed.  */
 #define AT(p) (1L << p)
 
+#define AT_ev6 (AT (e12c) | AT (e16c) | AT (e2c3))
 
   /* This is a machine compatibility table. It provides the mask of machines an
      object file compiled (or linked) for a given machine (specified by the row)
@@ -858,7 +1198,7 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
   static const unsigned long mask[][2] = 
     {
       [bfd_mach_e2k_generic] =  {(AT (ev1) | AT (ev2) | AT (ev3) | AT (e8c)
-				  | AT (e1cplus) | AT (ev5) | AT (ev6)
+				  | AT (e1cplus) | AT (ev5) | AT_ev6
 				  | AT (ev7)),
 				 (AT (ev1) | AT (ev2))},
 
@@ -866,28 +1206,64 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
 				 AT (ev1)},
 
       [bfd_mach_e2k_ev2] =      {(AT (ev2) | AT (ev3) | AT (e8c) | AT (e1cplus)
-				  | AT (ev5) | AT (ev6) | AT (ev7)),
+				  | AT (ev5) | AT_ev6 | AT (ev7)),
 				 (AT (ev2))},
 
       [bfd_mach_e2k_ev3] =      {(AT (ev3) | AT (e8c) | AT (e1cplus) | AT (ev5)
-				  | AT (ev6) | AT (ev7)),
+				  | AT_ev6 | AT (ev7)),
 				 AT (ev3)},
       
-      [bfd_mach_e2k_ev4] =      {(AT (e8c) | AT (e1cplus) | AT (ev5) | AT (ev6)
+      [bfd_mach_e2k_ev4] =      {(AT (e8c) | AT (e1cplus) | AT (ev5) | AT_ev6
 				  | AT (ev7)),
 				 (AT (e8c) | AT (e1cplus))},
-      [bfd_mach_e2k_ev5] =      {(AT (ev5) | AT (ev6) | AT (ev7)),
+      [bfd_mach_e2k_ev5] =      {(AT (ev5) | AT_ev6 | AT (ev7)),
 				 AT (ev5)},
 
-      [bfd_mach_e2k_ev6] =      {(AT (ev6) | AT (ev7)),
-				 AT (ev6)},
+      [bfd_mach_e2k_ev6] =      {(AT_ev6 | AT (ev7)),
+				 AT_ev6},
 
       [bfd_mach_e2k_8c] =	{AT (e8c),
 				 AT (e8c)},
 
       [bfd_mach_e2k_1cplus] =	{AT (e1cplus),
-				 AT (e1cplus)}
+				 AT (e1cplus)},
+
+      [bfd_mach_e2k_12c] =	{AT (e12c),
+				 AT (e12c)},
+
+      [bfd_mach_e2k_16c] =	{AT (e16c),
+				 AT (e16c)},
+
+      [bfd_mach_e2k_2c3] =	{AT (e2c3),
+				 AT (e2c3)}
     };
+
+  {
+    static bfd_boolean first_ibfd_saved = TRUE;
+    bfd_boolean res = TRUE, first_ibfd = first_ibfd_saved;
+    int iuclibc =
+      elf_known_obj_attributes (ibfd)[OBJ_ATTR_GNU][Tag_GNU_E2K_UCLIBC].i;
+
+    /* Next time `first_ibfd' will be set to FALSE.  */
+    first_ibfd_saved = FALSE;
+
+    if ((uclibc_output && iuclibc == 0)
+	|| (! uclibc_output && iuclibc != 0))
+      {
+	_bfd_error_handler (_("%s input object %pB is not compatible with "
+			      "%s output"),
+			    uclibc_output ? "GNU" : "uclibc",
+			    ibfd,
+			    uclibc_output ? "uclibc" : "GNU");
+	res = FALSE;
+      }
+
+    if (uclibc_output && first_ibfd)
+      bfd_elf_add_obj_attr_int (obfd, OBJ_ATTR_GNU, Tag_GNU_E2K_UCLIBC, 1);
+
+    if (! res)
+      return FALSE;
+    }
 
   if (bfd_get_flavour (ibfd) == bfd_target_elf_flavour && getenv ("MAGIC"))
     {
@@ -901,7 +1277,7 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
       magic_sec = bfd_get_section_by_name (ibfd, ".magic");
       if (magic_sec == NULL)
         {
-          _bfd_error_handler (_("Input object %B doesn't have a .magic "
+          _bfd_error_handler (_("Input object %pB doesn't have a .magic "
                                 "section"), ibfd);
           return FALSE;
         }
@@ -918,15 +1294,11 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
 
       if (! res)
         {
-          _bfd_error_handler (_("Input object %B contains wrong MAGIC "),
+          _bfd_error_handler (_("Input object %pB contains wrong MAGIC "),
                               ibfd);
             return FALSE;
         }
-    }
-
-  /* I don't actually want to check anything in relaxed case.  */
-  if (relaxed_e2k_machine_check)
-    return TRUE;
+    }  
 
   /* My further checks are meaningful if both input and output files are
      ELFs only. Well, probably the check for `obfd' is redundant, because
@@ -945,6 +1317,69 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
   ihdr = elf_elfheader (ibfd);
   ohdr = elf_elfheader (obfd);
 
+  imach = ibfd->arch_info->mach;
+  omach = obfd->arch_info->mach;
+
+  /* We shouldn't find ourselves here if `bfd_e2k_compatible ()' failed,
+     should we?  */
+  if (imach % 4 != omach % 4)
+    {
+      _bfd_error_handler
+	(_("%s input file `%pB' is incompatible with %s output"),
+	 bitness (imach), ibfd, bitness (omach));
+      return FALSE;
+    }
+
+  /* Input object file with "any bitness" mach should not appear in
+     principle.  */
+  BFD_ASSERT (imach % 4 != 3);
+
+  if ((ihdr->e_ident[EI_OSABI] == ELFOSABI_KPDA
+       || get_elf_backend_data (obfd)->elf_osabi == ELFOSABI_KPDA)
+      && ihdr->e_ident[EI_OSABI] != get_elf_backend_data (obfd)->elf_osabi)
+    {
+      bfd_boolean kpda_input = ihdr->e_ident[EI_OSABI] == ELFOSABI_KPDA;
+      const char *linux_abi = "Linux";
+      const char *kpda_abi = "KPDA";
+
+      _bfd_error_handler
+        (_("%pB: input with `%s' ABI cannot be processed by `%s' target"),
+         ibfd, kpda_input ? kpda_abi : linux_abi,
+         kpda_input ? linux_abi : kpda_abi);
+      return FALSE;
+    }
+
+  /* Shared objects' machine shouldn't have an impact on the one eventually set
+     for OBFD as they can be very different from the ones used at runtime in
+     this respect. The above tests not allowing for the mixture of different
+     ABIs and GNU, Uclibc and KPDA object files seem to be reasonable because
+     the user should NOT allow for such mixtures at link-time.  */
+  if ((ibfd->flags & DYNAMIC) != 0)
+    return TRUE;
+
+  /* Now that we are guaranteed that input and output bfds have the same mode,
+     migrate to e2k machine masks defined in `MCST E2K' section of
+     `bfd/archures.c'.  */
+  imach /= 4;
+  omach /= 4;
+
+  /* Explicitly prohibit the linkage of "generic" and "elbrus-v1" input ELFs as
+     proposed in Bug #96498, Comment #11 so as to make it impossible in
+     principle.  */
+  if (imach == bfd_mach_e2k_generic || imach == bfd_mach_e2k_ev1)
+    {
+      _bfd_error_handler
+	(_("%pB: link of `%s' input files is no longer supported"),
+	 ibfd,
+	 imach == bfd_mach_e2k_generic ? "generic" : "elbrus-v1");
+      return FALSE;
+    }
+
+  /* Further machine compatibility checks should not be performed in
+     `--relaxed-e2k-machine' mode.  */
+  if (relaxed_e2k_machine_check)
+    return TRUE;
+
   /* Is the currently considered input file incompatible?  */
   incompatible_input = (((ihdr->e_machine == EM_MCST_ELBRUS)
 			 && (ihdr->e_flags & EF_E2K_INCOMPAT))
@@ -955,9 +1390,9 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
     {
       if (incompatible_input )
         {
-          _bfd_error_handler (_("New style object %B with `EF_E2K_INCOMPAT' "
+          _bfd_error_handler (_("New style object %pB with `EF_E2K_INCOMPAT' "
                                 "flag set cannot be linked into an old "
-                                "style %B"), ibfd, obfd);
+                                "style %pB"), ibfd, obfd);
           return FALSE;
         }
 
@@ -973,41 +1408,12 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
     }
 
 
-
-  imach = ibfd->arch_info->mach;
-  omach = obfd->arch_info->mach;
-
-  /* We shouldn't find ourselves here if `bfd_e2k_compatible ()' failed,
-     should we?  */
-  BFD_ASSERT (imach % 3 == omach % 3);
-
-  if ((ihdr->e_ident[EI_OSABI] == ELFOSABI_KPDA
-       || get_elf_backend_data (obfd)->elf_osabi == ELFOSABI_KPDA)
-      && ihdr->e_ident[EI_OSABI] != get_elf_backend_data (obfd)->elf_osabi)
-    {
-      bfd_boolean kpda_input = ihdr->e_ident[EI_OSABI] == ELFOSABI_KPDA;
-      const char *linux_abi = "Linux";
-      const char *kpda_abi = "KPDA";
-
-      _bfd_error_handler
-        (_("%B: input with `%s' ABI cannot be processed by `%s' target"),
-         ibfd, kpda_input ? kpda_abi : linux_abi,
-         kpda_input ? linux_abi : kpda_abi);
-      return FALSE;
-    }
-
-  /* Now that we are guaranteed that input and output bfds have the same mode,
-     migrate to e2k machine masks defined in `MCST E2K' section of
-     `bfd/archures.c'.  */
-  imach /= 3;
-  omach /= 3;
-
   /* Provided that `--restrict-to-arch OUTPUT_ARCH' has been specified, an
      input file's architecture should exactly match OUTPUT_ARCH.  */
   if (restrict_to_arch && imach != omach)
     {
       _bfd_error_handler
-        (_("input file `%B' of `%s' architecture does not match "
+        (_("input file `%pB' of `%s' architecture does not match "
            "`%s' specified via `--restrict-to-arch' option"),
 	 ibfd, decorated_arch_name (ibfd), decorated_arch_name (obfd));
       return FALSE;
@@ -1029,7 +1435,7 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
      something different (e.g. the user wants E3S while the combination
      of input files makes us choose E2S).  */
   if (arch_set_via_cmdline
-      && omach != mask[obfd->arch_info->mach / 3][incompatible_output])
+      && omach != mask[obfd->arch_info->mach / 4][incompatible_output])
     omach = 0;
 
   if (omach != 0)
@@ -1054,8 +1460,8 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
 
       BFD_ASSERT (i < sizeof (mask) / sizeof (mask[0]));
 
-      i *= 3;
-      i += obfd->arch_info->mach % 3;
+      i *= 4;
+      i += obfd->arch_info->mach % 4;
 
       if (obfd->arch_info->mach != (unsigned long) i)
         bfd_set_arch_mach (obfd, bfd_arch_e2k, (unsigned long) i);
@@ -1064,7 +1470,7 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
     }
 
   _bfd_error_handler
-    (_("input file `%B' of `%s' architecture is incompatible "
+    (_("input file `%pB' of `%s' architecture is incompatible "
        "with `%s' output"),
      ibfd, decorated_arch_name (ibfd), decorated_arch_name (obfd));
 
@@ -1433,6 +1839,7 @@ static const unsigned int plt32_got_pic_header[] =
                                              /*  ipd 2  */
 };
 
+#define PLT32_GOT_PIC_HEADER_NOP_OFFSET  0x10
 #define PLT32_GOT_PIC_LINK_MAP_LD_OFFSET 0x24
 #define PLT32_GOT_PIC_DL_FIXUP_LD_OFFSET 0x20
 #define PLT32_GOT_PIC_HEADER_SIZE sizeof (plt32_got_pic_header)
@@ -1467,6 +1874,7 @@ static const unsigned int plt32_got_non_pic_header[] =
   /*                          ipd 2  */
 };
 
+#define PLT32_GOT_NON_PIC_HEADER_NOP_OFFSET  0x0
 #define PLT32_GOT_NON_PIC_LINK_MAP_LD_OFFSET 0xc
 #define PLT32_GOT_NON_PIC_HEADER_SIZE sizeof (plt32_got_non_pic_header)
 
@@ -1490,6 +1898,7 @@ static const unsigned int plt32_got_pic_primary_entry[] =
                                              /*  ipd 2  */
 };
 
+#define PLT32_GOT_PIC_ENTRY_NOP_OFFSET 0x18
 #define PLT32_GOT_PIC_TARGET_LD_OFFSET 0x24
 #define PLT32_GOT_PIC_PRIMARY_ENTRY_SIZE sizeof (plt32_got_pic_primary_entry)
 
@@ -1515,6 +1924,7 @@ static const unsigned int plt32_got_non_pic_primary_entry[] =
 
 };
 
+#define PLT32_GOT_NON_PIC_ENTRY_NOP_OFFSET 0x0
 #define PLT32_GOT_NON_PIC_TARGET_LD_OFFSET 0x10
 #define PLT32_GOT_NON_PIC_PRIMARY_ENTRY_SIZE sizeof (plt32_got_non_pic_primary_entry)
 
@@ -1533,13 +1943,41 @@ build_plt_entry (struct bfd_link_info *info,
   asection *sgotplt = htab->elf.sgotplt;
   unsigned char *plt_literal =
     splt->contents + offset + htab->plt_got_target_ld_offset;
+  unsigned long omach = bfd_get_mach (output_bfd) / 4;;
+
+  /* Until support for specific elbrus-v6 machines has been added I can check
+     it this way. Note that `>= 6' can't be used here because specific machines
+     (say, elbrus-{8c,1c+} for elbrus-v4) are marked with numbers exceeding the
+     maximal possible iset  version.  */
+  /* Take into account that delay between load and its consumer has been
+     increased from 3 to 5 ticks starting from elbrus-v6 (see Bug #112004,
+     Comment #8).  */
+  unsigned int nops = ((omach == bfd_mach_e2k_ev6
+			|| omach == bfd_mach_e2k_12c
+			|| omach == bfd_mach_e2k_16c
+			|| omach == bfd_mach_e2k_2c3) ? 4 : 2);
+
+  unsigned int hs_nop =
+    htab->plt_got_primary_entry[htab->plt_got_entry_nop_offset / 4];
+
+
 
   for (i = 0; i < htab->plt_got_primary_entry_size / 4; i++)
     bfd_put_32 (output_bfd, htab->plt_got_primary_entry[i],
 		(splt->contents + offset + 4 * i));
 
-  slot_addr = (sgotplt->output_section->vma + sgotplt->output_offset
-	       + gotplt_offset);
+  /* Adjust HS.nop according to the aforesaid.  */
+  hs_nop = (hs_nop & 0xfffffc7fu) | (nops << 7);
+  bfd_put_32 (output_bfd, hs_nop,
+	      (htab->elf.splt->contents
+	       + offset
+	       + htab->plt_got_entry_nop_offset));
+
+
+  slot_addr = adjust_offset_in_cud_gd (info,
+				       (sgotplt->output_section->vma
+					+ sgotplt->output_offset
+					+ gotplt_offset));
 
   if (! ABI_PM_P (htab->elf.dynobj) && bfd_link_pic (info))
     {
@@ -1577,7 +2015,8 @@ static void
 build_secondary_plt_entry (struct bfd_link_info *info,
                            bfd_vma offset,
                            bfd_vma gotplt_offset,
-                           bfd_vma *r_offset)
+                           bfd_vma *r_offset,
+                           const char *name)
 {
   unsigned int i;
   struct _bfd_e2k_elf_link_hash_table *htab = _bfd_e2k_elf_hash_table (info);
@@ -1619,7 +2058,8 @@ build_secondary_plt_entry (struct bfd_link_info *info,
 		       (splt->output_section->vma
 			+ splt->output_offset + offset),
 		       (sgotplt->output_section->vma + sgotplt->output_offset
-			+ gotplt_offset));
+			+ gotplt_offset),
+                       name);
     }
 }
 
@@ -1665,6 +2105,7 @@ static const unsigned int plt64_got_pic_header[] =
 
 };
 
+#define PLT64_GOT_PIC_HEADER_NOP_OFFSET	 0x10
 #define PLT64_GOT_PIC_LINK_MAP_LD_OFFSET 0x24
 #define PLT64_GOT_PIC_DL_FIXUP_LD_OFFSET 0x20
 #define PLT64_GOT_PIC_HEADER_SIZE sizeof (plt64_got_pic_header)
@@ -1700,6 +2141,7 @@ static const unsigned int plt64_got_non_pic_header[] =
 
 };
 
+#define PLT64_GOT_NON_PIC_HEADER_NOP_OFFSET  0x0
 #define PLT64_GOT_NON_PIC_LINK_MAP_LD_OFFSET 0x10
 #define PLT64_GOT_NON_PIC_HEADER_SIZE sizeof (plt64_got_non_pic_header)
 
@@ -1724,6 +2166,7 @@ static const unsigned int plt64_got_pic_primary_entry[] =
                                              /*  ipd 2  */
 };
 
+#define PLT64_GOT_PIC_ENTRY_NOP_OFFSET	    0x18
 #define PLT64_GOT_PIC_TARGET_LD_OFFSET      0x24
 #define PLT64_GOT_PIC_PRIMARY_ENTRY_SIZE    sizeof (plt64_got_pic_primary_entry)
 
@@ -1749,182 +2192,223 @@ static const unsigned int plt64_got_non_pic_primary_entry[] =
 
 };
 
+#define PLT64_GOT_NON_PIC_ENTRY_NOP_OFFSET	0x0
 #define PLT64_GOT_NON_PIC_TARGET_LD_OFFSET      0xc
 #define PLT64_GOT_NON_PIC_PRIMARY_ENTRY_SIZE    sizeof (plt64_got_non_pic_primary_entry)
 
+#define MOVTD_TARGET(ind)						\
+  /* HS    */ 0x04000001,						\
+  /* ALS0  */ (0x61c080d1 | (ind << 8))  /* movtd,0 %dr{ind}, %ctpr1  */
+
+#define LOAD_LINK_MAP_DL_FIXUP(reg1, reg2)				\
+  /* HS    */ 0xb6d00034,						\
+    /* ALS0  */ (0x79c0d880 | reg1),  /* ldgdq,0 0x0, _f32s,_lts0 0x12345678, %qr{reg1}  */ \
+    /* ALS2  */ (0x79c0d880 | (reg1 + 1)),				\
+    /* ALS3  */ (0x79d0d880 | reg2),  /* ldgdq,3 0x10, _f32s,_lts0 0x12345678, %qr{reg2}  */ \
+    /* ALS5  */ (0x79d0d880 | (reg2 + 1)),				\
+    /* ALES03*/ 0x01c001c0,						\
+    /* LTS1  */ 0x00000000,						\
+    /* LTS0  */ 0x12345678
+
+#define MOVTQ_PAIR(src, dst)						\
+  /* HS    */ 0x6db00034,						\
+  /* ALS0  */ (0x57c08080 | ((src + 0) << 8) | (dst + 0)),  /* movtq,0 %qr{src}, %qr{dst}  */ \
+  /* ALS1  */ (0x57c08080 | ((src + 1) << 8) | (dst + 1)),		\
+  /* ALS3  */ (0x57c08080 | ((src + 2) << 8) | (dst + 2)),  /* movtq,3 %qr{src+2}, %qr{dst+2}  */ \
+  /* ALS4  */ (0x57c08080 | ((src + 3) << 8) | (dst + 3)),		\
+  /* ALES  */ 0x01c001c0,						\
+  /* ALES  */ 0x01c001c0,						\
+  /* LTS0  */ 0x00000000
+
+
+
+#define CALL_WBS(wbs)							\
+  /* CS1   */ (0x50000000 | wbs)  /* call %ctpr1, wbs = wbs  */
+
+
 static const unsigned int plt128_got_header[] = 
 {
-  /*   0:	*/
-  /* HS    */ 0xb6d00034,
-  /* ALS0  */ 0x79c0d88a,  /* ldgdq,0 0x0, _f32s,_lts0 0x12345678, %qr10  */
-  /* ALS2  */ 0x79c0d88b,
-  /* ALS3  */ 0x79d0d88e,  /* ldgdq,3 0x10, _f32s,_lts0 0x12345678, %qr14  */
-  /* ALS5  */ 0x79d0d88f,
-  /* ALES03*/ 0x01c001c0,
-  /* LTS1  */ 0x00000000,
-  /* LTS0  */ 0x12345678,
+  LOAD_LINK_MAP_DL_FIXUP (
+#ifndef NEW_PM_ABI
+			  10, 14
+#else /* defined NEW_PM_ABI  */
+			  18, 22
+#endif
+			  ),
 
-  /*  20:	*/
-  /* HS    */ 0x04000001,
-  /* ALS0  */ 0x61c08ed1,  /* movtd,0 %dr14, %ctpr1  */
+  MOVTD_TARGET(
+#ifndef NEW_PM_ABI
+	       14
+#else /* defined NEW_PM_ABI  */
+	       22
+#endif /* defined NEW_PM_ABI  */
+	       ),
 
   /*  28:	*/
   /* HS    */ 0x00009012,
   /* SS    */ 0x80000420,  /* ipd 2  */
-  /* CS1   */ 0x50000004,  /* call %ctpr1, wbs = 0x4  */
+  /* CS1   */ CALL_WBS (
+#ifndef NEW_PM_ABI
+			0x4
+#else /* defined NEW_PM_ABI  */
+			0x8
+#endif /* defined NEW_PM_ABI  */
+			),
   /* LTS0  */ 0x00000000,
 
-  /*  38:	*/
-  /* HS    */ 0x04000001,
-  /* ALS0  */ 0x61c088d1,  /* movtd,0 %dr8, %ctpr1  */
+  MOVTD_TARGET (
+#ifndef NEW_PM_ABI
+		8
+#else /* defined NEW_PM_ABI  */
+		16
+#endif /* defined NEW_PM_ABI  */
+		),
+		
+#ifndef NEW_PM_ABI
+  MOVTQ_PAIR (0, 8),
+  MOVTQ_PAIR (4, 12),
+#else /* defined NEW_PM_ABI  */
+  MOVTQ_PAIR (0, 16),
+  MOVTQ_PAIR (4, 20),
+  MOVTQ_PAIR (8, 24),
+  MOVTQ_PAIR (12, 28),
+#endif /* defined NEW_PM_ABI  */
 
-  /*  40:	*/
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c08088,  /* movtq,0 %qr0, %qr8  */
-  /* ALS1  */ 0x57c08189,
-  /* ALS3  */ 0x57c0828a,  /* movtq,3 %qr2, %qr10  */
-  /* ALS4  */ 0x57c0838b,
-  /* ALES01*/ 0x01c001c0,
-  /* ALES34*/ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
-
-  /*  60:	*/
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c0848c,  /* movtq,0 %qr4, %qr12  */
-  /* ALS1  */ 0x57c0858d,
-  /* ALS3  */ 0x57c0868e,  /* movtq,3 %qr6, %qr14  */
-  /* ALS4  */ 0x57c0878f,
-  /* ALES01*/ 0x01c001c0,
-  /* ALES34*/ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
-
-  /*  80:	*/
   /* HS    */ 0x00009012,
   /* SS    */ 0x80000420,  /* ipd 2  */
-  /* CS1   */ 0x50000004,  /* call %ctpr1, wbs = 0x4  */
+  /* CS1   */ CALL_WBS (
+#ifndef NEW_PM_ABI
+			0x4
+#else /* defined NEW_PM_ABI  */
+			0x8
+#endif /* defined NEW_PM_ABI  */
+			),			
   /* LTS0  */ 0x00000000,
 
-  /*  90:	*/
   /* HS    */ 0x00004001,
   /* CS0   */ 0xf0000000,  /* return %ctpr3  */
 
-  /*  98:	*/
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c08880,  /* movtq,0 %qr8, %qr0  */
-  /* ALS1  */ 0x57c08981,
-  /* ALS3  */ 0x57c08a82,  /* movtq,3 %qr10, %qr2  */
-  /* ALS4  */ 0x57c08b83,
-  /* ALES01*/ 0x01c001c0,
-  /* ALES34*/ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
+#ifndef NEW_PM_ABI
+  MOVTQ_PAIR (8, 0),
+  MOVTQ_PAIR (12, 4),
+#else /* defined NEW_PM_ABI  */
+  MOVTQ_PAIR (16, 0),
+  MOVTQ_PAIR (20, 4),
+  MOVTQ_PAIR (24, 8),
+  MOVTQ_PAIR (28, 12),
+#endif /* defined NEW_PM_ABI  */
 
-  /*  b8:	*/
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c08c84,  /* movtq,0 %qr12, %qr4  */
-  /* ALS1  */ 0x57c08d85,
-  /* ALS3  */ 0x57c08e86,  /* movtq,3 %qr14, %qr6  */
-  /* ALS4  */ 0x57c08f87,
-  /* ALES01*/ 0x01c001c0,
-  /* ALES34*/ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
-
-  /*  d8:	*/
   /* HS    */ 0x00001001,
   /* SS    */ 0x80000c20,  /* ct %ctpr3  */
   /*                          ipd 2  */
 
 };
 
+#define PLT128_GOT_HEADER_NOP_OFFSET  0x0
 #define PLT128_GOT_LINK_MAP_LD_OFFSET 0x1c
 #define PLT128_GOT_HEADER_SIZE sizeof (plt128_got_header);
+
+#define LOAD_TARGET(ind)						\
+  /* ALS0  */ (0x79c0d980 | ind),  /* ldgdq,0 0x0, _f32s,_lts1 0x0, %qr{ind}  */ \
+  /* ALS2  */ (0x79c0d980 | (ind + 1))
 
 static const unsigned int plt128_got_primary_entry[] = 
 {
   /*   0:  */
-  /* HS    */ 0x04108022,
-  /* ALS0  */ 0x67c0d988,  /* ldgdd,0 0x0, _f32s,_lts1 0x0, %dr8  */
-  /* CS1   */ 0x00000000,  /* setwd wsz = 0x8, nfx = 0x1  */
+  /* HS    */ 0x14508033,
+  /* ALS{0,2} */ LOAD_TARGET (
+#ifndef NEW_PM_ABI
+			   8
+#else /* defined NEW_PM_ABI  */
+			   16
+#endif /* defined NEW_PM_ABI  */
+			      ),
+  /* CS1   */ 0x00000000,  /* setwd wsz = 0x{8,10}, nfx = 0x1  */
   /* ALES0 */ 0x01c00000,
+  /* LTS2  */ 0x00000000,
   /* LTS1  */ 0x00000000,
-  /* LTS0  */ 0x00000110,
+  /* LTS0  */ WSZ (
+#ifndef NEW_PM_ABI
+		   0x8
+#else /* defined NEW_PM_ABI  */
+		   0x10
+#endif /* defined NEW_PM_ABI  */
+		   ),
 
-  /*  18:  */
-  /* HS    */ 0x04000001,
-  /* ALS0  */ 0x61c088d1,  /* movtd,0 %dr8, %ctpr1  */
+#ifndef NEW_PM_ABI
+  MOVTD_TARGET (8),
+  MOVTQ_PAIR (0, 8),
+  MOVTQ_PAIR (4, 12),
+#else  /* defined NEW_PM_ABI  */
+  MOVTD_TARGET (16),
+  MOVTQ_PAIR (0, 16),
+  MOVTQ_PAIR (4, 20),
+  MOVTQ_PAIR (8, 24),
+  MOVTQ_PAIR (12, 28),
+#endif /* defined NEW_PM_ABI  */
 
-  /*  20:  */
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c08088,  /* movtq,0 %qr0, %qr8  */
-  /* ALS1  */ 0x57c08189,
-  /* ALS3  */ 0x57c0828a,  /* movtq,3 %qr2, %qr10  */
-  /* ALS4  */ 0x57c0838b,
-  /* ALES  */ 0x01c001c0,
-  /* ALES  */ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
-
-  /*  40:  */
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c0848c,  /* movtq,0 %qr4, %qr12  */
-  /* ALS1  */ 0x57c0858d,
-  /* ALS3  */ 0x57c0868e,  /* movtq,3 %qr6, %qr14  */
-  /* ALS4  */ 0x57c0878f,
-  /* ALES  */ 0x01c001c0,
-  /* ALES  */ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
-
-  /*  60:  */
   /* HS    */ 0x00009012,
   /* SS    */ 0x80000420,  /* ipd 2  */
-  /* CS1   */ 0x50000004,  /* call %ctpr1, wbs = 0x4  */
+  /* CS1   */ CALL_WBS (
+#ifndef NEW_PM_ABI
+			0x4
+#else /* defined NEW_PM_ABI  */
+			0x8
+#endif /* defined NEW_PM_ABI  */
+			),
   /* LTS0  */ 0x00000000,
 
-  /*  70:  */
   /* HS    */ 0x00005012,
   /* SS    */ 0x80000000,  /* ipd 2  */
   /* CS0   */ 0xf0000000,  /* return %ctpr3  */
   /* LTS0  */ 0x00000000,
 
+#ifndef NEW_PM_ABI
+  MOVTQ_PAIR (8, 0),
+  MOVTQ_PAIR (12, 4),
+#else /* defined NEW_PM_ABI  */
+  MOVTQ_PAIR (16, 0),
+  MOVTQ_PAIR (20, 4),
+  MOVTQ_PAIR (24, 8),
+  MOVTQ_PAIR (28, 12),
+#endif /* defined NEW_PM_ABI  */
 
-  /*  80:  */
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c08880,  /* movtq,0 %qr8, %qr0  */
-  /* ALS1  */ 0x57c08981,
-  /* ALS3  */ 0x57c08a82,  /* movtq,3 %qr10, %qr2  */
-  /* ALS4  */ 0x57c08b83,
-  /* ALES  */ 0x01c001c0,
-  /* ALES  */ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
-
-  /*  a0:  */
-  /* HS    */ 0x6db00034,
-  /* ALS0  */ 0x57c08c84,  /* movtq,0 %qr12, %qr4  */
-  /* ALS1  */ 0x57c08d85,
-  /* ALS3  */ 0x57c08e86,  /* movtq,3 %qr14, %qr6  */
-  /* ALS4  */ 0x57c08f87,
-  /* ALES  */ 0x01c001c0,
-  /* ALES  */ 0x01c001c0,
-  /* LTS0  */ 0x00000000,
-
-  /*  c0:  */
   /* HS    */ 0x00001001,
   /* SS    */ 0x80000c20,  /* ct %ctpr3  */
   /*                          ipd 2  */
 };
 
-#define PLT128_GOT_TARGET_LD_OFFSET      0x10
+#define PLT128_GOT_ENTRY_NOP_OFFSET	 0x0
+#define PLT128_GOT_TARGET_LD_OFFSET      0x18
 #define PLT128_GOT_PRIMARY_ENTRY_SIZE    sizeof (plt128_got_primary_entry)
+
+
+#define RELOC_ARG(ind)							\
+  /* ALS0  */ (0x10c0d980 | ind)  /* adds,0 0x0, _f32s,_lts1 0x12345678, %r{ind}  */
 
 static const unsigned int plt128_got_secondary_entry[] = 
 {
   /*   0:	*/
   /* HS    */ 0x0400d034,
   /* SS    */ 0x80000020,  /* ipd 2  */
-  /* ALS0  */ 0x10c0d98c,  /* adds,0 0x0, _f32s,_lts1 0x12345678, %r12  */
+  /* ALS0  */ RELOC_ARG (
+#ifndef NEW_PM_ABI
+			 12
+#else /* defined NEW_PM_ABI  */
+			 20
+#endif /* defined NEW_PM_ABI  */
+			 ),
   /* CS0   */ 0x00000000,  /* ibranch 0x0  */
-  /* CS1   */ 0x00000000,  /* setwd wsz = 0x8, nfx = 0x1  */
+  /* CS1   */ 0x00000000,  /* setwd wsz = 0x{8,10}, nfx = 0x1  */
   /* LTS2  */ 0x00000000,
   /* LTS1  */ 0x12345678,
-  /* LTS0  */ 0x00000110,
+  /* LTS0  */ WSZ (
+#ifndef NEW_PM_ABI
+		   0x8
+#else /* defined NEW_PM_ABI  */
+		   0x10
+#endif /* defined NEW_PM_ABI  */
+		   )
 };
 
 #define PLT128_GOT_DISP_OFFSET		0xc
@@ -1940,7 +2424,7 @@ static const unsigned int plt_got_secondary_entry[] =
   /*   0:	*/
   /* HS    */ 0x0400d034,
   /* SS    */ 0x80000020,  /* ipd 2  */
-  /* ALS0  */ 0x10c0d989,  /* adds,0 0x0, _f32s,_lts1 0x76543210, %r9  */
+  /* ALS0  */ 0x11c0d989,  /* addd,0 0x0, _f32s,_lts1 0x76543210, %r9  */
   /* CS0   */ 0x00000000,  /* ibranch 0x0  */
   /* CS1   */ 0x00000000,  /* setwd wsz = 0x8, nfx = 0x1  */
   /* LTS2  */ 0x00000000,
@@ -1971,9 +2455,6 @@ e2k64_plt_lazy_entry_adjust_reloc_offset (bfd *output_bfd,
 }
 
 
-
-#define ABI_64_P(abfd) \
-  (get_elf_backend_data (abfd)->s->elfclass == ELFCLASS64)
 
 /* Create an entry in an E2k ELF linker hash table.  */
 
@@ -2033,22 +2514,26 @@ _bfd_e2k_elf_link_hash_table_finalize (struct bfd_link_info *info)
       if (bfd_link_pic (info))
         {
           htab->plt_got_header = plt64_got_pic_header;
+	  htab->plt_got_header_nop_offset = PLT64_GOT_PIC_HEADER_NOP_OFFSET;
           htab->plt_got_link_map_ld_offset = PLT64_GOT_PIC_LINK_MAP_LD_OFFSET;
           htab->plt_got_dl_fixup_ld_offset = PLT64_GOT_PIC_DL_FIXUP_LD_OFFSET;
           htab->plt_got_header_size = PLT64_GOT_PIC_HEADER_SIZE;
 
           htab->plt_got_primary_entry = plt64_got_pic_primary_entry;
+	  htab->plt_got_entry_nop_offset = PLT64_GOT_PIC_ENTRY_NOP_OFFSET;
           htab->plt_got_target_ld_offset = PLT64_GOT_PIC_TARGET_LD_OFFSET;
           htab->plt_got_primary_entry_size = PLT64_GOT_PIC_PRIMARY_ENTRY_SIZE;
         }
       else
         {
           htab->plt_got_header = plt64_got_non_pic_header;
+	  htab->plt_got_header_nop_offset = PLT64_GOT_NON_PIC_HEADER_NOP_OFFSET;
           htab->plt_got_link_map_ld_offset =
             PLT64_GOT_NON_PIC_LINK_MAP_LD_OFFSET;
           htab->plt_got_header_size = PLT64_GOT_NON_PIC_HEADER_SIZE;
 
           htab->plt_got_primary_entry = plt64_got_non_pic_primary_entry;
+	  htab->plt_got_entry_nop_offset = PLT64_GOT_NON_PIC_ENTRY_NOP_OFFSET;
           htab->plt_got_target_ld_offset = PLT64_GOT_NON_PIC_TARGET_LD_OFFSET;
           htab->plt_got_primary_entry_size =
             PLT64_GOT_NON_PIC_PRIMARY_ENTRY_SIZE;
@@ -2059,22 +2544,26 @@ _bfd_e2k_elf_link_hash_table_finalize (struct bfd_link_info *info)
       if (bfd_link_pic (info))
         {
           htab->plt_got_header = plt32_got_pic_header;
+	  htab->plt_got_header_nop_offset = PLT32_GOT_PIC_HEADER_NOP_OFFSET;
           htab->plt_got_link_map_ld_offset = PLT32_GOT_PIC_LINK_MAP_LD_OFFSET;
           htab->plt_got_dl_fixup_ld_offset = PLT32_GOT_PIC_DL_FIXUP_LD_OFFSET;
           htab->plt_got_header_size = PLT32_GOT_PIC_HEADER_SIZE;
 
           htab->plt_got_primary_entry = plt32_got_pic_primary_entry;
+	  htab->plt_got_entry_nop_offset = PLT32_GOT_PIC_ENTRY_NOP_OFFSET;
           htab->plt_got_target_ld_offset = PLT32_GOT_PIC_TARGET_LD_OFFSET;
           htab->plt_got_primary_entry_size = PLT32_GOT_PIC_PRIMARY_ENTRY_SIZE;
         }
       else
         {
           htab->plt_got_header = plt32_got_non_pic_header;
+	  htab->plt_got_header_nop_offset = PLT32_GOT_NON_PIC_HEADER_NOP_OFFSET;
           htab->plt_got_link_map_ld_offset =
             PLT32_GOT_NON_PIC_LINK_MAP_LD_OFFSET;
           htab->plt_got_header_size = PLT32_GOT_NON_PIC_HEADER_SIZE;
 
           htab->plt_got_primary_entry = plt32_got_non_pic_primary_entry;
+	  htab->plt_got_entry_nop_offset = PLT32_GOT_NON_PIC_ENTRY_NOP_OFFSET;
           htab->plt_got_target_ld_offset = PLT32_GOT_NON_PIC_TARGET_LD_OFFSET;
           htab->plt_got_primary_entry_size =
             PLT32_GOT_NON_PIC_PRIMARY_ENTRY_SIZE;
@@ -2094,10 +2583,12 @@ _bfd_e2k_elf_link_hash_table_finalize (struct bfd_link_info *info)
     else /* if (ABI_PM_P (info->output_bfd))  */
     {
       htab->plt_got_header = plt128_got_header;
+      htab->plt_got_header_nop_offset = PLT128_GOT_HEADER_NOP_OFFSET;
       htab->plt_got_link_map_ld_offset = PLT128_GOT_LINK_MAP_LD_OFFSET;
       htab->plt_got_header_size = PLT128_GOT_HEADER_SIZE;
 
       htab->plt_got_primary_entry = plt128_got_primary_entry;
+      htab->plt_got_entry_nop_offset = PLT128_GOT_ENTRY_NOP_OFFSET;
       htab->plt_got_target_ld_offset = PLT128_GOT_TARGET_LD_OFFSET;
       htab->plt_got_primary_entry_size = PLT128_GOT_PRIMARY_ENTRY_SIZE;
 
@@ -2130,16 +2621,39 @@ _bfd_e2k_elf_link_hash_table_create (bfd *abfd)
   if (ret == NULL)
     return NULL;
 
+  /* FIXME: this is a bit of a duplication of _bfd_e2k_elf_init_file_header_1
+     () which is likely to be called after all input files have been opened
+     which is too late for ABI_{64,PM}_P (OUTPUT_BFD) to work properly in all
+     places of interest.  */
+  if (abfd->arch_info->mach % 4 == 2)
+    elf_elfheader (abfd)->e_flags |= EF_E2K_PM;
+
+
+  if (ELF64_P (abfd))
+    {
+      ret->r_info = e2k_elf_r_info_64;
+      ret->bytes_per_sym = sizeof (Elf64_External_Sym);
+      ret->bytes_per_rela = sizeof (Elf64_External_Rela);
+
+      ret->ancient_semantics = E2K_MPTR_64;
+    }
+  else
+    {
+      ret->r_info = e2k_elf_r_info_32;
+      ret->bytes_per_sym = sizeof (Elf32_External_Sym);
+      ret->bytes_per_rela = sizeof (Elf32_External_Rela);
+
+      ret->ancient_semantics = E2K_MPTR_32;
+    }
+
   if (ABI_64_P (abfd))
     {
       ret->put_word = e2k_put_word_64;
-      ret->r_info = e2k_elf_r_info_64;
       ret->adjust_plt_lazy_entry_reloc_offset
         = e2k64_plt_lazy_entry_adjust_reloc_offset;
       ret->word_align_power = 3;
       ret->bytes_per_word = 8;
-      ret->bytes_per_sym = sizeof (Elf64_External_Sym);
-      ret->bytes_per_rela = sizeof (Elf64_External_Rela);
+
       ret->abs_reloc = R_E2K_64_ABS;
       ret->abs_lit_reloc = R_E2K_64_ABS_LIT;
       ret->copy_reloc = R_E2K_64_COPY;
@@ -2150,18 +2664,15 @@ _bfd_e2k_elf_link_hash_table_create (bfd *abfd)
       ret->tpoff_reloc = R_E2K_TLS_TPOFF64;
       ret->jmp_slot_reloc = R_E2K_64_JMP_SLOT;
       ret->irelative_reloc = R_E2K_64_IRELATIVE;
-      ret->ancient_semantics = E2K_MPTR_64;
     }
   else
     {
       ret->put_word = e2k_put_word_32;
-      ret->r_info = e2k_elf_r_info_32;
       ret->adjust_plt_lazy_entry_reloc_offset
         = e2k32_plt_lazy_entry_adjust_reloc_offset;
       ret->word_align_power = 2;
       ret->bytes_per_word = 4;
-      ret->bytes_per_sym = sizeof (Elf32_External_Sym);
-      ret->bytes_per_rela = sizeof (Elf32_External_Rela);
+
       ret->abs_reloc = R_E2K_32_ABS;
       ret->abs_lit_reloc = R_E2K_32_ABS;
       ret->copy_reloc = R_E2K_32_COPY;
@@ -2172,7 +2683,6 @@ _bfd_e2k_elf_link_hash_table_create (bfd *abfd)
       ret->tpoff_reloc = R_E2K_TLS_TPOFF32;
       ret->jmp_slot_reloc = R_E2K_32_JMP_SLOT;
       ret->irelative_reloc = R_E2K_32_IRELATIVE;
-      ret->ancient_semantics = E2K_MPTR_32;
     }
 
   ret->gdmod_zero_off = (bfd_vma) -1;
@@ -2219,7 +2729,7 @@ _bfd_e2k_elf_create_dynamic_sections (bfd *dynobj,
 
   /* .got should be aligned to 2**4 in PM.  */
   if (ABI_PM_P (dynobj)
-      && ! bfd_set_section_alignment (dynobj, htab->elf.sgot, 4))
+      && ! bfd_set_section_alignment (htab->elf.sgot, 4))
     return FALSE;
 
   htab->sdynbss = bfd_get_linker_section (dynobj, ".dynbss");
@@ -2281,7 +2791,7 @@ search_pure_eir (bfd *abfd, asection *sec, void *no_pure_eir)
   if (strcmp (sec->name, ".pack_pure_eir") == 0)
     {
       *((bfd_boolean *) no_pure_eir) = FALSE;
-      _bfd_error_handler ("%B with '.pack_pure_eir' is illegal during "
+      _bfd_error_handler ("%pB with '.pack_pure_eir' is illegal during "
                           "non-relocatable linkage", abfd);
       bfd_set_error (bfd_error_wrong_format);
     }
@@ -2340,14 +2850,29 @@ _bfd_e2k_elf_mkobject (bfd *abfd)
    a `.gnu.warning.SYMBOL' section it calls `_bfd_generic_link_add_one_symbol
    ()' which requires all this canonicalization. */
 
-void
+bfd_boolean
 _bfd_e2k_elf_info_to_howto (bfd *abfd,
                             arelent *bfd_reloc,
                             Elf_Internal_Rela *elf_reloc)
 {
-  bfd_reloc->howto
-    = &_bfd_e2k_elf_howto_table[ELF_R_TYPE (abfd, elf_reloc->r_info)];
+  unsigned int r_type;
+  r_type = ELF_R_TYPE (abfd, elf_reloc->r_info);
 
+  if (r_type < (sizeof (_bfd_e2k_elf_howto_table)
+		/ sizeof (_bfd_e2k_elf_howto_table[0])))
+    bfd_reloc->howto = &_bfd_e2k_elf_howto_table[r_type];
+  else
+    bfd_reloc->howto = NULL;
+
+  if (bfd_reloc->howto == NULL || bfd_reloc->howto->name == NULL)
+    {
+      _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
+			  abfd, r_type);
+      bfd_set_error (bfd_error_bad_value);
+      return FALSE;
+    }
+
+  return TRUE;
 }
 
 static asection *
@@ -2470,7 +2995,7 @@ _bfd_e2k_elf_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
       && bfd_get_flavour (info->output_bfd) == bfd_target_elf_flavour
       && (ELF_ST_TYPE (sym->st_info) == STT_GNU_IFUNC
           || ELF_ST_BIND (sym->st_info) == STB_GNU_UNIQUE))
-    elf_tdata (info->output_bfd)->has_gnu_symbols = TRUE;
+    elf_tdata (info->output_bfd)->has_gnu_osabi = TRUE;
 
   /* When not linking EIR, special symbols related to sections containing EIR
      should be ignored.
@@ -2587,15 +3112,14 @@ create_ifunc_sections (bfd *abfd, struct bfd_link_info *info)
 
   s = bfd_make_section_with_flags (abfd, ".iplt", pltflags);
   if (s == NULL
-      || ! bfd_set_section_alignment (abfd, s, bed->plt_alignment))
+      || ! bfd_set_section_alignment (s, bed->plt_alignment))
     return FALSE;
   htab->iplt = s;
 
   s = bfd_make_section_with_flags (abfd, ".rela.iplt",
 				   flags | SEC_READONLY);
   if (s == NULL
-      || ! bfd_set_section_alignment (abfd, s,
-				      bed->s->log_file_align))
+      || ! bfd_set_section_alignment (s, bed->s->log_file_align))
     return FALSE;
   htab->irelplt = s;
 
@@ -2756,7 +3280,7 @@ _bfd_e2k_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
   for (; rel < rel_end; rel++)
     {
       unsigned int r_type;
-      unsigned long r_symndx;
+      unsigned int r_symndx;
       struct elf_link_hash_entry *h;
       Elf_Internal_Sym *isym;
       bfd_boolean size_reloc = FALSE;
@@ -2766,7 +3290,7 @@ _bfd_e2k_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
       if (r_symndx >= NUM_SHDR_ENTRIES (symtab_hdr))
         {
-          _bfd_error_handler (_("%B: bad symbol index: %d"),
+          _bfd_error_handler (_("%pB: bad symbol index: %d"),
                               abfd, r_symndx);
           return FALSE;
         }
@@ -2917,7 +3441,7 @@ _bfd_e2k_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
                 && (tls_type & GOT_NORMAL) != (old_tls_type & GOT_NORMAL))
               {
                 _bfd_error_handler
-                  (_("%B: `%s' accessed both as normal and thread local symbol"),
+                  (_("%pB: `%s' accessed both as normal and thread local symbol"),
                    abfd, h ? h->root.root.string : "<local>");
                 return FALSE;
               }
@@ -2928,6 +3452,7 @@ _bfd_e2k_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
               _bfd_e2k_elf_local_got_tls_type (abfd) [r_symndx] |= tls_type;
           }
 
+	  /* Fall through  */
         case R_E2K_GOTOFF:
 	case R_E2K_64_GOTOFF:
 	case R_E2K_64_GOTOFF_LIT:
@@ -2943,8 +3468,7 @@ _bfd_e2k_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	      /* .got should be aligned to 2**4 in PM.  */
 	      if (ABI_PM_P (htab->elf.dynobj)
-		  && ! bfd_set_section_alignment (htab->elf.dynobj,
-						  htab->elf.sgot, 4))
+		  && ! bfd_set_section_alignment (htab->elf.sgot, 4))
 		  return FALSE;
             }
           break;
@@ -3244,6 +3768,7 @@ _bfd_e2k_elf_gc_sweep_hook (bfd *abfd,
 		eh->gdmod.refcount -= 1;
             }
 
+	  /* Fall through  */
         case R_E2K_TLS_IE:
 	  if (h != NULL)
 	    {
@@ -3316,13 +3841,13 @@ _bfd_e2k_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
   /* If this is a weak symbol, and there is a real definition, the
      processor independent code will have arranged for us to see the
      real definition first, and we can just use the same value.  */
-  if (h->u.weakdef != NULL)
+  if (h->is_weakalias)
     {
-      BFD_ASSERT (h->u.weakdef->root.type == bfd_link_hash_defined
-		  || h->u.weakdef->root.type == bfd_link_hash_defweak);
-      h->root.u.def.section = h->u.weakdef->root.u.def.section;
-      h->root.u.def.value = h->u.weakdef->root.u.def.value;
-      h->non_got_ref = h->u.weakdef->non_got_ref;
+      struct elf_link_hash_entry *def = weakdef (h);
+      BFD_ASSERT (def->root.type == bfd_link_hash_defined);
+      h->root.u.def.section = def->root.u.def.section;
+      h->root.u.def.value = def->root.u.def.value;
+      h->non_got_ref = def->non_got_ref;
       return TRUE;
     }
 
@@ -3384,6 +3909,18 @@ _bfd_e2k_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
     }
 
   return _bfd_elf_adjust_dynamic_copy (info, h, htab->sdynbss);
+}
+
+static void
+reserve_space_for_selfinit (struct _bfd_e2k_elf_link_hash_table *htab,
+                            size_t size_of_item,
+                            size_t items,
+                            const char *name ATTRIBUTE_UNUSED)
+{
+  htab->selfinit->size += items * size_of_item;
+  // printf ("%s: %ld %s slots\n", name, items,
+  //	      size_of_item == sizeof (selfinit_ap) ? "AP" : "PL");
+  // fflush (NULL);
 }
 
 static bfd_boolean
@@ -3574,7 +4111,8 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 	     "self-initialize" the secondary PLT entry. The code will be emitted
 	     in `build_secondary_plt_entry ()'.  */
 	  if (ABI_PM_P (htab->elf.dynobj))
-	    htab->selfinit->size += sizeof (selfinit_pl);
+            reserve_space_for_selfinit (htab, sizeof (selfinit_pl), 1,
+                                        h->root.root.string);
         }
       /* We may find ourselves here, for example, if the symbol is not defined
          anywhere. What should be done then?  */
@@ -3633,6 +4171,14 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 		      against a locally resolved symbol in PM shared(?)
 		      OBFD.  */
 		   && ! (ABI_PM_P (htab->elf.dynobj)
+			 /* In a PM shared library runtime relocation can be
+			    avoided for a locally symbol only via GOT_NORMAL,
+			    not via GOT_TLS_IE, of course. The latter case is
+			    quite analogous to ordinary modes since the offset
+			    of the symbol in the static TLS block is unknown at
+			    link-time whichever mode the library is intended
+			    for.  */
+			 && types[i] == GOT_NORMAL
 			 && SYMBOL_REFERENCES_LOCAL (info, h)))
                   || (bfd_link_pic (info) && SYMBOL_REFERENCES_LOCAL (info, h)
 		      && ! ABI_PM_P (htab->elf.dynobj))))
@@ -3652,7 +4198,10 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
                   if (htab->gdmod_zero_off == (bfd_vma) -1)
                     {
                       htab->gdmod_zero_off = htab->elf.sgot->size;
-                      htab->elf.sgot->size += htab->bytes_per_word;
+                      htab->elf.sgot->size
+			+= (ABI_PM_P (htab->elf.dynobj)
+			    ? 16 : htab->bytes_per_word);
+
                       if (bfd_link_pic (info))
                         htab->elf.srelgot->size += htab->bytes_per_rela;
                     }
@@ -3661,9 +4210,11 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 	  else if (ABI_PM_P (htab->elf.dynobj))
 	    {
 	      if (eh->pm_got_type == 1)
-		htab->selfinit->size += sizeof (selfinit_ap);
+                reserve_space_for_selfinit (htab, sizeof (selfinit_ap), 1,
+                                            h->root.root.string);
 	      else if (eh->pm_got_type == 2)
-		htab->selfinit->size += sizeof (selfinit_pl);
+                reserve_space_for_selfinit (htab, sizeof (selfinit_pl), 1,
+                                            h->root.root.string);
 	    }
         }
       else
@@ -3727,7 +4278,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 	 to work properly.  */
       if (ABI_PM_P (htab->elf.dynobj)
 	  && (ELF_ST_VISIBILITY (h->other) == STV_HIDDEN
-	      || SYMBOL_REFERENCES_LOCAL (info, h)
+              || SYMBOL_REFERENCES_LOCAL (info, h)
 	      || h->forced_local)
 	  && eh->dyn_relocs != NULL)
 	goto discard_dyn_relocs;
@@ -3762,10 +4313,12 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
       if (ABI_PM_P (htab->elf.dynobj))
 	{
           for (p = eh->dyn_relocs; p != NULL; p = p->next)
-	    htab->selfinit->size
-	      += (p->count - p->pc_count) * (p->type == 1
-					     ? sizeof (selfinit_ap)
-					     : sizeof (selfinit_pl));
+            reserve_space_for_selfinit (htab,
+                                        (p->type == 1
+                                         ? sizeof (selfinit_ap)
+                                         : sizeof (selfinit_pl)),
+                                        p->count - p->pc_count,
+                                        h->root.root.string);
 	}
       eh->dyn_relocs = NULL;
 
@@ -3803,7 +4356,8 @@ finalize_plt_offsets (struct elf_link_hash_entry *h, void *inf)
       struct export_pl_list *next = htab->export_pl_list;
 
       htab->export_pl->size += 16;
-      htab->selfinit->size += sizeof (selfinit_pl);
+      reserve_space_for_selfinit (htab, sizeof (selfinit_pl), 1,
+                                  h->root.root.string);
 
       htab->export_pl_list
 	= ((struct export_pl_list *) bfd_alloc
@@ -3840,9 +4394,9 @@ readonly_dynrelocs (struct elf_link_hash_entry *h, void * inf)
 
 	  info->flags |= DF_TEXTREL;
 
-          if (info->warn_shared_textrel && bfd_link_pic (info))
-	    info->callbacks->einfo (_("%P: %B: warning: relocation against `%s' "
-                                      "in readonly section `%A'.\n"),
+          if (bfd_link_textrel_check (info))
+	    info->callbacks->einfo (_("%P: %pB: warning: relocation against `%s' "
+                                      "in readonly section `%pA'.\n"),
 				    p->sec->owner, h->root.root.string,
 				    p->sec);
 
@@ -3902,10 +4456,10 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 			  && (info->flags & DF_TEXTREL) == 0)
 			{
 			  info->flags |= DF_TEXTREL;
-			  if (info->warn_shared_textrel && bfd_link_pic (info))
+			  if (bfd_link_textrel_check (info))
 			    info->callbacks->einfo
-			      (_("%P: %B: warning: relocation in readonly "
-				 "section `%A'.\n"), p->sec->owner, p->sec);
+			      (_("%P: %pB: warning: relocation in readonly "
+				 "section `%pA'.\n"), p->sec->owner, p->sec);
 			}
 		    }
 		  else
@@ -3915,10 +4469,11 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 			 should one require dynamic relocations against local
 			 symbols in Protected Mode.  */
 		      BFD_ASSERT (p->type == 1 || p->type == 2);
-		      htab->selfinit->size
-			+= p->count * (p->type == 1
-				       ? sizeof (selfinit_ap)
-				       : sizeof (selfinit_pl));
+                      reserve_space_for_selfinit (htab,
+                                                  (p->type == 1
+                                                   ? sizeof (selfinit_ap)
+                                                   : sizeof (selfinit_pl)),
+                                                  p->count, s->name);
 		    }
 		}
 	    }
@@ -3978,7 +4533,7 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
                       && htab->gdmod_zero_off == (bfd_vma) -1)
                     {
                       htab->gdmod_zero_off = s->size;
-                      s->size += htab->bytes_per_word;
+                      s->size += ABI_PM_P (dynobj) ? 16 : htab->bytes_per_word;
                       if (bfd_link_pic (info))
                         srel->size += htab->bytes_per_rela;
                       /* I don't increase *local_relgot_cntr here intentionally
@@ -3993,7 +4548,7 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
                   if (types[i] != GOT_TLS_GDMOD)
                     {
                       *entry = s->size;
-                      s->size += htab->bytes_per_word;
+                      s->size += ABI_PM_P (dynobj) ? 16 : htab->bytes_per_word;
                     }
 
 
@@ -4026,7 +4581,7 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
   if (ABI_PM_P (htab->elf.dynobj) && bfd_link_executable (info))
     {
       htab->export_pl->size += 16;
-      htab->selfinit->size += sizeof (selfinit_pl);
+      reserve_space_for_selfinit (htab, sizeof (selfinit_pl), 1, "_start");
     }
 
   /* We now have determined the sizes of the various dynamic sections.
@@ -4036,7 +4591,7 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       if ((s->flags & SEC_LINKER_CREATED) == 0)
 	continue;
 
-      if (CONST_STRNEQ (bfd_get_section_name (dynobj, s), ".rela"))
+      if (CONST_STRNEQ (bfd_section_name (s), ".rela"))
         {
           /* We use the reloc_count field as a counter if we need
 	     to copy relocs into the output file.  */
@@ -4098,7 +4653,9 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  if (dyn.d_tag == DT_INIT || dyn.d_tag == DT_FINI)
 	    {
 	      htab->export_pl->size += 16;
-	      htab->selfinit->size += sizeof (selfinit_pl);
+              reserve_space_for_selfinit (htab, sizeof (selfinit_pl), 1,
+                                          (dyn.d_tag == DT_INIT
+                                           ? "_init" : "_fini"));
 	    }
 	}
     }
@@ -4385,10 +4942,12 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
         case R_ELCORE_S16PC_FAKE:
         case R_ELCORE_I32_FAKE:
         case R_E2K_NONE:
+	case R_E2K_64_DYNOPT:
+	case R_E2K_32_DYNOPT:
           break;
         default:
           _bfd_error_handler
-	    (_("%B: unrecognized relocation (0x%x) in section `%A'"),
+	    (_("%pB: unrecognized relocation (0x%x) in section `%pA'"),
 	     input_bfd, r_type, input_section);
 	  bfd_set_error (bfd_error_bad_value);
 	  return FALSE;
@@ -4422,6 +4981,12 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                                    h, sec, relocation,
                                    unresolved_reloc, warned, ignored);
 
+	  if (strcmp (h[0].root.root.string, "ASN1_ANY_it") == 0)
+	    {
+	      static int cntr;
+	      cntr++;
+	    }
+
           st_size = h->size;
 
           /* The following checks probably make sense for relocations against
@@ -4452,7 +5017,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
               && !eh->dsp_symbol)
             {
               info->callbacks->einfo
-                (_("%XReferencing non-DSP symbol `%s' from DSP object `%B'\n"),
+                (_("%XReferencing non-DSP symbol `%s' from DSP object `%pB'\n"),
                  h->root.root.string, input_bfd);
               /* return FALSE;  */
             }
@@ -4467,7 +5032,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                         || r_type == R_E2K_64_ABS_LIT ))
             {
               info->callbacks->einfo
-                (_("%XReferencing DSP symbol `%s' from non-DSP object `%B' "
+                (_("%XReferencing DSP symbol `%s' from non-DSP object `%pB' "
                    "via `%s' relocation. \n"), h->root.root.string, input_bfd,
                  howto->name);
               /* return FALSE; */
@@ -4676,12 +5241,14 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 			add_selfinit_ap (info, relocation, st_size, r_addend,
 					 (htab->elf.sgot->output_section->vma
 					  + htab->elf.sgot->output_offset
-					  + off));
+					  + off),
+                                         h->root.root.string);
 		      else if (r_type == R_E2K_PL_GOT)
 			add_selfinit_pl (info, relocation + r_addend,
 					 (htab->elf.sgot->output_section->vma
 					  + htab->elf.sgot->output_offset
-					  + off));
+					  + off),
+                                         h->root.root.string);
 
 
                       entry_created = TRUE;
@@ -4786,7 +5353,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                     }
 
                   _bfd_error_handler
-                    (_("%B: relocation `%s' against undefined %s `%s' can not be used when making a shared object"),
+                    (_("%pB: relocation `%s' against undefined %s `%s' can not be used when making a shared object"),
                      input_bfd, howto->name, v, h->root.root.string);
                   bfd_set_error (bfd_error_bad_value);
                   return FALSE;
@@ -4797,7 +5364,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                        && ELF_ST_VISIBILITY (h->other) == STV_PROTECTED)
 		{
 		  _bfd_error_handler
-		    (_("%B: relocation `%s' against protected %s `%s' can not be used when making a shared object"),
+		    (_("%pB: relocation `%s' against protected %s `%s' can not be used when making a shared object"),
 		     input_bfd,
 		     howto->name,
 		     h->type == STT_FUNC ? "function" : "data",
@@ -4876,8 +5443,8 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
           relocation -= (input_section->output_section->vma
                          + input_section->output_offset
                          + rel->r_offset);
-          /* Fall through  */
 
+          /* Fall through  */
         case R_E2K_64_ABS_LIT:
         process_r_e2k_64_abs_lit:
           relocation += r_addend;
@@ -4891,8 +5458,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
               break;
             }
 
-          /* Otherwise fall through  */
-
+          /* Fall through  */
         case R_E2K_32_ABS:
         case R_E2K_64_ABS:
 	case R_E2K_AP:
@@ -4960,7 +5526,19 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 	      if (ABI_PM_P (input_bfd)
 		  && (h == NULL
 		      || h->dynindx == -1
-		      || SYMBOLIC_BIND (info, h)))
+		      /* SYMBOLIC_BIND itself does NOT imply the presence
+			 of the symbol's definition required to build self-
+			 initialization code. If the symbol was NOT defined in
+			 an input object file space for its self-init code might
+			 not have been allocated before, which would trigger an
+			 assertion failure if one tried to emit this code here
+			 (Bug #127084). Note that h->def_regular is likely to be
+			 set for COMMON and defined weak symbols as well, but is
+			 NOT set for undefined weaks not(?) requiring self-
+			 initialization in dynamic case (ld.so is capable of
+			 creating NULL itself).  */
+		      || (SYMBOLIC_BIND (info, h)
+			  && h->def_regular)))
 		{
 		  /* What could be a useless (in case `skip == 1') selfinit
 		     code sequence, used instead of a relative relocaton in PM,
@@ -5069,11 +5647,13 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 			     + input_section->output_offset);
 
 	      if (r_type == R_E2K_AP)
-		add_selfinit_ap (info, relocation, st_size, r_addend, targ_off);
+		add_selfinit_ap (info, relocation, st_size, r_addend, targ_off,
+                                 h ? h->root.root.string : sec->name);
 	      else
 		{
 		  BFD_ASSERT (r_type == R_E2K_PL);
-		  add_selfinit_pl (info, relocation + r_addend, targ_off);
+		  add_selfinit_pl (info, relocation + r_addend, targ_off,
+                                   h ? h->root.root.string : sec->name);
 		}
 	    }
           else if (r_type == R_E2K_64_ABS_LIT)
@@ -5223,8 +5803,10 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
             relocation = (htab->elf.sgot->output_section->vma
                           + htab->elf.sgot->output_offset
                           + off
-                          - htab->elf.sgotplt->output_section->vma
-                          - htab->elf.sgotplt->output_offset);
+			  - (ABI_PM_P (input_bfd)
+			     ? 0
+			     : (htab->elf.sgotplt->output_section->vma
+				+ htab->elf.sgotplt->output_offset)));
           }
           break;
 
@@ -5257,6 +5839,18 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
         case R_E2K_ISLOCAL32:
           relocation = SYMBOL_CALLS_LOCAL (info, h) ? 0x1 : 0x0;
           break;
+
+	case R_E2K_32_DYNOPT:
+	case R_E2K_64_DYNOPT:
+	  /* According to the purpose of @DYNOPT expressed in Bug #117734,
+	     Comment #11 leave relocation intact for local ELF symbols and
+	     those global ones which are sure to be defined in the same
+	     compilation unit, otherwise zero it out.  */
+	  if (h != NULL
+	      && (h->root.type != bfd_link_hash_defined
+		  || h->root.u.def.section->owner != input_bfd))
+	    relocation = 0;
+	  break;
 
         case R_ELCORE_NONE:
         case R_ELCORE_I5:
@@ -5319,9 +5913,43 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
       if (r_type == R_E2K_AP || r_type == R_E2K_PL)
 	continue;
 
+      bfd_boolean restore_output_section_vma = FALSE;
+      bfd_vma saved_output_section_vma;
+      /* Do not adjust relocations having other meanings than offset by
+	 mistake. Are all of them taken into account below?  */
+      if (ABI_PM_P (input_bfd)
+	  && (input_section->flags & SEC_ALLOC) != 0 /* ???  */
+	  /* What else relocations operate on offsets in CUD and GD?  */
+	  && (((r_type == R_E2K_32_ABS
+		|| r_type == R_E2K_DISP)
+	       && ! (h != NULL
+		     && h->root.type == bfd_link_hash_defined
+		     && bfd_is_abs_section (h->root.u.def.section)))
+	      /* For these relocations the offset (i.e. with respect to GD.base)
+		 of a .got entry is evaluated here. It obviously needs to be
+		 adjusted no matter if the target symbol is absolute or not.  */
+	      || r_type == R_E2K_AP_GOT
+	      || r_type == R_E2K_PL_GOT
+	      || r_type == R_E2K_TLS_IE
+	      || r_type == R_E2K_TLS_GDMOD
+	      || r_type == R_E2K_TLS_GDREL
+	      || r_type == R_E2K_32_PC))
+	{
+	  /* All this idiotism is required for PC-relative relocations to be
+	     performed properly in "packed mode".  */
+	  saved_output_section_vma = input_section->output_section->vma;
+	  input_section->output_section->vma
+	    = adjust_offset_in_cud_gd (info, saved_output_section_vma);
+	  restore_output_section_vma = TRUE;
+	  relocation = adjust_offset_in_cud_gd (info, relocation);
+	}
+
       r = _bfd_final_link_relocate (howto, input_bfd, input_section,
 				    contents, rel->r_offset,
                                     relocation, r_addend);
+
+      if (restore_output_section_vma)
+	input_section->output_section->vma = saved_output_section_vma;
 
       if (r != bfd_reloc_ok)
 	{
@@ -5337,7 +5965,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 	      if (name == NULL)
 		return FALSE;
 	      if (*name == '\0')
-		name = bfd_section_name (input_bfd, sec);
+		name = bfd_section_name (sec);
 	    }
 
 	  if (r == bfd_reloc_overflow)
@@ -5350,7 +5978,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 	  else
 	    {
 	      _bfd_error_handler
-		(_("%B(%A+0x%lx): reloc against `%s': error %d"),
+		(_("%pB(%pA+0x%lx): reloc against `%s': error %d"),
 		 input_bfd, input_section,
 		 (long) rel->r_offset, name, (int) r);
 	      return FALSE;
@@ -5426,7 +6054,8 @@ _bfd_e2k_elf_finish_dynamic_symbol (bfd *output_bfd,
   if (secondary_plt_idx (h) != (bfd_vma) -1)
     {
       build_secondary_plt_entry (info, secondary_plt_offset (h, htab),
-                                 gotplt_offset, &rela.r_offset);
+                                 gotplt_offset, &rela.r_offset,
+                                 h->root.root.string);
     }
 
   if (secondary_plt_idx (h) != (bfd_vma) -1)
@@ -5643,9 +6272,16 @@ e2k_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
 		    || h->root.type == bfd_link_hash_defweak))
 	      {
 		asection *o = h->root.u.def.section;
-		dyn.d_un.d_val = (h->root.u.def.value
-				  + o->output_section->vma
-				  + o->output_offset);
+		dyn.d_un.d_val
+		  = (adjust_offset_in_cud_gd (info,
+					      (h->root.u.def.value
+					       + o->output_section->vma
+					       + o->output_offset
+					       /* Ensures that address of "_end"
+						  fits within the range.  */
+					       - 1))
+		     /* Account for -1 hack above.  */
+		     + 1);
 		bed->s->swap_dyn_out (output_bfd, &dyn, dyncon);
 	      }
 	    else
@@ -5703,11 +6339,12 @@ e2k_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
 	     shared libraries.  */
 	  if (ABI_PM_P (dynobj))
 	    {
-	      add_selfinit_pl (info, dyn.d_un.d_ptr, *export_pl_off);
+	      add_selfinit_pl (info, dyn.d_un.d_ptr, *export_pl_off,
+                               dyn.d_tag == DT_INIT ? "_init" : "_fini");
 	      *export_pl_off += 16;
 	    }
 
-	  /* Fall through.  */
+	  /* Fall through  */
 
         default:
           name = NULL;
@@ -5833,6 +6470,29 @@ _bfd_e2k_elf_finish_dynamic_sections (bfd *output_bfd,
       asection *splt;
       asection *sgotplt;
 
+      unsigned long omach = bfd_get_mach (output_bfd) / 4;;
+
+      /* Until support for specific elbrus-v6 machines has been added I can
+	 check it this way. Note that `>= 6' can't be used here because
+	 specific machines (say, elbrus-{8c,1c+} for elbrus-v4) are marked
+	 with numbers exceeding the maximal possible iset  version.  */
+
+      /* Take into account that delay between load and its consumer has been
+	 increased from 3 to 5 ticks starting from elbrus-v6 (see Bug #112004,
+	 Comment #8).  */
+      unsigned int nops = ((omach == bfd_mach_e2k_ev6
+			    || omach == bfd_mach_e2k_12c
+			    || omach == bfd_mach_e2k_16c
+			    || omach == bfd_mach_e2k_2c3) ? 4 : 2);
+
+      unsigned int hs_nop =
+	htab->plt_got_header[htab->plt_got_header_nop_offset / 4];
+
+      /* Adjust HS.nop according to the aforesaid.  */
+      hs_nop = (hs_nop & 0xfffffc7fu) | (nops << 7);
+      bfd_put_32 (output_bfd, hs_nop,
+		  htab->elf.splt->contents + htab->plt_got_header_nop_offset);
+
       // BFD_ASSERT (htab->elf.splt->size >= htab->plt_lazy_header_size);
 
       splt = htab->elf.splt;
@@ -5867,8 +6527,10 @@ _bfd_e2k_elf_finish_dynamic_sections (bfd *output_bfd,
 	     means of specifying `size_of_PLT_entry' for SRC1 and the same
 	     32-bit LTS for SRC2 for another load within the same wide
 	     instruction.  */
-          bfd_vma addr = (sgotplt->output_section->vma + sgotplt->output_offset
-                          + starting_got_entry_size);
+          bfd_vma addr = adjust_offset_in_cud_gd (info,
+						  (sgotplt->output_section->vma
+						   + sgotplt->output_offset
+						   + starting_got_entry_size));
           unsigned int ld_offset = htab->plt_got_link_map_ld_offset;
 
           if (ABI_64_P (output_bfd))
@@ -5891,7 +6553,11 @@ _bfd_e2k_elf_finish_dynamic_sections (bfd *output_bfd,
       const struct elf_backend_data *bed = get_elf_backend_data (output_bfd);
       BFD_ASSERT (htab->elf.sgotplt->size >= bed->got_header_size);
 
-      val = sdyn ? sdyn->output_section->vma + sdyn->output_offset : 0;
+      val = (sdyn
+	     ? adjust_offset_in_cud_gd (info,
+					(sdyn->output_section->vma
+					 + sdyn->output_offset))
+	     : 0);
       htab->put_word (output_bfd, val, htab->elf.sgotplt->contents);
 
       /* The second and the third entries will be filled in by ld.so with the
@@ -5914,7 +6580,7 @@ _bfd_e2k_elf_finish_dynamic_sections (bfd *output_bfd,
 	      bfd_vma addr = (s->output_section->vma
 			      + s->output_offset
 			      + e->h->root.u.def.value);
-	      add_selfinit_pl (info, addr, targ_off);
+	      add_selfinit_pl (info, addr, targ_off, e->h->root.root.string);
 	      targ_off += 16;
 	    }
 
@@ -5923,7 +6589,7 @@ _bfd_e2k_elf_finish_dynamic_sections (bfd *output_bfd,
 	     executable.  */
 	  if (bfd_link_executable (info))
 	    add_selfinit_pl (info, bfd_get_start_address (output_bfd),
-			     targ_off);
+			     targ_off, "_start");
 	}
     }
 
@@ -5973,11 +6639,9 @@ _bfd_e2k_elf_object_p_1 (bfd *abfd,
     }
   else
     {
-#if 0
       if ((!protected_mode && (i_ehdrp->e_flags & EF_E2K_PM) != 0)
           || (protected_mode && (i_ehdrp->e_flags & EF_E2K_PM) != EF_E2K_PM))
         return FALSE;
-#endif /* 0  */
 
       pm = (i_ehdrp->e_flags & EF_E2K_PM) == EF_E2K_PM;
       mach = EF_E2K_FLAG_TO_MACH (i_ehdrp->e_flags);
@@ -5985,7 +6649,7 @@ _bfd_e2k_elf_object_p_1 (bfd *abfd,
 
 
   /* Information about ABI is encoded into machine number nowadays.  */
-  mach *= 3;
+  mach *= 4;
   if (pm)
     mach += 2;
   else if (! ABI_64_P (abfd))
@@ -6054,6 +6718,26 @@ _bfd_e2k_elf_link_setup_gnu_properties (struct bfd_link_info *info)
        `.text.selfinit' and `.data.export_pl' sections.  */
   if (htab->elf.dynobj && ABI_PM_P (htab->elf.dynobj))
     {
+      /* Now that "_end" is defined conditionally (i.e. via PROVIDE ()) in
+         shared libraries we need to refer to it so as not to be left without
+         its definition when it comes to setting the value of DT_PLTGOTSZ. Note
+         that it seems to be too late to take care of that both in `{size,
+         finish}_dynamic_sections ()', but quite OK to do this here.  */
+      if (bfd_link_dll (info)
+          /* This should prevent us from creating a reference if "_end" has
+             already been referred to from an input relocatable object. FIXME:
+             can't this happen after we create a reference here? Aren't the two
+             references going to interfere in some unpredictable way?  */
+          && elf_link_hash_lookup (elf_hash_table (info), "_end", FALSE,
+                                   FALSE, TRUE) == NULL)
+        {
+          if (! _bfd_generic_link_add_one_symbol (info, htab->elf.dynobj,
+                                                  "_end", 0,
+                                                  bfd_und_section_ptr, 0,
+                                                  NULL, FALSE, FALSE,
+                                                  NULL))
+            return FALSE;
+        }
       /* FIXME: the use of `bfd_make_section ()' here results in a section
 	 filled in with zeroes despite the fact that I allocate its contents
 	 and set it up appropriately.  */
@@ -6068,31 +6752,43 @@ _bfd_e2k_elf_link_setup_gnu_properties (struct bfd_link_info *info)
 	 (SEC_LINKER_CREATED | SEC_HAS_CONTENTS));
 
       /* Ensure that ".data.export_pl" is appropriately aligned in PM.  */
-      if (!bfd_set_section_alignment (htab->elf.dynobj, htab->export_pl, 4))
-	info->callbacks->einfo (_("%F%A: failed to align section\n"),
+      if (!bfd_set_section_alignment (htab->export_pl, 4))
+	info->callbacks->einfo (_("%F%pA: failed to align section\n"),
 				htab->export_pl);
-
+	
       htab->export_pl->size = 0;
     }
 
   return pbfd;
 }
 
+struct plt_symbol_indices
+{
+  int *rel_indices;
+};
+
 static bfd_vma *
 _bfd_e2k_elf_plt_sym_val (bfd *abfd,
                           asymbol **dynsyms,
                           asection *plt,
 			  asection *relplt,
-                          int kind)
+                          int kind,
+			  void *dummy)
 {
   bfd_boolean (*slurp_relocs) (bfd *, asection *, asymbol **, bfd_boolean);
-  arelent *rel;
-  asection *got;
-  bfd_byte *got_contents;
+  asection *got = NULL;
+  bfd_byte *got_contents = NULL;
   bfd_byte *plt_contents = plt->contents;
   long i, count;
+  long j;
   bfd_vma *plt_sym_val;
   Elf_Internal_Shdr *hdr;
+  bfd_vma off;
+  bfd_boolean abi64 = ABI_64_P (plt->owner);
+  bfd_vma addr_in_got;
+  int max_plt_entries_num;
+  int *plt_rel_idx;
+  arelent *rel = relplt->relocation;
 
   if (plt_contents == NULL)
     {
@@ -6117,6 +6813,8 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
 
   if (kind == 1)
     {
+      /* .got is required only for calculation of "@secondary_plt" synthetic
+	 symbols.  */
       got = bfd_get_section_by_name (abfd, ".got");
       got_contents = got->contents;
       if (got_contents == NULL)
@@ -6141,137 +6839,252 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
     return NULL;
 
   hdr = &elf_section_data (relplt)->this_hdr;
+  /* The number of relocations in .rela.plt for `kind == {0,1}' and in
+     .rela.dyn for `kind == 2'.  */
   count = relplt->size / hdr->sh_entsize;
 
   plt_sym_val = (bfd_vma *) bfd_malloc (sizeof (bfd_vma) * count);
   if (plt_sym_val == NULL)
     return NULL;
 
+  if (kind == 0)
+    {
+      /* Allocate array storing relocation indices matching primary PLT entries
+	 in the assumption that there are at most 8 entries for now. It'll be
+	 reallocated later if needed.  */
+      max_plt_entries_num = 8;
+      plt_rel_idx = (int *) bfd_malloc (max_plt_entries_num * sizeof (int));
+      if (plt_rel_idx == NULL)
+	{
+	  free (plt_sym_val);
+	  return NULL;
+	}
+    }
+  else
+    {
+      /* Use the array prepared during invocation with KIND == 0.  */
+      struct plt_symbol_indices *plt_inds
+	= (struct plt_symbol_indices *) dummy;
+      plt_rel_idx = plt_inds->rel_indices;
+    }
+
+
+  /* -1 means that no symbol of KIND matching the i-th relocation entry has
+     been found.  */
   for (i = 0; i < count; i++)
     plt_sym_val[i] = -1;
 
-  rel = relplt->relocation;
-  for (i = 0; i < count; i++, rel++)
+
+  for (off = 0, j = 0; off < plt->size;)
     {
-      bfd_vma off;
-      bfd_boolean abi64 = ABI_64_P (plt->owner);
+      bfd_vma next_off;
+      bfd_vma hs = H_GET_32 (plt->owner, plt_contents + off);
 
-      for (off = 0; off < plt->size;)
-        {
-          bfd_vma next_off;
-          bfd_vma hs = H_GET_32 (plt->owner, plt_contents + off);
+      /* Secondary PLT entries are shared between 32/64-bit modes. Skip a
+	 new-style secondary PLT entry.  */
+      if (hs == plt_got_secondary_entry[0])
+	{
+	  off += 0x20;
+	  continue;
+	}
+      /* Skip an old-style secondary PLT entry. It's not used within this
+	 backend anywhere except for this point, therefore an immediate
+	 value for it is used in the comparison below.  */
+      else if (hs == 0x0400c023)
+	{
+	  off += 0x20;
+	  continue;
+	}
+      else if (abi64)
+	{
+	  /* Skip PIC and non-PIC PLT headers.  */
+	  if (hs == plt64_got_non_pic_header[0])
+	    {
+	      off += sizeof (plt64_got_non_pic_header);
+	      continue;
+	    }
+	  else if ((hs & 0xfffffc7f)
+		   == (plt64_got_pic_header[0] & 0xfffffc7f))
+	    {
+	      off += sizeof (plt64_got_pic_header);
+	      continue;
+	    }
+	  /* This is a primary PLT entry which the address of the related entry
+	     in .got may be extracted from and thereby the correspondence with
+	     the dynamic relocation be established.  */
+	  else if (hs == plt64_got_non_pic_primary_entry[0]
+		   || ((hs & 0xfffffc7f)
+		       == (plt64_got_pic_primary_entry[0] & 0xfffffc7f)))
+	    {
+	      /* Handle non-PIC primary PLT entry.  */
+	      if (hs == plt64_got_non_pic_primary_entry[0])
+		{
+		  addr_in_got = ((H_GET_32 (plt->owner,
+					    plt_contents + off + 12) << 32)
+				 + H_GET_32 (plt->owner,
+					     plt_contents + off + 16));
+		  next_off = off + sizeof (plt64_got_non_pic_primary_entry);
+		}
+	      else
+		/* Process PIC one.  */
+		{
+		  addr_in_got = plt->vma + off;
+		  addr_in_got += (int) H_GET_32 (plt->owner,
+						 plt_contents + off + 36);
+		  next_off = off + sizeof (plt64_got_pic_primary_entry);
+		}
+	    }
+	  /* PLT is damaged and can't be parsed to the end. Let the caller
+	     benefit from partial results of our job. Note that for subsequent
+	     KINDs we should break here as well, which is why there is no risk
+	     of violating plt_rel_idx[] boundaries.  */
+	  else
+	    return plt_sym_val;
+	}
+      else /* if (!abi64)  */
+	{
+	  /* Skip PIC and non-PIC PLT headers.  */
+	  if (hs == plt32_got_non_pic_header[0])
+	    {
+	      off += sizeof (plt32_got_non_pic_header);
+	      continue;
+	    }
+	  else if ((hs & 0xfffffc7f)
+		   == (plt32_got_pic_header[0] & 0xfffffc7f))
+	    {
+	      off += sizeof (plt32_got_pic_header);
+	      continue;
+	    }
+	  /* This is a primary PLT entry which the address of the related entry
+	     in .got may be extracted from and thereby the correspondence with
+	     the dynamic relocation be established.  */
+	  else if (hs == plt32_got_non_pic_primary_entry[0]
+		   || ((hs & 0xfffffc7f)
+		       == (plt32_got_pic_primary_entry[0] & 0xfffffc7f)))
+	    {
+	      /* Handle non-PIC primary PLT entry.  */
+	      if (hs == plt32_got_non_pic_primary_entry[0])
+		{
+		  addr_in_got = H_GET_32 (plt->owner,
+					  plt_contents + off + 16);
+		  next_off = off + sizeof (plt32_got_non_pic_primary_entry);
+		}
+	      /* Process PIC one.  */
+	      else
+		{
+		  addr_in_got = plt->vma + off;
+		  addr_in_got += (int) H_GET_32 (plt->owner,
+						 plt_contents + off + 36);
+		  next_off = off + sizeof (plt32_got_pic_primary_entry);
+		}
+	    }
+	  /* PLT is damaged and can't be parsed to the end. Let the caller
+	     benefit from partial results of our job. Note that for subsequent
+	     KINDs we should break here as well, which is why there is no risk
+	     of violating plt_rel_idx[] boundaries.  */
+	  else
+	    return plt_sym_val;
+	}
 
-          /* Secondary PLT entries are shared between 32/64-bit modes. Skip a
-             new-style secondary PLT entry.  */
-          if (hs == plt_got_secondary_entry[0])
-            off += 0x20;
-          /* Skip an old-style secondary PLT entry. It's not used within this
-             backend anywhere except for this point, therefore an immediate
-             value for it is used in the comparison below.  */
-          else if (hs == 0x0400c023)
-            off += 0x20;
-          else if (abi64)
-            {
-              if (hs == plt64_got_non_pic_header[0])
-                off += sizeof (plt64_got_non_pic_header);
-              else if ((hs & 0xfffffc7f)
-                       == (plt64_got_pic_header[0] & 0xfffffc7f))
-                off += sizeof (plt64_got_pic_header);
-              else if (hs == plt64_got_non_pic_primary_entry[0]
-                       || ((hs & 0xfffffc7f)
-                           == (plt64_got_pic_primary_entry[0] & 0xfffffc7f)))
-                {
-                  /* Handle non-PIC primary PLT entry.  */
-                  bfd_vma addr_in_got;
+      /* We are looking for either "@plt" or "@plt.got" symbol matching the
+	 currently processed primary PLT entry. Searching the latter makes
+	 sense only if the former hasn't been found, since there should be no
+	 .rela.dyn and .rela.plt dynamic relocations corresponding to the same
+	 primary PLT entry. This saves one the trouble of iterating through a
+	 potentially huge .rela.dyn for most hopeless primary PLT entries.*/
+      if (kind == 0
+	  || (kind == 2
+	      /* If there's .rela.dyn but no .rela.plt in ABFD this function
+		 may be called with KIND == 2 only, in which case there's no
+		 `plt_rel_idx[]'.  */
+	      && (plt_rel_idx == NULL
+		  || plt_rel_idx[j] == -1)))
+	{
+	  if (kind == 0 && j == max_plt_entries_num)
+	    {
+	      /* There are more primary PLT entries than one supposed.  */
+	      max_plt_entries_num *= 2;
+	      plt_rel_idx = bfd_realloc (plt_rel_idx,
+					 max_plt_entries_num * sizeof (int));
+	      if (plt_rel_idx == NULL)
+		{
+		  free (plt_sym_val);
+		  return NULL;
+		}
+	    }
 
-                  if (hs == plt64_got_non_pic_primary_entry[0])
-                    {
-                      addr_in_got = ((H_GET_32 (plt->owner,
-                                                plt_contents + off + 12) << 32)
-                                     + H_GET_32 (plt->owner,
-                                                 plt_contents + off + 16));
-                      next_off = off + sizeof (plt64_got_non_pic_primary_entry);
-                    }
-                  else
-                    {
-                      addr_in_got = plt->vma + off;
-                      addr_in_got += (int) H_GET_32 (plt->owner,
-                                                     plt_contents + off + 36);
-                      next_off = off + sizeof (plt64_got_pic_primary_entry);
-                    }
+	  /* Look for the matching dynamic relocation in `.rela.{plt,dyn}'
+	     starting from the index next to the previous hit in hope that
+	     primary PLT entries have more or less the same order as their
+	     matching relocations.  */
+	  for (i = 0; i < count; i++, rel++)
+	    {
+	      /* Resume from the beginning if the upper boundary has been
+		 crossed.  */
+	      if (rel == relplt->relocation + count)
+		rel = relplt->relocation;
 
-                  if (addr_in_got == rel->address)
-                    {
-                      if (kind == 0 || kind == 2)
-                        {
-                          plt_sym_val[i] = plt->vma + off;
-                          break;
-                        }
-                      else if (addr_in_got >= got->vma
-                               && addr_in_got < got->vma + got->size)
-                        {
-                          plt_sym_val[i]
-                            = H_GET_64 (got->owner,
-                                        got_contents + addr_in_got - got->vma);
-                          break;
-                        }
-                    }
+	      if (addr_in_got == rel->address)
+		{
+		  int k = rel - relplt->relocation;
+		  plt_sym_val[k] = plt->vma + off;
 
-                  off = next_off;
-                }
-              else
-                return NULL;
-            }
-          else /* if (!abi64)  */
-            {
-              if (hs == plt32_got_non_pic_header[0])
-                off += sizeof (plt32_got_non_pic_header);
-              else if ((hs & 0xfffffc7f)
-                       == (plt32_got_pic_header[0] & 0xfffffc7f))
-                off += sizeof (plt32_got_pic_header);
-              else if (hs == plt32_got_non_pic_primary_entry[0]
-                       || ((hs & 0xfffffc7f)
-                           == (plt32_got_pic_primary_entry[0] & 0xfffffc7f)))
-                {
-                  bfd_vma addr_in_got;
+		  /* Save the index of the matching .rela.plt entry. There's no
+		     point in doing so when processing .rela.dyn as there'll be
+		     no subsequent invocations.  */
+		  if (kind == 0)
+		    plt_rel_idx[j] = k;
 
-                  if (hs == plt32_got_non_pic_primary_entry[0])
-                    {
-                      addr_in_got = H_GET_32 (plt->owner,
-                                              plt_contents + off + 16);
-                      next_off = off + sizeof (plt32_got_non_pic_primary_entry);
-                    }
-                  else
-                    {
-                      addr_in_got = plt->vma + off;
-                      addr_in_got += (int) H_GET_32 (plt->owner,
-                                                     plt_contents + off + 36);
-                      next_off = off + sizeof (plt32_got_pic_primary_entry);
-                    }
+		  /* Ensure that the search for the relocation matching the
+		     next primary PLT entry starts from the next one in
+		     `.rela.{plt,dyn}'.  */
+		  rel++;
+		  break;
+		}
+	    }
 
-                  if (addr_in_got == rel->address)
-                    {
-                      if (kind == 0 || kind == 2)
-                        {
-                          plt_sym_val[i] = plt->vma + off;
-                          break;
-                        }
-                      else if (addr_in_got >= got->vma
-                               && addr_in_got < got->vma + got->size)
-                        {
-                          plt_sym_val[i]
-                            = H_GET_32 (got->owner,
-                                        got_contents + addr_in_got - got->vma);
-                          break;
-                        }
-                    }
+	  /* No .rela.plt relocation matching this primary PLT entry has
+	     been found. Make it clear that one may hope to find the one
+	     in .rela.dyn.  */
+	  if (kind == 0 && i == count)
+	    plt_rel_idx[j] = -1;
+	}
+      /* "@secondary_plt" symbol may exist only if the related "@plt"
+	 one does. */
+      else if (kind == 1 && plt_rel_idx[j] != -1)
+	{
+	  /* There is no point in looking for its relocation index as it
+	     coincides with the one of the "@plt" one. As for its address
+	     it's read from .got.  */
+	  if (addr_in_got >= got->vma
+	      && addr_in_got < got->vma + got->size)
+	    {
+	      bfd_vma secondary_plt_vma;
+#define H_GET_XX(o, p) abi64 ? H_GET_64 (o, p) : H_GET_32 (o, p)
+		secondary_plt_vma
+		  = H_GET_XX (got->owner,
+			      got_contents + addr_in_got - got->vma);
+#undef H_GET_XX
+		/* Ensure that the obtained "@secondary_plt" symbol's address
+		   does actually belong to .plt to be on the safe side.  */
+		if (secondary_plt_vma >= plt->vma
+		    && secondary_plt_vma < plt->vma + plt->size)
+		  plt_sym_val[plt_rel_idx[j]] = secondary_plt_vma;
+	    }
+	}
 
-                  off = next_off;
-                }
-              else
-                return NULL;
-            }
-        }
+      /* Proceed to the next J'th anticipated primary PLT entry which may be
+	 located at NEXT_OFF or further.  */
+      j++;
+      off = next_off;
+    }
+
+  /* Save plt_rel_idx[] for subsequent invocations.  */
+  if (kind == 0)
+    {
+      struct plt_symbol_indices *plt_inds
+	= (struct plt_symbol_indices *) dummy;
+      plt_inds->rel_indices = plt_rel_idx;
     }
 
   return plt_sym_val;
@@ -6294,6 +7107,11 @@ _bfd_e2k_elf_get_synthetic_symtab (bfd *abfd,
   size_t size;
   char *names;
   long n;
+  struct plt_symbol_indices plt_sym_ind;
+
+  /* This may remain uninitialized if `_bfd_e2k_elf_plt_sym_val ()' is not
+     called, for example, if there's no PLT in the disassembled file.  */
+  plt_sym_ind.rel_indices = NULL;
 
   for (i = 0; i < 3; i++)
     {
@@ -6302,8 +7120,13 @@ _bfd_e2k_elf_get_synthetic_symtab (bfd *abfd,
          &sarr[i], plt,
          /* Primary or secondary PLT entry or `plt.got' entry.  */
          i,
+	 &plt_sym_ind,
          & _bfd_e2k_elf_plt_sym_val);
     }
+
+  /* Free it only if it has really been allocated.  */
+  if (plt_sym_ind.rel_indices)
+    free (plt_sym_ind.rel_indices);
 
   if (res[0] == -1 && res[1] == -1 && res[2] == -1)
     return -1;
@@ -6357,10 +7180,9 @@ _bfd_e2k_elf_get_synthetic_symtab (bfd *abfd,
 
 
 
-void
-_bfd_e2k_elf_post_process_headers_1 (bfd *abfd,
-                                     struct bfd_link_info *info,
-                                     bfd_boolean protected_mode ATTRIBUTE_UNUSED)
+bfd_boolean
+_bfd_e2k_elf_init_file_header (bfd *abfd,
+			       struct bfd_link_info *info)
 {
   Elf_Internal_Ehdr *i_ehdrp;
   unsigned int mach;
@@ -6368,7 +7190,7 @@ _bfd_e2k_elf_post_process_headers_1 (bfd *abfd,
   i_ehdrp = elf_elfheader (abfd);
 
   /* Filter out info concerning ABI.  */
-  mach = bfd_get_mach (abfd) / 3;
+  mach = bfd_get_mach (abfd) / 4;
 
   /* Presumably this function is useless when called either by OBJCOPY or
      STRIP because all `e_flags' should be converted via the `copy_private
@@ -6382,7 +7204,7 @@ _bfd_e2k_elf_post_process_headers_1 (bfd *abfd,
       if (output_new_e_machine)
         goto set_elf_osabi;
 
-      return;
+      return TRUE;
     }
 
   /* These flags are the same both for EM_E2K_OLD and EM_MCST_ELBRUS. I guess
@@ -6412,7 +7234,7 @@ _bfd_e2k_elf_post_process_headers_1 (bfd *abfd,
       if (_bfd_e2k_elf_hash_table (info))
         {
           /* In protected mode set an ancient PM semantic == 5.  */
-          if (abfd->arch_info->mach % 3 == 2)
+          if (abfd->arch_info->mach % 4 == 2)
             i_ehdrp->e_ident[7] = 5;
           else
             {
@@ -6432,22 +7254,22 @@ _bfd_e2k_elf_post_process_headers_1 (bfd *abfd,
     set_elf_osabi:
       i_ehdrp->e_flags |= EF_E2K_MACH_TO_FLAG (mach);
 
-      if (abfd->arch_info->mach % 3 == 2)
-        i_ehdrp->e_flags |= EF_E2K_PM;
+      if (abfd->arch_info->mach % 4 == 2)
+	{
+	  i_ehdrp->e_flags |= EF_E2K_PM;
+	  if (pack_cud_gd)
+	    i_ehdrp->e_flags |= EF_E2K_PACK_SEGMENTS;
+	}
 
       /* This sets e_ident[EI_OSABI == 7] in ELF header only. Nevertheless I
          wonder how I managed to do without it when creating new-style ELFs
          via binutils-2.18. Probably it worked because ELFOSABI_NONE, which is
          set by default, equals to zero.  */
-      _bfd_elf_post_process_headers (abfd, info);
+      if (! _bfd_elf_init_file_header (abfd, info))
+	return FALSE;
     }
-}
 
-void
-_bfd_e2k_elf_post_process_headers (bfd *abfd,
-                                   struct bfd_link_info *info)
-{
-  _bfd_e2k_elf_post_process_headers_1 (abfd, info, FALSE);
+  return TRUE;
 }
 
 bfd_boolean
@@ -6486,8 +7308,8 @@ _bfd_e2k_elf_copy_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
           if (iflags & EF_E2K_INCOMPAT)
             {
               _bfd_error_handler
-                (_("New style object %B with `EF_E2K_INCOMPAT' flag cannot be "
-                   "converted to an old style %B"), ibfd, obfd);
+                (_("New style object %pB with `EF_E2K_INCOMPAT' flag cannot be "
+                   "converted to an old style %pB"), ibfd, obfd);
               return FALSE;
             }
 
@@ -6800,7 +7622,7 @@ _bfd_e2k_elf_check_directives (bfd *abfd, struct bfd_link_info *info)
           asection *s;
           /* What flags should be specified here? */
           s = bfd_make_section_with_flags (abfd, ".dsp_mem", SEC_ALLOC);
-          bfd_set_section_alignment (abfd, s, 12);
+          bfd_set_section_alignment (s, 12);
           s->size = 2560 * 1024;
         }
     }

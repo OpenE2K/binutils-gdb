@@ -6,7 +6,7 @@
 
     ENTRY(1, "%psr", 0x00, 1, 0)
     ENTRY(1, "%wd", 0x01, 0, 0)
-    ENTRY(1, "%core_mode", 0x04, 0, 0)
+    ENTRY(3, "%core_mode", 0x04, 0, 0)
     ENTRY(1, "%cwd", 0x06, 1, 0)
     ENTRY(1, "%psp.hi", 0x07, 1, 0)
     ENTRY(1, "%psp.lo", 0x09, 1, 0)
@@ -72,6 +72,10 @@
     ENTRY(1, "%dimcr", 0x41, 0, 0)
     ENTRY(1, "%dibsr", 0x42, 0, 0)
     ENTRY(1, "%dtcr", 0x43, 0, 0)
+
+    ENTRY(6, "%dimtp.hi", 0x46, 0, 0)
+    ENTRY(6, "%dimtp.lo", 0x47, 0, 0)
+
     ENTRY(1, "%dibar0", 0x48, 0, 0)
     ENTRY(1, "%dibar1", 0x49, 0, 0)
     ENTRY(1, "%dibar2", 0x4a, 0, 0)
@@ -116,6 +120,8 @@
 
     ENTRY(6, "%bu_pcsp.hi", 0x74, 0, 0)
     ENTRY(6, "%bu_pcsp.lo", 0x75, 0, 0)
+
+    ENTRY(6, "%sh_wd", 0x76, 0, 0)
     
     ENTRY(2, "%cu_hw0", 0x78, 0, 0)
     ENTRY(5, "%cu_hw1", 0x79, 0, 0)
@@ -130,7 +136,7 @@
     ENTRY(1, "%ilcr", 0x87, 0, 0)
     ENTRY(1, "%br", 0x88, 0, 0)
     ENTRY(1, "%bgr", 0x89, 0, 0)
-    ENTRY(1, "%idr", 0x8a, 0, 0)
+    ENTRY(2, "%idr", 0x8a, 0, 0)
     ENTRY(1, "%clkr", 0x90, 0, 0)
     ENTRY(3, "%rndpr", 0x91, 0, 0)
     ENTRY(3, "%sclkr", 0x92, 0, 0)

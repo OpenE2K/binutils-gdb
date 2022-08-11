@@ -264,5 +264,7 @@ enum
 #define ELF_SPARC_HWCAP2_FPCMPSHL  0x00400000 /* Partition compare with shifted result */
 #define ELF_SPARC_HWCAP2_RLE       0x00800000 /* Run-length encoded burst and length */
 #define ELF_SPARC_HWCAP2_SHA3      0x01000000 /* SHA3 instruction */
+#define ELF_SPARC_HWCAP2_SAPPHIRE_PLUS      \
+                                   0x02000000 /* MCST Sapphire+ inherent to R2000+ processor  */
 
 #endif /* _ELF_SPARC_H */

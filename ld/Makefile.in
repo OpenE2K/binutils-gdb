@@ -491,6 +491,7 @@ dvidir = @dvidir@
 elf_list_options = @elf_list_options@
 elf_plt_unwind_list_options = @elf_plt_unwind_list_options@
 elf_shlib_list_options = @elf_shlib_list_options@
+enable_debian_multiarch = @enable_debian_multiarch@
 enable_initfini_array = @enable_initfini_array@
 exec_prefix = @exec_prefix@
 host = @host@
@@ -696,6 +697,9 @@ ALL_EMULATION_SOURCES = \
 	ed30v_o.c \
 	ed30velf.c \
 	eelf32_dlx.c \
+	eelf32_e2k.c \
+	eelf32_e2k_pm.c \
+	eelf32_e2k_pm_uclibc.c \
 	eelf32_sparc.c \
 	eelf32_sparc_sol2.c \
 	eelf32_sparc_vxworks.c \
@@ -900,6 +904,10 @@ ALL_64_EMULATION_SOURCES = \
 	eelf32mipswindiss.c \
 	eelf64_aix.c \
 	eelf64bpf.c \
+	eelf64_e2k.c \
+	eelf64_e2k_pm.c \
+	eelf64_e2k_kpda.c \
+	eelf64_e2k_uclibc.c \
 	eelf64_ia64.c \
 	eelf64_ia64_fbsd.c \
 	eelf64_ia64_vms.c \
@@ -975,7 +983,7 @@ SRC_POTFILES = $(CFILES) $(HFILES)
 BLD_POTFILES = $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES)
 @AMDEP_FALSE@GENDEPDIR = 
 @AMDEP_TRUE@GENDEPDIR = $(DEPDIR)
-GENSCRIPTS = $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "$(GENDEPDIR)" "${LIB_PATH}" "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@
+GENSCRIPTS = $(SHELL) $(srcdir)/genscripts.sh "${srcdir}" "${libdir}" "${prefix}" "${exec_prefix}" @host@ @target@ @target_alias@ "$(GENDEPDIR)" "${LIB_PATH}" "@EMULATION_LIBPATH@" "@NATIVE_LIB_DIRS@" @use_sysroot@ @enable_initfini_array@ @enable_debian_multiarch@
 GEN_DEPENDS = $(srcdir)/genscripts.sh stringify.sed
 
 # We need this for automake to use YLWRAP.
@@ -1001,13 +1009,13 @@ noinst_LTLIBRARIES = libldtestplug.la libldtestplug2.la \
 		     libldtestplug3.la libldtestplug4.la
 
 libldtestplug_la_SOURCES = testplug.c
-libldtestplug_la_CFLAGS = -g -O2
+libldtestplug_la_CFLAGS = -g -O0
 libldtestplug_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug2_la_SOURCES = testplug2.c
-libldtestplug2_la_CFLAGS = -g -O2
+libldtestplug2_la_CFLAGS = -g -O0
 libldtestplug2_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug3_la_SOURCES = testplug3.c
-libldtestplug3_la_CFLAGS = -g -O2
+libldtestplug3_la_CFLAGS = -g -O0
 libldtestplug3_la_LDFLAGS = -no-undefined -rpath /nowhere
 libldtestplug4_la_SOURCES = testplug4.c
 libldtestplug4_la_CFLAGS = -g -O2
@@ -1249,6 +1257,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ed30v_o.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ed30velf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_dlx.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k_pm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k_pm_uclibc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_sparc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_sparc_sol2.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_sparc_vxworks.Po@am__quote@
@@ -1339,6 +1350,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32xtensa.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32z80.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_aix.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_kpda.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_pm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_uclibc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_ia64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_ia64_fbsd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_ia64_vms.Po@am__quote@
@@ -2532,6 +2547,13 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ehppa64linux.Pc@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ei386pep.Pc@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/emmo.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k_pm.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf32_e2k_pm_uclibc.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_pm.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_kpda.Pc@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64_e2k_uclibc.Pc@am__quote@
 
 check-DEJAGNU: site.exp
 	srcroot=`cd $(srcdir) && pwd`; export srcroot; \

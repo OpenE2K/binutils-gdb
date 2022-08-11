@@ -1758,7 +1758,17 @@ parse_args (unsigned argc, char **argv)
       /* Fall through.  */
     case dynamic_list:
       link_info.dynamic = TRUE;
-      opt_symbolic = symbolic_unset;
+      /* The unconditional reset of OPT_SYMBOLIC here that appeared as a result
+	 of PR ld/26018 makes --dynamic-list* override both `-Bsymbolic{,
+	 -functions}'. Whereas it probably makes sense to override the former
+	 (prior to the fix it was -Bsymbolic that overrode --dynamic-list*),
+	 -Bsymbolic-functions could still be successfully combined with
+	 --dynamic-list* as it used to be. The failure to support such a
+	 combination implying that .so-library should be bound to NONE of its
+	 non-function symbols and the ones in the list resulted in
+	 Bug #126194.  */
+      if (opt_symbolic == symbolic)
+	opt_symbolic = symbolic_unset;
       break;
     }
 

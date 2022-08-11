@@ -11,4 +11,4 @@ OUTPUT_FORMAT="elf64-e2k"
 LIBPATH_SUFFIX=64
 
 
-. ${srcdir}/emulparams/elf_e2k.sh
+source_sh ${srcdir}/emulparams/elf_e2k.sh

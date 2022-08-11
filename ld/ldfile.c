@@ -284,9 +284,16 @@ ldfile_try_open_bfd (const char *attempt,
 	      return FALSE;
 	    }
 
+	  /* FIXME: the check for compatibility may be unduly skipped here for
+	     E2K, however we have implicitly skipped it for years because of a
+	     deficient `bfd_e2k_compatible ()' implementation. Now that the
+	     latter is being fixed for the sake of GDB ensure that the old
+	     behaviour is preserved for safety until `bfd_e2k_compatible ()'
+	     becomes capable of recognizing EF_E2K_INCOMPAT at least.  */
 	  if (entry->flags.search_dirs
-	      && !bfd_arch_get_compatible (check, link_info.output_bfd,
-					   command_line.accept_unknown_input_arch)
+	      && !(ldemul_disable_standard_compatibility_tests ()
+		   || bfd_arch_get_compatible (check, link_info.output_bfd,
+					       command_line.accept_unknown_input_arch))
 	      /* XCOFF archives can have 32 and 64 bit objects.  */
 	      && !(bfd_get_flavour (check) == bfd_target_xcoff_flavour
 		   && (bfd_get_flavour (link_info.output_bfd)

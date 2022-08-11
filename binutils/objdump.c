@@ -97,7 +97,14 @@ static int no_addresses;		/* --no-addresses */
 static int prefix_addresses;		/* --prefix-addresses */
 static int with_line_numbers;		/* -l */
 static bfd_boolean with_source_code;	/* -S */
+
+#ifndef INHIBIT_RAW_INSN
 static int show_raw_insn;		/* --show-raw-insn */
+#else
+static int show_raw_insn = -1;
+static int show_raw_insn_fake;
+#endif
+
 static int dump_dwarf_section_info;	/* --dwarf */
 static int dump_stab_section_info;	/* --stabs */
 static int dump_ctf_section_info;       /* --ctf */
@@ -370,7 +377,13 @@ static struct option long_options[]=
   {"help", no_argument, NULL, 'H'},
   {"info", no_argument, NULL, 'i'},
   {"line-numbers", no_argument, NULL, 'l'},
-  {"no-show-raw-insn", no_argument, &show_raw_insn, -1},
+  {"no-show-raw-insn", no_argument,
+#ifndef INHIBIT_RAW_INSN
+   &show_raw_insn,
+#else
+   &show_raw_insn_fake,
+#endif
+   -1},
   {"no-addresses", no_argument, &no_addresses, 1},
   {"prefix-addresses", no_argument, &prefix_addresses, 1},
   {"recurse-limit", no_argument, NULL, OPTION_RECURSE_LIMIT},
@@ -380,7 +393,13 @@ static struct option long_options[]=
   {"reloc", no_argument, NULL, 'r'},
   {"section", required_argument, NULL, 'j'},
   {"section-headers", no_argument, NULL, 'h'},
-  {"show-raw-insn", no_argument, &show_raw_insn, 1},
+  {"show-raw-insn", no_argument,
+#ifndef INHIBIT_RAW_INSN
+   &show_raw_insn,
+#else
+   &show_raw_insn_fake,
+#endif
+   1},
   {"source", no_argument, NULL, 'S'},
   {"source-comment", optional_argument, NULL, OPTION_SOURCE_COMMENT},
   {"special-syms", no_argument, &dump_special_syms, 1},

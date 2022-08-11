@@ -84,7 +84,16 @@
 #define bfd_elfNN_set_section_contents	_bfd_elf_set_section_contents
 #endif
 #define bfd_elfNN_sizeof_headers	_bfd_elf_sizeof_headers
+
+/* We should be able to override this method if output file format
+   is not ELF as it happens in case of EIR linkage (see Bug #59012,
+   Comment # ). Take into account that calling `bfd_elf_final_link'
+   is inappropriate in this case either, since it also performs some
+   ELF-specific output.  */
+#ifndef bfd_elfNN_write_object_contents
 #define bfd_elfNN_write_object_contents _bfd_elf_write_object_contents
+#endif
+
 #define bfd_elfNN_write_corefile_contents _bfd_elf_write_corefile_contents
 
 #define bfd_elfNN_get_section_contents_in_window \
@@ -791,7 +800,11 @@
 #ifndef elf_backend_symbol_section_index
 #define elf_backend_symbol_section_index NULL
 #endif
- 
+
+#ifndef elf_backend_r_none_info
+#define elf_backend_r_none_info 0
+#endif
+
 #ifndef elf_match_priority
 #define elf_match_priority \
   (ELF_ARCH == bfd_arch_unknown ? 2 : ELF_OSABI == ELFOSABI_NONE ? 1 : 0)
@@ -953,7 +966,8 @@ static struct elf_backend_data elfNN_bed =
   elf_backend_extern_protected_data,
   elf_backend_always_renumber_dynsyms,
   elf_backend_linux_prpsinfo32_ugid16,
-  elf_backend_linux_prpsinfo64_ugid16
+  elf_backend_linux_prpsinfo64_ugid16,
+  elf_backend_r_none_info
 };
 
 /* Forward declaration for use when initialising alternative_target field.  */

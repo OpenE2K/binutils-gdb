@@ -149,7 +149,19 @@ fragment <<EOF
 static void
 gld${EMULATION_NAME}_before_allocation (void)
 {
-  ldelf_before_allocation (audit, depaudit, ${ELF_INTERPRETER_NAME});
+  ldelf_before_allocation (audit, depaudit, ${ELF_INTERPRETER_NAME},
+EOF
+if [ -n "$SUPPORT_EIR" ]; then
+fragment <<EOF
+			   link_mixed_eir
+EOF
+else
+fragment <<EOF
+			   0
+EOF
+fi
+fragment <<EOF
+);
 }
 
 EOF
@@ -928,6 +940,8 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   ${LDEMUL_EXTRA_MAP_FILE_TEXT-NULL},
   ${LDEMUL_EMIT_CTF_EARLY-NULL},
   ${LDEMUL_EXAMINE_STRTAB_FOR_CTF-NULL},
-  ${LDEMUL_PRINT_SYMBOL-NULL}
+  ${LDEMUL_PRINT_SYMBOL-NULL},
+  ${LDEMUL_ALLOW_DYNAMIC_ENTRIES_IN_RELOCATABLE_LINK-NULL},
+  ${LDEMUL_DISABLE_STANDARD_COMPATIBILITY_TESTS-FALSE}
 };
 EOF

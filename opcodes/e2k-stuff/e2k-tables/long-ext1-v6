@@ -39,7 +39,7 @@
 | 22 | PMAXUW	|	   | STCSQP   |  | 62 | LDCSQP   |	    | LDCSQP   |
 | 23 | PMAXSW	|	   | STDSQP   |  | 63 | LDDSQP   |	    | LDDSQP   |
 | 24 |  	|	   | STESQP   |  | 64 | LDESQP   |	    | LDESQP   |
-| 25 |  	|	   | STFSQP   |  | 65 | LDFSQP   |	    | LDFSQP   |
+| 25 | QPSRAD	| QPSRAD   | STFSQP   |  | 65 | LDFSQP   |	    | LDFSQP   |
 | 26 | QPSRCW	| QPSRCW   | STGSQP   |  | 66 | LDGSQP   |	    | LDGSQP   |
 | 27 | QPSRCD	| QPSRCD   | STSSQP   |  | 67 | LDSSQP   |	    | LDSSQP   |
 +----+----------+----------+----------+  +----+----------+----------+----------+
@@ -55,7 +55,7 @@
 | 30 | PSIGNB	|	   | FADDs    |  | 70 | QPFADDs  | QPFADDs  | QPFADDs  |
 | 31 | PSIGNH	|	   | FADDd    |  | 71 | QPFADDd  | QPFADDd  | QPFADDd  |
 | 32 | PSIGNW	|	   | FSUBs    |  | 72 | QPFSUBs  | QPFSUBs  | QPFSUBs  |
-| 33 |  	|	   | FSUBd    |  | 73 | QPFSUBd  | QPFSUBd  | QPFSUBd  |
+| 33 | QPCHECK	|	   | FSUBd    |  | 73 | QPFSUBd  | QPFSUBd  | QPFSUBd  |
 | 34 |QPMSK2SGNB|QPMSK2SGNB|	      |  | 74 | QPFMINs  | QPFMINs  |          |
 | 35 | QPCEXT   | QPCEXT   |	      |  | 75 | QPFMINd  | QPFMINd  |	       |
 | 36 |  	|	   |	      |  | 76 | QPFMAXs  | QPFMAXs  |	       |

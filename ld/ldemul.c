@@ -436,3 +436,18 @@ ldemul_print_symbol (struct bfd_link_hash_entry *hash_entry, void *ptr)
     return ld_emulation->print_symbol (hash_entry, ptr);
   return print_one_symbol (hash_entry, ptr);
 }
+
+bfd_boolean
+ldemul_allow_dynamic_entries_in_relocatable_link (void)
+{
+  if (ld_emulation->allow_dynamic_entries_in_relocatable_link)
+    return ld_emulation->allow_dynamic_entries_in_relocatable_link ();
+
+  return FALSE;
+}
+
+bfd_boolean
+ldemul_disable_standard_compatibility_tests (void)
+{
+  return ld_emulation->disable_standard_compatibility_tests;
+}

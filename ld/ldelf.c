@@ -915,10 +915,17 @@ ldelf_check_ld_so_conf (const struct bfd_link_needed_list *l, int force,
 			(const char *) NULL);
       if (!ldelf_parse_ld_so_conf (&info, tmppath))
 	{
+	  /* FIXME: the original stupid logic makes the host's /etc/ld.so.conf
+	     be parsed even when cross LD is used! I need the means to prevent
+	     this for the sake of my isolated native e2k-linux-gcc based
+	     distribution. This is achieved via --with-cross-host configure
+	     option for now.  */
+#ifndef WITH_CROSS_HOST
 	  free (tmppath);
 	  tmppath = concat (ld_sysroot, "/etc/ld.so.conf",
 			    (const char *) NULL);
 	  ldelf_parse_ld_so_conf (&info, tmppath);
+#endif /* WITH_CROSS_HOST  */
 	}
       free (tmppath);
 
@@ -1543,7 +1550,8 @@ ldelf_append_to_separated_string (char **to, char *op_arg)
 
 void
 ldelf_before_allocation (char *audit, char *depaudit,
-			 const char *default_interpreter_name)
+			 const char *default_interpreter_name,
+			 int link_mixed_eir)
 {
   const char *rpath;
   asection *sinterp;
@@ -1556,7 +1564,8 @@ ldelf_before_allocation (char *audit, char *depaudit,
   if (is_elf_hash_table (link_info.hash))
     {
       _bfd_elf_tls_setup (link_info.output_bfd, &link_info);
-
+      if (link_mixed_eir == 0)
+        {
       /* Make __ehdr_start hidden if it has been referenced, to
 	 prevent the symbol from being dynamic.  */
       if (!bfd_link_relocatable (&link_info))
@@ -1599,6 +1608,7 @@ ldelf_before_allocation (char *audit, char *depaudit,
 	 referred to by dynamic objects.  */
       lang_for_each_statement (ldelf_find_statement_assignment);
     }
+        }
 
   /* Let the ELF backend work out the sizes of any sections required
      by dynamic linking.  */

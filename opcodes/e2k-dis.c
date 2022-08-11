@@ -624,10 +624,58 @@ print_predicates (disassemble_info *info,
      question sign, for MRGC - a comma.  */
   int first_separator = 0;
   const struct unpacked_instr *instr = &unpacked_instr;
+  /* Bit numbers in `{MASK,NEG}[]'.  */
+  int mask_bit, neg_bit;
   /* Required RLP for this ALC.  */
-  unsigned short req_rlp = chn <= 2 ? 0 : 1;
+  unsigned short req_rlp;
   /* Required MRGC for this ALC in case ALF proves to be `merge{s,d}'.  */
-  unsigned short req_mrgc = chn <= 2 ? 2 : 3;
+  unsigned short req_mrgc;
+
+  /* Get MASK[] and NEG[] bit numbers along with RLPx and MRGCy. When doing so
+     note that `CHN < 6' matches the respective ALC, whereas `CHN == {6,7}'
+     AM{2,5}.  */
+  if (chn <= 2 || chn == 6)
+    {
+      if (chn == 6)
+	{
+	  mask_bit = 3;
+	  neg_bit = 2;
+	}
+      else
+	mask_bit = neg_bit = chn;
+
+      if (! mrgc)
+	req_rlp = 0;
+    }
+  else if ((chn >= 3 && chn <= 5) || chn == 7)
+    {
+      /* Note that chn >= 3 here.  */
+      if (chn <= 5)
+	mask_bit = neg_bit = chn - 3;
+      else /* chn == 7  */
+	{
+	  mask_bit = 3;
+	  neg_bit = 2;
+	}
+
+      if (! mrgc)
+	req_rlp = 1;
+    }
+  else
+    assert (0);
+
+  if (mrgc)
+    {
+      if (chn <= 2)
+	req_mrgc = 2;
+      else if (chn <= 5)
+	req_mrgc = 3;
+      else
+	/* No MRGC should ever act on anything than ALCx. FIXME: `RPC == MRGC0'
+	   acting on {S,L,C}RP is to be considered yet.  */
+	assert (0);
+    }
+  
 
   for (i = 0; i < 3; i++)
     {
@@ -645,7 +693,7 @@ print_predicates (disassemble_info *info,
           /* Is this RLP suitable for CHN and is CHN present in its mask?  */
           if (((! mrgc && opc == req_rlp)
                || (mrgc && opc == req_mrgc))
-              && (mask & (1 << (chn - 3 * req_rlp))))
+              && (mask & (1 << mask_bit)))
             {
               unsigned short neg = (cds[j] & 0x0380) >> 7;
               unsigned short pred = cds[j] & 0x7f;
@@ -662,7 +710,7 @@ print_predicates (disassemble_info *info,
                    the same ALC are inappropriate in fact . . .  */
                 my_printf (mrgc ? " " : ", ");
 
-              if (neg & (1 << (chn - 3 * req_rlp)))
+              if (neg & (1 << neg_bit))
                 my_printf ("~");
 
               if ((pred & 0x60) == 0x40)
@@ -675,6 +723,8 @@ print_predicates (disassemble_info *info,
         }
     }
 }
+
+static void print_ctcond (disassemble_info *info, unsigned int ctcond);
 
 static void
 print_alf (disassemble_info *info, int chn)
@@ -775,12 +825,17 @@ print_alf (disassemble_info *info, int chn)
                 continue;
             }
 
-          else if (templ->alopf == ALOPF12)
+          else if (templ->alopf == ALOPF12
+		   || templ->alopf == ALOPF12_IBRANCHD
+		   || templ->alopf == ALOPF12_ICALLD)
             {
               const e2k_alopf12_opcode_templ *alopf12;
 
               alopf12 = (const e2k_alopf12_opcode_templ *) templ;
-              if ((instr->als[chn] & 0x00ff0000) != (unsigned) (alopf12->opce << 16)
+              if ((templ->alopf != ALOPF12_ICALLD
+		   /* For ICALLD ALS.opce encodes WBS, therefore  it shouldn't
+		      be verified this way.  */
+		   && (instr->als[chn] & 0x00ff0000) != (unsigned) (alopf12->opce << 16))
                   || instr->ales[chn] != ((alopf12->ales_opc2 << 8)
                                           | alopf12->ales_opce))
                 continue;
@@ -854,6 +909,12 @@ print_alf (disassemble_info *info, int chn)
              instructions which are disassembled as ALOPF10 above.  */
             else if (templ->alopf == AAURW)
               continue;
+	  /* This just prevents an assertion failure on recently added ALOPF19
+	     templates for the sake of LDAA* instructions support in GAS. TODO:
+	     their disassembly is to be implemented yet by analogy with ALOPF10
+	     `STAA*'s.  */
+	    else if (templ->alopf == ALOPF19)
+	      continue;
           /* It's a 100% internal error if we turned out to be incapable of
              recognizing our own instruction template. It would be easier to
              skip it silently, of course, and not to disappoint the user, who
@@ -971,9 +1032,14 @@ print_alf (disassemble_info *info, int chn)
   else if (match->alopf == ALOPF2
            || match->alopf == ALOPF12
 	   || match->alopf == ALOPF12_PSHUFH
+	   || match->alopf == ALOPF12_IBRANCHD
+	   || match->alopf == ALOPF12_ICALLD
            || match->alopf == ALOPF22)
     {
       const e2k_alf2_opcode_templ *alf2 = (const e2k_alf2_opcode_templ *) match;
+
+      if (match->alopf == ALOPF12_ICALLD)
+	my_printf ("wbs = 0x%x, ", (instr->als[chn] & 0x00ff0000) >> 16);
 
       print_src2 (info, chn, alf2->arg_fmt[0]);
       my_printf (", ");
@@ -983,6 +1049,10 @@ print_alf (disassemble_info *info, int chn)
 	my_printf ("0x%x, ", (unsigned) (instr->ales[chn] & 0xff));
 
       print_dst_in_als (info, chn, alf2->arg_fmt[1]);
+
+      if (match->alopf == ALOPF12_IBRANCHD
+	  || match->alopf == ALOPF12_ICALLD)
+	print_ctcond (info, instr->ss & 0x1ff);
     }
   else if (match->alopf == ALOPF3
            || match->alopf == ALOPF13)
@@ -1042,8 +1112,6 @@ print_alf (disassemble_info *info, int chn)
     {
       unsigned int opce1 = (instr->als[chn] & 0x00ffff00) >> 8;
       unsigned int lt = opce1 & 0x3;
-      unsigned int am = (opce1 & 0x4) >> 2;
-      unsigned int incr = (opce1 & 0x70) >> 4;
       unsigned int ind = (opce1 & 0x780) >> 7;
       unsigned int d = (opce1 & 0xf800) >> 11;
 
@@ -1063,13 +1131,6 @@ print_alf (disassemble_info *info, int chn)
         }
 
       my_printf (" ]");
-
-      if (am)
-        {
-          indentate ();
-          my_printf ("incr,%d %%aaincr%d", chn, incr);
-        }
-      
     }
 
   if (match->need_mas
@@ -1093,8 +1154,27 @@ print_alf (disassemble_info *info, int chn)
       || match->alopf == ALOPF21_MERGE)
     print_predicates (info, chn, 1);
 
-  /* Print RLP predicates.  */
-  print_predicates (info, chn, 0);
+  /* Print RLP predicates. Note that because these predicates are `alj_cond's
+     they are not applicable to `I{BRANCH,CALL}D'.  */
+  if (match->alopf != ALOPF12_IBRANCHD
+      && match->alopf != ALOPF12_ICALLD)
+    print_predicates (info, chn, 0);
+
+  /* Disassemble the INCR part of ALOPF10.  */
+  if (match->alopf == ALOPF10)
+    {
+      unsigned int opce1 = (instr->als[chn] & 0x00ffff00) >> 8;
+      unsigned int am = (opce1 & 0x4) >> 2;
+      unsigned int incr = (opce1 & 0x70) >> 4;
+
+      if (am)
+        {
+          indentate ();
+          my_printf ("incr,%d %%aaincr%d", chn, incr);
+	  print_predicates (info, chn == 2 ? 6 : 7, 0);
+        }      
+    }
+
   end_syllable ();
 }
 
@@ -1571,6 +1651,7 @@ print_cs0 (disassemble_info *info, bfd_vma instr_addr)
     PREF,
     PUTTSD,
     DONE,
+    IRET,
     HRET,
     GLAUNCH,
     DISP,
@@ -1581,8 +1662,9 @@ print_cs0 (disassemble_info *info, bfd_vma instr_addr)
   } cs0_type;
 
   static const char *cs0_names[] = {"", "ibranch", "pref", "puttsd",
-                                    "done", "hret", "glaunch", "disp", "sdisp",
-				    "gettsd", "ldisp", "return"};
+                                    "done", "iret", "hret", "glaunch",
+				    "disp", "sdisp", "gettsd", "ldisp",
+				    "return"};
   /* This is a copy of Table B.4.1 in `iset-v6.single'.  */
   static cs0_type cs0_ops[4][4] =  {
     {IBRANCH, PREF, PUTTSD, DONE},
@@ -1604,7 +1686,12 @@ print_cs0 (disassemble_info *info, bfd_vma instr_addr)
     type = GETTSD;
   else if (type == DONE)
     {
-      if (param_type == 3)
+      /* For {H,I}RET and GLAUNCH  CS0.opc is the same as that of DONE (see
+	 Table B.4.1). Param types making these instructions different are
+	 listed in Table B.4.1.1.  */
+      if (param_type == 2)
+	type = IRET;
+      else if (param_type == 3)
 	type = HRET;
       else if (param_type == 4)
 	type = GLAUNCH;
@@ -1613,28 +1700,34 @@ print_cs0 (disassemble_info *info, bfd_vma instr_addr)
 
   print_syllable ("CS0", 0, instr->cs0);
 
-  if (type == IBRANCH || type == DONE || type == HRET || type == GLAUNCH)
+  if (type == IBRANCH
+      || type == DONE
+      || type == IRET
+      || type == HRET
+      || type == GLAUNCH)
     {
-      /* IBRANCH, DONE, HRET and GLAUNCH are special because they require SS
+      /* IBRANCH, DONE, {H,I}RET and GLAUNCH are special because they require SS
 	 to be properly encoded.  */
       if (! instr->ss_present
-          /* SS.ctop should be equal to zero for IBRANCH, DONE, HRET and
-	     GLAUNCH (see C.17.1.1, note that they don't mention the latter two
-	     instructions there which is probably an omission ).  */
+          /* SS.ctop should be equal to zero for IBRANCH, DONE, {I,H}RET and
+	     GLAUNCH (see C.17.1.1, note that they don't mention the latter three
+	     instructions there which is probably an omission; however, this is
+	     specified in the description of each instruction ).  */
           || (instr->ss & 0x00000c00))
         {
           indentate ();
           my_printf ("invalid %s", cs0_names[type]);
         }
       /* Don't output either of the aforementioned instructions under "never"
-	 condition. Don't disassemble CS0 being a part of HCALL. Unlike ldis
-	 HCALL is currently disassembled on behalf of CS1.  */
+	 condition. Don't disassemble CS0 being a part of {H,I}CALL. Unlike
+	 ldis {H,I}CALL are currently disassembled on behalf of CS1.  */
       else if (instr->ss & 0x1ff
 	       && !(instr->cs1_present
 		    /* CS1.opc == CALL */
 		    && (instr->cs1 & 0xf0000000) >> 28 == 5
-		    /* CS1.param.ctopc == HCALL  */
-		    && (instr->cs1 & 0x380) >> 7 == 2))
+		    /* CS1.param.ctopc == {H,I}CALL  */
+		    && ((instr->cs1 & 0x380) >> 7 == 2
+			|| (instr->cs1 & 0x380) >> 7 == 1)))
         {
           indentate ();
           my_printf ("%s", cs0_names[type]);
@@ -1884,17 +1977,25 @@ print_cs1 (disassemble_info *info)
       else
 	{
 	  unsigned int cs1_ctopc = (cs1 & 0x380) >> 7;
-	  /* CS1.param.ctpopc == HCALL. CS0 is required to encode HCALL.  */
-	  if (cs1_ctopc == 2 && instr->cs0_present)
+	  /* CS1.param.ctpopc == {H,I}CALL == {2,1}  (see Table B.4.2.1).
+	     CS0 is required to encode {H,I}CALL.  */
+	  if ((cs1_ctopc == 2 || cs1_ctopc == 1) && instr->cs0_present)
 	    {
 	      unsigned int cs0 = instr->cs0;
 	      unsigned int cs0_opc = (cs0 & 0xf0000000) >> 28;
-	      /* CS0.opc == HCALL, which means
+	      /* CS0.opc == {H,I}CALL == 0 (see Table B.4.1), which means
 		 CS0.opc.ctpr == CS0.opc.ctp_opc == 0 */
 	      if (cs0_opc == 0)
 		{
-		  unsigned int hdisp = (cs0 & 0x1e) >> 1;
-		  my_printf ("hcall 0x%x, wbs = 0x%x", hdisp, wbs);
+		  int is_hcall = cs1_ctopc == 2;
+		  unsigned int disp;
+
+		  /* HCALL's hdisp is encoded in a rather weird way in
+		     CS0.disp[4:1] unlike ICALL's disp occupying the whole
+		     28-bit CS0.disp.  */
+		  disp = is_hcall ? ((cs0 & 0x1e) >> 1) : (cs0 & 0xfffffff);
+		  my_printf ("%ccall 0x%x, wbs = 0x%x",
+			     is_hcall ? 'h' : 'i', disp, wbs);
 		  print_ctcond (info, instr->ss & 0x1ff);
 		}
 	    }
@@ -1931,6 +2032,25 @@ print_cs1 (disassemble_info *info)
           indentate ();
           my_printf ("flushc");
         }
+
+      /* Presumably the presence of `FILL{R,C}' on `elbrus-v{X<6}' could be
+	 silently ignored as they are not recognized by these CPUs and probably
+	 don't result in any exceptions, however, I'd prefer to attract the
+	 user's attention to the fact that these unimplemented instructions are
+	 encoded in the disassembled file.  */
+	  /* Check for `CS1.param.fillr'.  */
+	  if (cs1 & 0x00000004)
+	    {
+	      indentate ();
+	      my_printf ("%sfillr", mcpu < 6 ? "unimp " : "");
+	    }
+
+	  /* Check for `CS1.param.fillc'.  */
+	  if (cs1 & 0x00000008)
+	    {
+	      indentate ();
+	      my_printf ("%sfillc", mcpu < 6 ? "unimp " : "");
+	    }
     }
   else if (opc == BG)
     {
@@ -2275,6 +2395,7 @@ print_insn_e2k (bfd_vma memaddr, disassemble_info *info)
   int status;
   size_t command_length;
   static int initialized;
+  bfd_vma stop_vma;
 
   /* This lets me stupidly shut Bug #88528 up for now . . .  */
   if (! initialized
@@ -2294,14 +2415,27 @@ print_insn_e2k (bfd_vma memaddr, disassemble_info *info)
       initialized = 1;
     }
 
+  /* disassemble_bytes () sets `info->stop_vma' to zero rather than to a
+     meaningful value when disassembling non-code sections or when
+     `--disassemble-all (-D)' is in effect. Just ensure that we don't
+     cross the disassembled section's boundary in such a case. The
+     meaningful `info->stop_vma' is likely to take into account the
+     address of the nearest symbol assumed to lie on the boundary between
+     instructions.  */
+  if (info->stop_vma == 0 && info->section != NULL)
+    stop_vma = info->section->vma + info->section->size;
+  else
+    stop_vma = info->stop_vma;
+
   /* Don't even try to disassemble if the available address range doesn't fit
      the most short possible instruction or is not properly aligned.  */
-  if (info->stop_vma - memaddr < 8
+  if ((stop_vma != 0
+       && stop_vma < memaddr + 8)
       || (memaddr & 0x7) != 0)
     {
       /* Skip remaining bytes. Hopefully, we'll resume disassembly starting
          from a more meaningful symbol.  */
-      command_length = info->stop_vma - memaddr;
+      command_length = stop_vma - memaddr;
       info->bytes_per_line = command_length;
       return command_length;
     }
@@ -2330,7 +2464,8 @@ print_insn_e2k (bfd_vma memaddr, disassemble_info *info)
 
   if (/* Is there enough space in the available address range to hold a
          presumable synchronous instruction?  */
-      info->stop_vma - memaddr >= command_length
+      (stop_vma == 0
+       || stop_vma >= memaddr + command_length)
       /* If so, read its remaining bytes.  */
       && (*info->read_memory_func) (memaddr + 1, &buffer[1],
                                     command_length - 1, info) == 0
@@ -2338,11 +2473,12 @@ print_insn_e2k (bfd_vma memaddr, disassemble_info *info)
          synchronous instruction.  */
       && unpack_instr (buffer))
     print_instr (info, memaddr);
-  else if (info->stop_vma - memaddr < 16)
+  else if (stop_vma != 0
+	   && stop_vma < memaddr + 16)
     {
       /* There's no point in trying to interpret this bogus sequence of bytes
          as an APB instruction if it's not sufficiently long.  */
-      command_length = info->stop_vma - memaddr;
+      command_length = stop_vma - memaddr;
       info->bytes_per_line = command_length;
       return command_length;
     }

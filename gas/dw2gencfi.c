@@ -211,7 +211,10 @@ emit_expr_encoded (expressionS *exp, int encoding, bfd_boolean emit_encoding)
     {
       reloc_howto_type *howto = bfd_reloc_type_lookup (stdoutput, code);
       char *p = frag_more (size);
-      gas_assert (size == (unsigned) howto->bitsize / 8);
+      gas_assert (size == (unsigned) howto->bitsize / 8
+		  /* Take into account that `bitsize == 128' can't be encoded
+		     now that HOWTOs have been packed.  */
+		  || (size == 16 && howto->bitsize == 0));
       md_number_to_chars (p, 0, size);
       fix_new (frag_now, p - frag_now->fr_literal, size, exp->X_add_symbol,
 	       exp->X_add_number, howto->pc_relative, code);
@@ -1868,7 +1871,7 @@ static void
 output_cie (struct cie_entry *cie, bfd_boolean eh_frame, int align)
 {
   symbolS *after_size_address, *end_address;
-  symbolS *aug_start_address, *aug_end_address;
+  symbolS *aug_start_address, *aug_end_address = NULL;
   expressionS exp;
   struct cfi_insn_data *i;
   int enc;
@@ -2019,7 +2022,7 @@ output_fde (struct fde_entry *fde, struct cie_entry *cie,
 	    int align)
 {
   symbolS *after_size_address, *end_address;
-  symbolS *aug_start_address, *aug_end_address;
+  symbolS *aug_start_address, *aug_end_address = NULL;
   expressionS exp;
   offsetT augmentation_size;
   enum dwarf2_format fmt = DWARF2_FORMAT (now_seg);
@@ -2471,10 +2474,31 @@ cfi_finish (void)
 		  fde->end_address = fde->start_address;
 		}
 
-	      cie = select_cie_for_fde (fde, TRUE, &first, 2);
+	      cie = select_cie_for_fde (fde, TRUE, &first,
+#ifdef TC_E2K
+					/* Treat PM case specially.  */
+					(EH_FRAME_ALIGNMENT == 4
+					 ? EH_FRAME_ALIGNMENT
+					 :
+#endif /* defined TC_E2K  */
+					 2
+#ifdef TC_E2K
+					 )
+#endif /* defined TC_E2K  */
+					);
 	      fde->eh_loc = symbol_temp_new_now ();
 	      output_fde (fde, cie, TRUE, first,
-			  fde->next == NULL ? EH_FRAME_ALIGNMENT : 2);
+#ifdef TC_E2K
+			  /* Treat PM case specially.  */
+			  (EH_FRAME_ALIGNMENT == 4
+			   ? EH_FRAME_ALIGNMENT
+			   :
+#endif /* defined TC_E2K  */
+			   (fde->next == NULL ? EH_FRAME_ALIGNMENT : 2)
+#ifdef TC_E2K
+			   )
+#endif /* defined TC_E2K  */
+			  );
 	    }
 	}
       while (EH_FRAME_LINKONCE && seek_next_seg == 2);

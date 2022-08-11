@@ -649,6 +649,7 @@ STRINGIFY
 zlibinc
 zlibdir
 enable_initfini_array
+enable_debian_multiarch
 NATIVE_LIB_DIRS
 HDEFINES
 do_compare
@@ -826,6 +827,7 @@ with_lib_path
 enable_targets
 enable_64_bit_bfd
 with_sysroot
+with_cross_host
 enable_gold
 enable_got
 enable_compressed_debug_sections
@@ -838,6 +840,7 @@ enable_libctf
 enable_werror
 enable_build_warnings
 enable_nls
+enable_debian_multiarch
 enable_initfini_array
 with_system_zlib
 '
@@ -1509,6 +1512,7 @@ Optional Features:
   --enable-werror         treat compile warnings as errors
   --enable-build-warnings enable build-time compiler warnings
   --disable-nls           do not use Native Language Support
+  --enable-debian-multiarch use debian multiarch library search paths
   --disable-initfini-array do not use .init_array/.fini_array sections
 
 Optional Packages:
@@ -1519,6 +1523,7 @@ Optional Packages:
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
   --with-lib-path=dir1:dir2...  set default LIB_PATH
   --with-sysroot=DIR Search for usr/lib et al within DIR.
+  --with-cross-host make native ld behave as if it were cross
   --with-system-zlib      use installed libz
 
 Some influential environment variables:
@@ -12037,7 +12042,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 12040 "configure"
+#line 12045 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -12143,7 +12148,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 12146 "configure"
+#line 12151 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -15793,6 +15798,19 @@ fi
 
 
 
+
+# Check whether --with-cross-host was given.
+if test "${with_cross_host+set}" = set; then :
+  withval=$with_cross_host;
+fi
+
+
+if test -n "$with_cross_host" && test x"$with_cross_host" != x"no"; then
+
+$as_echo "#define WITH_CROSS_HOST 1" >>confdefs.h
+
+fi
+
 # Check whether --enable-gold was given.
 if test "${enable_gold+set}" = set; then :
   enableval=$enable_gold; case "${enableval}" in
@@ -17313,6 +17331,18 @@ if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
 fi
+
+
+# Check whether --enable-debian-multiarch was given.
+if test "${enable_debian_multiarch+set}" = set; then :
+  enableval=$enable_debian_multiarch; case "${enableval}" in
+ yes|no) ;;
+ *) as_fn_error $? "invalid --enable-debian-multiarch argument" "$LINENO" 5 ;;
+ esac
+else
+  enable_debian_multiarch=no
+fi
+
 
 
 # Check whether --enable-initfini-array was given.
