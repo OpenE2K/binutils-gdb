@@ -12480,10 +12480,10 @@ if test "$enable_shared" = "yes"; then
   case "${host}" in
     *-*-cygwin*)
       SHARED_LDFLAGS="-no-undefined"
-      SHARED_LIBADD="-L`pwd`/../bfd -lbfd -L`pwd`/../libiberty -liberty $SHARED_LIBADD"
+      SHARED_LIBADD="$SHARED_LIBADD -L`pwd`/../bfd -lbfd -L`pwd`/../libiberty -liberty $SHARED_LIBADD"
       ;;
     *)
-      SHARED_LIBADD="../bfd/libbfd.la ${SHARED_LIBADD}"
+      SHARED_LIBADD="${SHARED_LIBADD} ../bfd/libbfd.la ${SHARED_LIBADD}"
       SHARED_DEPENDENCIES="../bfd/libbfd.la"
       ;;
   esac
