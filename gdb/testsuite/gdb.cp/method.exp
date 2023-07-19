@@ -18,6 +18,8 @@
 
 # This file is part of the gdb testsuite
 
+set USE_GCC 1
+
 # This tests:
 # 0. method arguments are correct
 # 1. access to class data members inside method scopes

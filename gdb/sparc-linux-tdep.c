@@ -34,6 +34,7 @@
 #include "xml-syscall.h"
 #include "linux-tdep.h"
 
+
 /* The syscall's XML filename for sparc 32-bit.  */
 #define XML_SYSCALL_FILENAME_SPARC32 "syscalls/sparc-linux.xml"
 

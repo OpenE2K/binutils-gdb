@@ -584,6 +584,10 @@ gcore_memory_sections (bfd *obfd)
   /* Record phdrs for section-to-segment mapping.  */
   bfd_map_over_sections (obfd, make_output_phdrs, NULL);
 
+  /* Create any additional sections needed by the target. For E2k these
+     are sections containing external tags.  */
+  target_make_corefile_sections (obfd);
+
   /* Copy memory region contents.  */
   bfd_map_over_sections (obfd, gcore_copy_callback, NULL);
 

@@ -162,6 +162,16 @@ proc gdb_find_readelf {} {
     return $readelf
 }
 
+<<<<<<< HEAD
+proc gdb_find_strip {} {
+    global STRIP_FOR_TARGET
+    if [info exists STRIP_FOR_TARGET] {
+	set strip $STRIP_FOR_TARGET
+    } else {
+	set strip [transform strip]
+    }
+    return $strip
+=======
 proc gdb_find_eu-unstrip {} {
     global EU_UNSTRIP_FOR_TARGET
     if [info exists EU_UNSTRIP_FOR_TARGET] {
@@ -170,6 +180,7 @@ proc gdb_find_eu-unstrip {} {
 	set eu_unstrip [transform eu-unstrip]
     }
     return $eu_unstrip
+>>>>>>> a45328b93bdd5399da8a9e56817e445cc2068edd
 }
 
 proc gdb_default_target_compile {source destfile type options} {
@@ -658,6 +669,8 @@ if {[info procs find_rustc] == ""} {
     rename gdb_find_rustc find_rustc
     set use_gdb_compile 1
 }
+
+set use_gdb_compile 0
 
 if {$use_gdb_compile} {
     catch {rename default_target_compile {}}

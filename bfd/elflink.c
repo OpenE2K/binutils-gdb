@@ -1906,26 +1906,23 @@ _bfd_elf_add_default_symbol (bfd *abfd,
 
   if (hi->def_regular || ELF_COMMON_DEF_P (hi))
     {
+      struct bfd_elf_version_tree *vertree = hi->verinfo.vertree;
+
       /* If the undecorated symbol will have a version added by a
 	 script different to H, then don't indirect to/from the
 	 undecorated symbol.  This isn't ideal because we may not yet
 	 have seen symbol versions, if given by a script on the
 	 command line rather than via --version-script.  */
-      if (hi->verinfo.vertree == NULL && info->version_info != NULL)
+      if (vertree == NULL && info->version_info != NULL)
 	{
 	  bfd_boolean hide;
 
-	  hi->verinfo.vertree
+	  vertree
 	    = bfd_find_version_for_sym (info->version_info,
 					hi->root.root.string, &hide);
-	  if (hi->verinfo.vertree != NULL && hide)
-	    {
-	      (*bed->elf_backend_hide_symbol) (info, hi, TRUE);
-	      goto nondefault;
-	    }
 	}
-      if (hi->verinfo.vertree != NULL
-	  && strcmp (p + 1 + (p[1] == '@'), hi->verinfo.vertree->name) != 0)
+      if (vertree != NULL
+	  && strcmp (p + 1 + (p[1] == '@'), vertree->name) != 0)
 	goto nondefault;
     }
 
@@ -9379,6 +9376,12 @@ elf_link_sort_relocs (bfd *abfd, struct bfd_link_info *info, asection **psec)
 	    free (sort);
 	    return 0;
 	  }
+
+	/* FIXME: currently there's an unresolved issue on Sparc making me
+	   occasionally allocate excessive space in `.rela.got', which is why
+	   '>=' is temporarely used here instead of '=='.  */
+	BFD_ASSERT (o->size >= o->reloc_count * ext_size);
+
 	erel = o->contents;
 	erelend = o->contents + o->size;
 	p = sort + o->output_offset * opb / ext_size * sort_elt;
@@ -10799,7 +10802,16 @@ elf_link_input_bfd (struct elf_final_link_info *flinfo, bfd *input_bfd)
 
 	  /* We need to reverse-copy input .ctors/.dtors sections if
 	     they are placed in .init_array/.finit_array for output.  */
-	  if (o->size > address_size
+	  if (
+#if 1
+	      /* However, there's no point in doing so in E2K Protected
+		 Mode.  */
+	      (((elf_elfheader (input_bfd)->e_flags & 32 /* EF_E2K_PM  */)
+		!= 32 /* EF_E2K_PM  */)
+	       || strcmp (input_bfd->xvec->name, "elf32-e2k-pm") != 0)
+	      &&
+#endif /* 0  */
+	      o->size > address_size
 	      && ((strncmp (o->name, ".ctors", 6) == 0
 		   && strcmp (o->output_section->name,
 			      ".init_array") == 0)
@@ -11062,7 +11074,14 @@ elf_link_input_bfd (struct elf_final_link_info *flinfo, bfd *input_bfd)
 			 bfd_elf_discard_info rely on reloc offsets
 			 being ordered.  */
 		      irela->r_offset = last_offset;
-		      irela->r_info = 0;
+                      /* FIXME: I suppose that the original code setting
+                         `r_info' to 0 is sure to lead for an invalid result not
+                         only for E2K but for all targets with `R_xxx_NONE
+                         != 0'. Moreover, it discards my attempts to setup
+                         R_E2K_NONE instead of an original relocation against a
+                         symbol coming from a discarded section in `_bfd_e2k_elf
+                         _relocate_section ()'.  */
+		      irela->r_info = bed->r_none_info;
 		      irela->r_addend = 0;
 		      continue;
 		    }
@@ -14620,9 +14639,13 @@ _bfd_elf_copy_link_hash_symbol_type (bfd *abfd,
 void
 elf_append_rela (bfd *abfd, asection *s, Elf_Internal_Rela *rel)
 {
+  static const char zero_rel[sizeof (Elf_Internal_Rela)];
   const struct elf_backend_data *bed = get_elf_backend_data (abfd);
   bfd_byte *loc = s->contents + (s->reloc_count++ * bed->s->sizeof_rela);
   BFD_ASSERT (loc + bed->s->sizeof_rela <= s->contents + s->size);
+
+  BFD_ASSERT (memcmp (rel, zero_rel, sizeof (zero_rel)) != 0);
+
   bed->s->swap_reloca_out (abfd, rel, loc);
 }
 

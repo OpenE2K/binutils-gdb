@@ -4687,7 +4687,7 @@ bpstats::bpstats ()
    watchpoints have triggered, according to the target.  */
 
 int
-watchpoints_triggered (struct target_waitstatus *ws)
+watchpoints_triggered (struct gdbarch *gdbarch, struct target_waitstatus *ws)
 {
   bool stopped_by_watchpoint = target_stopped_by_watchpoint ();
   CORE_ADDR addr;
@@ -5608,8 +5608,13 @@ bpstat_what (bpstat bs_head)
 	case bp_call_dummy:
 	  /* Make sure the action is stop (silent or noisy),
 	     so infrun.c pops the dummy frame.  */
-	  retval.call_dummy = STOP_STACK_DUMMY;
-	  this_action = BPSTAT_WHAT_STOP_SILENT;
+          if (bs->stop)
+            {
+              retval.call_dummy = STOP_STACK_DUMMY;
+              this_action = BPSTAT_WHAT_STOP_SILENT;
+            }
+          else
+            this_action = BPSTAT_WHAT_SINGLE;
 	  break;
 	case bp_std_terminate:
 	  /* Make sure the action is stop (silent or noisy),
@@ -8379,6 +8384,36 @@ enable_watchpoints_after_interactive_call_stop (void)
 }
 
 void
+disable_breakpoints_before_preparation_to_call (void)
+{
+  struct breakpoint *b;
+
+  ALL_BREAKPOINTS (b)
+  {
+    if (breakpoint_enabled (b))
+      {
+        b->enable_state = bp_call_disabled;
+        update_global_location_list (UGLL_DONT_INSERT);
+      }
+  }
+}
+
+void
+enable_breakpoints_after_preparation_to_call (void)
+{
+  struct breakpoint *b;
+
+  ALL_BREAKPOINTS (b)
+  {
+    if (b->enable_state == bp_call_disabled)
+      {
+        b->enable_state = bp_enabled;
+        update_global_location_list (UGLL_MAY_INSERT);
+      }
+  }
+}
+
+void
 disable_breakpoints_before_startup (void)
 {
   current_program_space->executing_startup = 1;
@@ -10036,7 +10071,8 @@ insert_watchpoint (struct bp_location *bl)
   struct watchpoint *w = (struct watchpoint *) bl->owner;
   int length = w->exact ? 1 : bl->length;
 
-  return target_insert_watchpoint (bl->address, length, bl->watchpoint_type,
+  return target_insert_watchpoint (bl->gdbarch, bl->address, length,
+				   bl->watchpoint_type,
 				   w->cond_exp.get ());
 }
 
@@ -10048,8 +10084,10 @@ remove_watchpoint (struct bp_location *bl, enum remove_bp_reason reason)
   struct watchpoint *w = (struct watchpoint *) bl->owner;
   int length = w->exact ? 1 : bl->length;
 
-  return target_remove_watchpoint (bl->address, length, bl->watchpoint_type,
-				   w->cond_exp.get ());
+	  return target_remove_watchpoint (bl->gdbarch, bl->address, length,
+					   bl->watchpoint_type,
+					   w->cond_exp.get ());
+
 }
 
 static int
@@ -14405,9 +14443,31 @@ insert_single_step_breakpoint (struct gdbarch *gdbarch,
 			       const address_space *aspace,
 			       CORE_ADDR next_pc)
 {
+#if 0
+  void **bpt_p;
+#ifdef ENABLE_E2K_QUIRKS
+  int i;
+
+  /* This is required to ensure that two single step breakpoints are not
+     inserted at the same address. If this happened the second breakpoint
+     would have invalid shadow contents and we'd spoil the code when
+     restoring it. */
+  for (i = 0; i < 2; i++)
+    {
+      struct bp_target_info *bp_tgt = single_step_breakpoints[i];
+      if (bp_tgt
+	  && breakpoint_address_match (bp_tgt->placed_address_space,
+				       bp_tgt->placed_address,
+				       aspace, next_pc)
+          && single_step_gdbarch[i] == gdbarch)
+	return;
+    }
+#endif /* ENABLE_E2K_QUIRKS  */
+#else /* if 1  */
   struct thread_info *tp = inferior_thread ();
   struct symtab_and_line sal;
   CORE_ADDR pc = next_pc;
+#endif /* if 1  */
 
   if (tp->control.single_step_breakpoints == NULL)
     {
@@ -14421,7 +14481,23 @@ insert_single_step_breakpoint (struct gdbarch *gdbarch,
   sal.explicit_pc = 1;
   add_location_to_breakpoint (tp->control.single_step_breakpoints, &sal);
 
+#if 0
+  *bpt_p = deprecated_insert_raw_breakpoint (gdbarch, aspace, next_pc);
+
+#ifndef ENABLE_E2K_QUIRKS
+  /* See Bug #49875. What's the point in complaining about a failure
+     when setting a single-step breakpoint to a non-existent address
+     (for example)? Keep in mind that after `error ()' (which is
+     longjmp by its nature) `remove_single_step_breakpoints' is not
+     going to be called and this may very well lead to an error
+     during the next invocation of this function . . . */
+  if (*bpt_p == NULL)
+    error (_("Could not insert single-step breakpoint at %s"),
+	     paddress (gdbarch, next_pc));
+#endif /* ENABLE_E2K_QUIRKS */
+#else /* if 1  */
   update_global_location_list (UGLL_INSERT);
+#endif /* if 1  */
 }
 
 /* Insert single step breakpoints according to the current state.  */

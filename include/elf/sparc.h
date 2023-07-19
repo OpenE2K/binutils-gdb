@@ -31,6 +31,7 @@
 #define EF_SPARC_SUN_US1	0x000200	/* Sun UltraSPARC1 extensions */
 #define EF_SPARC_HAL_R1		0x000400	/* HAL R1 extensions */
 #define EF_SPARC_SUN_US3	0x000800	/* Sun UltraSPARCIII extensions */
+#define EF_SPARC_MCST           0x001000        /* MCST Ultra extensions */
 
 #define EF_SPARC_LEDATA         0x800000	/* little endian data */
 
@@ -236,6 +237,12 @@ enum
 #define ELF_SPARC_HWCAP_CBCOND	0x10000000 /* Compare and Branch insns */
 #define ELF_SPARC_HWCAP_CRC32C	0x20000000 /* CRC32C insn */
 
+/* I doubt that this one should be visible to the outer world. At first it'll
+   be used internally by GAS.  */
+#define ELF_SPARC_HWCAP_R1000   0x40000000
+#define ELF_SPARC_HWCAP_SAPPHIRE \
+				0x80000000 /* MCST R2000 also known as Sapphire  */
+
 #define ELF_SPARC_HWCAP2_FJATHPLUS 0x00000001 /* Fujitsu Athena+ */
 #define ELF_SPARC_HWCAP2_VIS3B     0x00000002 /* Subset of VIS3 present on sparc64 X+ */
 #define ELF_SPARC_HWCAP2_ADP       0x00000004 /* Application Data Protection */
@@ -257,5 +264,7 @@ enum
 #define ELF_SPARC_HWCAP2_FPCMPSHL  0x00400000 /* Partition compare with shifted result */
 #define ELF_SPARC_HWCAP2_RLE       0x00800000 /* Run-length encoded burst and length */
 #define ELF_SPARC_HWCAP2_SHA3      0x01000000 /* SHA3 instruction */
+#define ELF_SPARC_HWCAP2_SAPPHIRE_PLUS      \
+                                   0x02000000 /* MCST Sapphire+ inherent to R2000+ processor  */
 
 #endif /* _ELF_SPARC_H */

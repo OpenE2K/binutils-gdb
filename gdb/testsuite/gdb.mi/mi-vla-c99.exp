@@ -18,6 +18,8 @@
 # Verify that, using the MI, we can evaluate a simple C Variable Length
 # Array (VLA).
 
+set USE_GCC 1
+
 load_lib mi-support.exp
 set MIFLAGS "-i=mi"
 

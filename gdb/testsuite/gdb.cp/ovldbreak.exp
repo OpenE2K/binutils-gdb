@@ -22,6 +22,8 @@
 # overloaded member functions
 #
 
+set USE_GCC 1
+
 global timeout
 set timeout 15
 #

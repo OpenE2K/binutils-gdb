@@ -168,6 +168,7 @@ SFILES = \
 	$(srcdir)/linux-bfin-low.c \
 	$(srcdir)/linux-cris-low.c \
 	$(srcdir)/linux-crisv32-low.c \
+	$(srcdir)/linux-e2k-low.c \
 	$(srcdir)/linux-ia64-low.c \
 	$(srcdir)/linux-low.c \
 	$(srcdir)/linux-m32r-low.c \

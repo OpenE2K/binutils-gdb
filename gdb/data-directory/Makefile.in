@@ -61,7 +61,8 @@ GEN_SYSCALLS_FILES = \
 	s390-linux.xml \
 	s390x-linux.xml \
 	sparc-linux.xml \
-	sparc64-linux.xml
+	sparc64-linux.xml \
+	e2k-linux.xml
 
 SYSCALLS_FILES = gdb-syscalls.dtd freebsd.xml $(GEN_SYSCALLS_FILES)
 

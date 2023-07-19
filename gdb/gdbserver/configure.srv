@@ -85,6 +85,13 @@ case "${target}" in
 			srv_linux_usrregs=yes
 			srv_linux_thread_db=yes
 			;;
+  e2k*-*-linux*)	srv_regobj="reg-e2k.o reg-elbrus-v2.o reg-elbrus-v3.o reg-elbrus-v5.o reg-elbrus-v6.o"
+			srv_tgtobj="$srv_linux_obj linux-e2k-low.o e2k-linux.o e2k-dregs.o e2k-linux-dregs.o gdbsupport/e2k-linux-regs.o"
+			srv_xmlfiles="e2k-feature.xml e2k-linux.xml elbrus-v2-feature.xml elbrus-v2-linux.xml elbrus-v3-feature.xml elbrus-v3-linux.xml elbrus-v5-feature.xml elbrus-v5-linux.xml elbrus-v6-feature.xml elbrus-v6-linux.xml"
+			srv_linux_regsets=yes
+			srv_linux_thread_db=yes
+			enable_e2k_quirks=yes
+			;;
   i[34567]86-*-cygwin*)	srv_regobj=""
 			srv_tgtobj="x86-low.o x86-dregs.o win32-low.o win32-i386-low.o"
 			srv_tgtobj="${srv_tgtobj} arch/i386.o"

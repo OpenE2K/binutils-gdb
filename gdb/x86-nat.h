@@ -78,12 +78,12 @@ struct x86_nat_target : public BaseTarget
   int region_ok_for_hw_watchpoint (CORE_ADDR addr, int len) override
   { return x86_region_ok_for_hw_watchpoint (addr, len); }
 
-  int insert_watchpoint (CORE_ADDR addr, int len,
+  int insert_watchpoint (struct gdbarch *, CORE_ADDR addr, int len,
 			 enum target_hw_bp_type type,
 			 struct expression *cond) override
   { return x86_insert_watchpoint (addr, len, type, cond); }
 
-  int remove_watchpoint (CORE_ADDR addr, int len,
+  int remove_watchpoint (struct gdbarch *, CORE_ADDR addr, int len,
 			 enum target_hw_bp_type type,
 			 struct expression *cond) override
   { return x86_remove_watchpoint (addr, len, type, cond); }

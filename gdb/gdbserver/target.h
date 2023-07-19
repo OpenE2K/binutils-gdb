@@ -256,6 +256,18 @@ struct target_ops
   int (*get_tls_address) (struct thread_info *thread, CORE_ADDR offset,
 			  CORE_ADDR load_module, CORE_ADDR *address);
 
+#ifdef __e2k__
+  int (*qxfer_tags) (unsigned char *readbuf,
+                     unsigned const char *writebuf,
+                     CORE_ADDR offset,
+                     int len);
+
+  int (*qxfer_packed_tags) (unsigned char *readbuf,
+                            unsigned const char *writebuf,
+                            CORE_ADDR offset,
+                            int len);
+#endif /* __e2k__ */
+
   /* Fill BUF with an hostio error packet representing the last hostio
      error.  */
   void (*hostio_last_error) (char *buf);

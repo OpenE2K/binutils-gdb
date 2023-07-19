@@ -222,7 +222,9 @@ generate_register_struct (struct ui_file *stream, struct gdbarch *gdbarch,
 		    stream);
 
   if (registers_used != NULL)
-    for (i = 0; i < gdbarch_num_regs (gdbarch); ++i)
+    for (i = 0;
+         i < gdbarch_num_regs (gdbarch) + gdbarch_num_pseudo_regs (gdbarch);
+         ++i)
       {
 	if (registers_used[i])
 	  {

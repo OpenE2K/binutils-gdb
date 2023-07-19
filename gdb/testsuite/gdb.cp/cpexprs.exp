@@ -19,6 +19,8 @@
 
 # This file is part of the gdb testsuite.
 
+set USE_GCC 1
+
 # A helper proc which sets a breakpoint at FUNC and attempts to
 # run to the breakpoint.
 proc test_breakpoint {func} {

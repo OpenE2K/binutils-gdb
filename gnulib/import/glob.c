@@ -261,7 +261,7 @@ convert_dirent64 (const struct dirent64 *source)
 static bool
 size_add_wrapv (size_t a, size_t b, size_t *r)
 {
-#if 5 <= __GNUC__ || __has_builtin (__builtin_add_overflow)
+#if (5 <= __GNUC__ && ! defined __LCC__) || __has_builtin (__builtin_add_overflow)
   return __builtin_add_overflow (a, b, r);
 #else
   *r = a + b;

@@ -19,6 +19,8 @@
 # Written by Satish Pai <pai@apollo.hp.com> 1997-08-19
 # Rewritten by Michael Chastain <mec.gnu@mindspring.com> 2004-01-11
 
+set USE_GCC 1
+
 set vhn "\\$\[0-9\]+"
 
 if { [skip_cplus_tests] } { continue }

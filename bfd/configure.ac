@@ -92,6 +92,18 @@ if test $use_secureplt = true; then
     [Define if we should default to creating read-only plt entries])
 fi
 
+AC_ARG_ENABLE(new-pm-abi,
+[  --enable-new-pm-abi      Enable new PM ABI on E2K],
+[case "${enableval}" in
+  yes)  new_pm_abi=true  ;;
+  no)   new_pm_abi=false ;;
+  *)    AC_MSG_ERROR(bad value ${enableval} for new-pm-abi option) ;;
+esac],[new_pm_abi=false])dnl
+if test $new_pm_abi = true; then
+  AC_DEFINE(NEW_PM_ABI, 1,
+    [Define if we should enable new PM ABI])
+fi
+
 # Decide if -z separate-code should be enabled in ELF linker by default.
 ac_default_ld_z_separate_code=unset
 AC_ARG_ENABLE(separate-code,
@@ -467,6 +479,10 @@ do
     d10v_elf32_vec)		 tb="$tb elf32-d10v.lo elf32.lo $elf" ;;
     d30v_elf32_vec)		 tb="$tb elf32-d30v.lo elf32.lo $elf" ;;
     dlx_elf32_be_vec)		 tb="$tb elf32-dlx.lo elf32.lo $elf" ;;
+    e2k_elf32_vec)		 tb="$tb elf32-e2k.lo elfxx-e2k.lo elf-ifunc.lo $elf"; want64=true;;
+    e2k_pm_elf32_vec)		 tb="$tb elf32-e2k-pm.lo elfxx-e2k.lo elf-ifunc.lo $elf";;
+    e2k_elf64_vec)		 tb="$tb elf64-e2k.lo elfxx-e2k.lo elf-ifunc.lo $elf"; target_size=64;;
+    e2k_kpda_elf64_vec)		 tb="$tb elf64-e2k-kpda.lo elfxx-e2k.lo elf-ifunc.lo $elf"; target_size=64;;
     elf32_be_vec)		 tb="$tb elf32-gen.lo elf32.lo $elf" ;;
     elf32_le_vec)		 tb="$tb elf32-gen.lo elf32.lo $elf" ;;
     elf64_be_vec)		 tb="$tb elf64-gen.lo elf64.lo $elf"; target_size=64 ;;

@@ -164,7 +164,9 @@ run_tests ()
   static_assert (back == 'k', "");
 
   constexpr const char *data = sv4.data ();
+#if ! defined __LCC__
   static_assert (data == fika, "");
+#endif /* ! defined __LCC__  */
 }
 
 } /* namespace string_view */

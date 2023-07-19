@@ -371,6 +371,9 @@
 /* Define if we should default to creating read-only plt entries */
 #undef USE_SECUREPLT
 
+/* Define if we should use new PM ABI for E2K  */
+#undef NEW_PM_ABI
+
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
 # undef _ALL_SOURCE

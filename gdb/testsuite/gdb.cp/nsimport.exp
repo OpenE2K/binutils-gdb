@@ -16,6 +16,8 @@
 # Test printing from multiple namespace
 # imported into the same scope.
 
+set USE_GCC 1
+
 
 standard_testfile .cc
 

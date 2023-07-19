@@ -293,6 +293,13 @@ struct lval_funcs
      This may be NULL, in which case no action is taken to free
      VALUE's closure.  */
   void (*free_closure) (struct value *v);
+
+#ifdef ENABLE_E2K_QUIRKS
+  /* This is required to get an address of a tagged register which is a
+     computed value from GDB's point of view. Addresses of such registers
+     are required for `info frame'.  */
+  CORE_ADDR (*get_addr) (struct value *v);
+#endif /* ENABLE_E2K_QUIRKS  */
 };
 
 /* Create a computed lvalue, with type TYPE, function pointers FUNCS,
@@ -952,6 +959,8 @@ extern struct value *access_value_history (int num);
 extern struct value *value_of_internalvar (struct gdbarch *gdbarch,
 					   struct internalvar *var);
 
+extern struct value *value_ref_of_internalvar (struct internalvar *var);
+
 extern int get_internalvar_integer (struct internalvar *var, LONGEST *l);
 
 extern void set_internalvar (struct internalvar *var, struct value *val);
@@ -963,6 +972,8 @@ extern void set_internalvar_string (struct internalvar *var,
 
 extern void clear_internalvar (struct internalvar *var);
 
+extern void free_nameless_internalvar (struct internalvar *var);
+
 extern void set_internalvar_component (struct internalvar *var,
 				       LONGEST offset,
 				       LONGEST bitpos, LONGEST bitsize,
@@ -971,6 +982,10 @@ extern void set_internalvar_component (struct internalvar *var,
 extern struct internalvar *lookup_only_internalvar (const char *name);
 
 extern struct internalvar *create_internalvar (const char *name);
+
+#ifdef ENABLE_E2K_QUIRKS
+extern struct internalvar *create_nameless_internalvar (void);
+#endif /* ENABLE_E2K_QUIRKS  */
 
 extern void complete_internalvar (completion_tracker &tracker,
 				  const char *name);
@@ -1052,10 +1067,10 @@ extern int binop_types_user_defined_p (enum exp_opcode op,
 				       struct type *type1,
 				       struct type *type2);
 
-extern int binop_user_defined_p (enum exp_opcode op, struct value *arg1,
-				 struct value *arg2);
+extern int binop_user_defined_p (enum exp_opcode op, struct value **arg1,
+				 struct value **arg2);
 
-extern int unop_user_defined_p (enum exp_opcode op, struct value *arg1);
+extern int unop_user_defined_p (enum exp_opcode op, struct value **arg1);
 
 extern int destructor_name_p (const char *name, struct type *type);
 

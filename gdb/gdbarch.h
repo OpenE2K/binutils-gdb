@@ -1476,6 +1476,35 @@ extern void set_gdbarch_solib_symbols_extension (struct gdbarch *gdbarch, const 
 extern int gdbarch_has_dos_based_file_system (struct gdbarch *gdbarch);
 extern void set_gdbarch_has_dos_based_file_system (struct gdbarch *gdbarch, int has_dos_based_file_system);
 
+#ifdef ENABLE_E2K_QUIRKS
+/* Let gdbarch override VAL_TYPE in `do_examine' */
+typedef void (gdbarch_override_examine_val_type_ftype) (struct gdbarch *gdbarch, CORE_ADDR addr, char size, struct type **type);
+extern void gdbarch_override_examine_val_type (struct gdbarch *gdbarch, CORE_ADDR addr, char size, struct type **type);
+extern void set_gdbarch_override_examine_val_type (struct gdbarch *gdbarch, gdbarch_override_examine_val_type_ftype *override_examine_val_type);
+
+/* Let gdbarch provide LAST_EXAMINE_VALUE for `do_examine' */
+typedef struct value * (gdbarch_examine_value_ftype) (struct gdbarch *gdbarch, char format, struct type *type, CORE_ADDR addr);
+extern struct value * gdbarch_examine_value (struct gdbarch *gdbarch, char format, struct type *type, CORE_ADDR addr);
+extern void set_gdbarch_examine_value (struct gdbarch *gdbarch, gdbarch_examine_value_ftype *examine_value);
+
+/* Let gdbarch determine determine NEXT_ADDRESS "after" VAL in print_formatted */
+typedef void (gdbarch_next_address_ftype) (struct gdbarch *gdbarch, struct value *val, CORE_ADDR *addr);
+extern void gdbarch_next_address (struct gdbarch *gdbarch, struct value *val, CORE_ADDR *addr);
+extern void set_gdbarch_next_address (struct gdbarch *gdbarch, gdbarch_next_address_ftype *next_address);
+
+
+/* The upper three methods should be also placed under this `ifdef' in the end. */
+
+/* Let gdbarch adjust an argument of a binary operation. At E2K we require this when performing arithmetics and so on on tagged registers. */
+typedef void (gdbarch_adjust_binop_arg_ftype) (struct gdbarch *gdbarch, struct value **pval);
+extern void gdbarch_adjust_binop_arg (struct gdbarch *gdbarch, struct value **pval);
+extern void set_gdbarch_adjust_binop_arg (struct gdbarch *gdbarch, gdbarch_adjust_binop_arg_ftype *adjust_binop_arg);
+
+typedef void (gdbarch_customize_disassemble_info_ftype) (struct disassemble_info *di);
+extern void gdbarch_customize_disassemble_info (struct gdbarch *gdbarch, struct disassemble_info *di);
+extern void set_gdbarch_customize_disassemble_info (struct gdbarch *gdbarch, gdbarch_customize_disassemble_info_ftype *customize_disassemble_info);
+#endif /* ENABLE_E2K_QUIRKS */
+
 /* Generate bytecodes to collect the return address in a frame.
    Since the bytecodes run on the target, possibly with GDB not even
    connected, the full unwinding machinery is not available, and

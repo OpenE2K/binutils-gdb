@@ -18,6 +18,8 @@
 
 # This file is part of the gdb testsuite
 
+set USE_GCC 1
+
 # Tests for overloaded member functions.
 
 set ws "\[\r\n\t \]+"

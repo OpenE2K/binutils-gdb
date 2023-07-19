@@ -20,6 +20,7 @@
 #include "defs.h"
 #include "regcache.h"
 
+#include <sys/ptrace.h>
 #include <sys/procfs.h>
 #include "gregset.h"
 
@@ -29,6 +30,11 @@
 #include "inferior.h"
 #include "target.h"
 #include "linux-nat.h"
+
+#include "features/sparc/sparcv932-linux.c"
+
+static const struct target_desc * sparc64_linux_read_description
+(struct target_ops *ops);
 
 class sparc64_linux_nat_target final : public linux_nat_target
 {
@@ -45,6 +51,9 @@ public:
   /* ADI support */
   void low_forget_process (pid_t pid) override
   { sparc64_forget_process (pid); }
+
+  const struct target_desc *read_description ()  override
+  { return sparc64_linux_read_description (this); }
 };
 
 static sparc64_linux_nat_target the_sparc64_linux_nat_target;
@@ -88,6 +97,39 @@ fill_fpregset (const struct regcache *regcache,
   sparc64_collect_fpregset (&sparc64_bsd_fpregmap, regcache, regnum, fpregs);
 }
 
+extern struct target_desc *tdesc_sparcv932_linux;
+
+static const struct target_desc *
+sparc64_linux_read_description (struct target_ops *ops)
+{
+  int tid;
+  unsigned long sp;
+  gregset_t regs;
+
+  /* GNU/Linux LWP ID's are process ID's.  */
+  tid = inferior_ptid.lwp ();
+
+  /* "Not a threaded program", what does this really mean???  */
+  if (tid == 0)
+    tid = inferior_ptid.pid ();
+
+
+  if (ptrace (PTRACE_GETREGS, tid, (PTRACE_TYPE_ARG3) &regs, 0) == -1)
+    perror_with_name (_("Couldn't get registers"));
+
+  /* Retrieving %sp == %o6.  */
+  memcpy (&sp, ((gdb_byte *) regs
+                + sparc64_linux_ptrace_gregmap.r_g1_offset
+                + (7 + 6) * 8), 8);
+
+  /* If we are in 32-bit mode return a special target_desc with
+     64-bit %eg and %eo registers.  */
+  if ((sp & 1) == 0)
+    return tdesc_sparcv932_linux;
+
+  return NULL;
+}
+
 void
 _initialize_sparc64_linux_nat (void)
 {
@@ -98,4 +140,6 @@ _initialize_sparc64_linux_nat (void)
   add_inf_child_target (&the_sparc64_linux_nat_target);
 
   sparc_gregmap = &sparc64_linux_ptrace_gregmap;
+
+  initialize_tdesc_sparcv932_linux ();
 }

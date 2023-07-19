@@ -53,6 +53,9 @@ public:
   struct gdbarch *arch ()
   { return m_gdbarch; }
 
+  unsigned int octets_per_byte ()
+  { return m_di.octets_per_byte; }
+
 protected:
   gdb_disassembler (struct gdbarch *gdbarch, struct ui_file *file,
 		    di_read_memory_ftype func);

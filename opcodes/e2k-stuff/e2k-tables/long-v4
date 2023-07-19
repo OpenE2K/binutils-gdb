@@ -1,0 +1,71 @@
+| 00 | PMINUB   | PUNPCKHBH|	      |  | 40 | 	 |	    |	       |
+| 01 | PMINSH   | PUNPCKLBH|	      |  | 41 | 	 |	    |	       |
+| 02 | PMAXUB   | PUNPCKHHW| STCSQ    |  | 42 | LDCSQ	 |	    | LDCSQ    |
+| 03 | PMAXSH   | PUNPCKLHW| STDSQ    |  | 43 | LDDSQ	 |	    | LDDSQ    |
+| 04 | PMINSB	| PUNPCKHWD| STESQ    |  | 44 | LDESQ	 |	    | LDESQ    |
+| 05 | PMINUH	| PUNPCKLWD| STFSQ    |  | 45 | LDFSQ	 |	    | LDFSQ    |
+| 06 | PMAXSB	| PMOVMSKPS| STGSQ    |  | 46 | LDGSQ	 |	    | LDGSQ    |
+| 07 | PMAXUH	| PMOVMSKPD| STSSQ    |  | 47 | LDSSQ	 |	    | LDSSQ    |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 08 | PADDB    | PACKSSHB | GETTAGs  |  | 48 | PANDd	 | PANDd    | FDIVs    |
+| 09 | PADDH    | PACKUSHB | GETTAGd  |  | 49 | PANDNd   | PANDNd   | FDIVd    |
+| 0a | PADDSB   | PACKSSWH | PUTTAGs  |  | 4a | PORd	 | PORd     | PFDIVs   |
+| 0b | PADDSH   | PMOVMSKB | PUTTAGd  |  | 4b | PXORd	 | PXORd    | PFDIVd   |
+| 0c | PADDUSB  | PSRLQH   |	      |  | 4c |          | PSRLD    | FSQRTs   |
+| 0d | PADDUSH  | PSRLQL   |          |  | 4d | PCMPEQD  |	    | FSQRTId  |
+| 0e | PADDW    | PSLLQH   |          |  | 4e |          | PSLLD    | PFSQRTs  |
+| 0f | PADDD    | PSLLQL   |          |  | 4f | PCMPGTD  |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 10 | PSUBB    | PSRLW    |          |  | 50 | APTOAP   | APTOAP   | FRCPs    |
+| 11 | PSUBH    | PSRLH    |          |  | 51 | APTOAPB  | APTOAPB  | FSQRTTd  |
+| 12 | PSUBSB   | PSRAW    |          |  | 52 | GETVA    |          |          |
+| 13 | PSUBSH   | PSRAH    |          |  | 53 |          |          | PFSQRTTd |
+| 14 | PSUBUSB  | PSLLW    |          |  | 54 |          |          | FRSQRTs  |
+| 15 | PSUBUSH  | PSLLH    |          |  | 55 |          |          |          |
+| 16 | PSUBW    | PSHUFW   |          |  | 56 |          |          |          |
+| 17 | PSUBD    | PSHUFH   |          |  | 57 | MOVTq    | MOVTq    |          |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 18 | PCMPEQB  | PMULHH   |          |  | 58 | GETSP    | MPSADBH  |          |
+| 19 | PCMPEQH  | PMULLH   |          |  | 59 |          |          |          |
+| 1a | PCMPEQW  | PMADDH   |          |  | 5a |          |          |          |
+| 1b | PCMPGTB  | PMULHUH  | STRD     |  | 5b | LDRD     |          | LDRD     |
+| 1c | PCMPGTH  | PSADBW   | STAAB    |  | 5c |          |          | LDAAB    |
+| 1d | PCMPGTW  | PMULUBHH | STAAH    |  | 5d |          |          | LDAAH    |
+| 1e | PAVGUSB  | PEXTRH   | STAAW    |  | 5e |          |          | LDAAW    |
+| 1f | PAVGUSH  | PINSH    | STAAD    |  | 5f |          |          | LDAAD    |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 20 | MULs     | MULs     |          |  | 60 | LDCUDB   |	    | LDCUDB   |
+| 21 | MULd     | MULd     |          |  | 61 | LDCUDH   |	    | LDCUDH   |
+| 22 | UMULX    | UMULX    |          |  | 62 | LDCUDW   |	    | LDCUDW   |
+| 23 | SMULX    | SMULX    |          |  | 63 | LDCUDD   |          | LDCUDD   |
+| 24 |GET(TC/TST) FSCALEs  | STGDB    |  | 64 | LDGDB    |          | LDGDB    |
+| 25 |PUT(TC/TST) FSCALEd  | STGDH    |  | 65 | LDGDH    |          | LDGDH    |
+| 26 | INVTC    |          | STGDW    |  | 66 | LDGDW    |          | LDGDW    |
+| 27 |          | FXSCALEsx| STGDD    |  | 67 | LDGDD    |          | LDGDD    |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 28 | FXCMPsf  | FXCMPsf  | STAPB    |  | 68 | LDAPB    | PMADDUBSH| LDAPB    |
+| 29 | FXCMPdf  | FXCMPdf  | STAPH    |  | 69 | LDAPH    | PMULHRSH | LDAPH    |
+| 2a |          |          | STAPW    |  | 6a | LDAPW    |PHMINPOSUH| LDAPW    |
+| 2b | FXCMPxf  | FXCMPxf  | STAPD    |  | 6b | LDAPD    | PACKUSWH | LDAPD    |
+| 2c | FCMPs    | FCMPs    |          |  | 6c | FSTOIFs  | FSTOIFs  |          |
+| 2d | FCMPd    | FCMPd    |          |  | 6d | FDTOIFd  | FDTOIFd  |          |
+| 2e | FCMPsf   | FCMPsf   |          |  | 6e | PFSTOIFs | PFSTOIFs |          |
+| 2f | FCMPdf   | FCMPdf   |          |  | 6f | PFDTOIFd | PFDTOIFd |          |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 30 | PFADDs   | PFADDs   | PFADDs   |  | 70 | UMULHd   | UMULHd   |	       |
+| 31 | PFADDd   | PFADDd   | PFADDd   |  | 71 | SMULHd   | SMULHd   |	       |
+| 32 | PFSUBs   | PFSUBs   | PFSUBs   |  | 72 | PFHADDs  | PFHADDs  | PFHADDs  |
+| 33 | PFSUBd   | PFSUBd   | PFSUBd   |  | 73 | PFHSUBs  | PFHSUBs  | PFHSUBs  |
+| 34 | PFMINs   | PFMINs   |	      |  | 74 | 	 |	    |	       |
+| 35 | PFMINd   | PFMINd   |	      |  | 75 | 	 |	    |	       |
+| 36 | PFMAXs   | PFMAXs   |	      |  | 76 | 	 |	    |	       |
+| 37 | PFMAXd   | PFMAXd   |	      |  | 77 | PFADDSUBs| PFADDSUBs| PFADDSUBs|
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 38 | PFMULs   | PFMULs   | PFMULs   |  | 78 | LDCUDQ   |          | LDCUDQ   |
+| 39 | PFMULd   | PFMULd   | STGDQ    |  | 79 | LDGDQ    |	    | LDGDQ    |
+| 3a | PFCMPs   | PFCMPs   | STAPQ    |  | 7a | LDAPQ    |          | LDAPQ    |
+| 3b | PFCMPd   | PFCMPd   |          |  | 7b |          |	    |          |
+| 3c | RWs      |	   |          |  | 7c |          |	    |          |
+| 3d | RWd      |	   |          |  | 7d |          |	    |          |
+| 3e | RRs      |	   |	      |  | 7e | 	 |	    |	       |
+| 3f | RRd      |	   | STAAQ    |  | 7f | 	 |	    | LDAAQ    |

@@ -337,6 +337,14 @@ struct gdbarch
   gdbarch_auto_wide_charset_ftype *auto_wide_charset;
   const char * solib_symbols_extension;
   int has_dos_based_file_system;
+#ifdef ENABLE_E2K_QUIRKS
+  gdbarch_override_examine_val_type_ftype *override_examine_val_type;
+  gdbarch_examine_value_ftype *examine_value;
+  gdbarch_next_address_ftype *next_address;
+
+  gdbarch_adjust_binop_arg_ftype *adjust_binop_arg;
+  gdbarch_customize_disassemble_info_ftype *customize_disassemble_info;
+#endif /* ENABLE_E2K_QUIRKS */
   gdbarch_gen_return_address_ftype *gen_return_address;
   gdbarch_info_proc_ftype *info_proc;
   gdbarch_core_info_proc_ftype *core_info_proc;
@@ -458,6 +466,11 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->guess_tracepoint_registers = default_guess_tracepoint_registers;
   gdbarch->auto_charset = default_auto_charset;
   gdbarch->auto_wide_charset = default_auto_wide_charset;
+#ifdef ENABLE_E2K_QUIRKS
+  gdbarch->override_examine_val_type = default_override_examine_val_type;
+  gdbarch->examine_value = default_examine_value;
+  gdbarch->next_address = default_next_address;
+#endif /* ENABLE_E2K_QUIRKS  */
   gdbarch->gen_return_address = default_gen_return_address;
   gdbarch->iterate_over_objfiles_in_search_order = default_iterate_over_objfiles_in_search_order;
   gdbarch->ravenscar_ops = NULL;
@@ -4777,6 +4790,102 @@ set_gdbarch_has_dos_based_file_system (struct gdbarch *gdbarch,
 {
   gdbarch->has_dos_based_file_system = has_dos_based_file_system;
 }
+
+#ifdef ENABLE_E2K_QUIRKS
+/* Let gdbarch override VAL_TYPE in `do_examine' */
+void
+gdbarch_override_examine_val_type (struct gdbarch *gdbarch, CORE_ADDR addr, char size, struct type **type)
+{
+  gdb_assert (gdbarch != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_override_examine_val_type called\n");
+  return gdbarch->override_examine_val_type (gdbarch, addr, size, type);
+}
+
+void
+set_gdbarch_override_examine_val_type (struct gdbarch *gdbarch, gdbarch_override_examine_val_type_ftype *override_examine_val_type)
+{
+  gdbarch->override_examine_val_type = override_examine_val_type;
+}
+
+/* Let gdbarch provide LAST_EXAMINE_VALUE for `do_examine' */
+
+struct value *
+gdbarch_examine_value (struct gdbarch *gdbarch, char format,
+                       struct type *type, CORE_ADDR addr)
+{
+  gdb_assert (gdbarch != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_examine_value called\n");
+  return gdbarch->examine_value (gdbarch, format, type, addr);
+}
+
+void
+set_gdbarch_examine_value (struct gdbarch *gdbarch, gdbarch_examine_value_ftype *examine_value)
+{
+  gdbarch->examine_value = examine_value;
+}
+
+/* Let gdbarch determine determine NEXT_ADDRESS "after" VAL in print_formatted */
+
+void
+gdbarch_next_address (struct gdbarch *gdbarch, struct value *val, CORE_ADDR *addr)
+{
+  gdb_assert (gdbarch != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_next_address called\n");
+  return gdbarch->next_address (gdbarch, val, addr);
+}
+
+void
+set_gdbarch_next_address (struct gdbarch *gdbarch, gdbarch_next_address_ftype *next_address)
+{
+  gdbarch->next_address = next_address;
+}
+
+
+/* Let gdbarch adjust an argument of a binary operation. At E2K we require this when performing
+   arithmetics and so on on tagged registers. */
+
+void
+gdbarch_adjust_binop_arg (struct gdbarch *gdbarch, struct value **pval)
+{
+  gdb_assert (gdbarch != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_adjust_binop_arg\n");
+
+  /* There is no point in having this for DSP gdbarch. */
+  if (gdbarch->adjust_binop_arg)
+    return gdbarch->adjust_binop_arg (gdbarch, pval);
+}
+
+void
+set_gdbarch_adjust_binop_arg (struct gdbarch *gdbarch, gdbarch_adjust_binop_arg_ftype *adjust_binop_arg)
+{
+  gdbarch->adjust_binop_arg = adjust_binop_arg;
+}
+
+
+void
+gdbarch_customize_disassemble_info (struct gdbarch *gdbarch, struct disassemble_info *di)
+{
+  gdb_assert (gdbarch != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_customize_disassemble_info\n");
+
+  if (gdbarch->customize_disassemble_info)
+    return gdbarch->customize_disassemble_info (di);
+}
+
+void
+set_gdbarch_customize_disassemble_info
+(struct gdbarch *gdbarch,
+ gdbarch_customize_disassemble_info_ftype *customize_disassemble_info)
+{
+  gdbarch->customize_disassemble_info = customize_disassemble_info;
+}
+
+#endif /* ENABLE_E2K_QUIRKS */
 
 void
 gdbarch_gen_return_address (struct gdbarch *gdbarch, struct agent_expr *ax, struct axs_value *value, CORE_ADDR scope)

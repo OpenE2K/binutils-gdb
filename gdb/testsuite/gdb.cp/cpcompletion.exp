@@ -15,7 +15,11 @@
 
 # This file is part of the gdb testsuite.
 
+<<<<<<< HEAD
+set USE_GCC 1
+=======
 load_lib completion-support.exp
+>>>>>>> 46afe196ec282505dcd2727725bfb5ef87ea4b21
 
 # A helper procedure to test location completions restricted by
 # class.

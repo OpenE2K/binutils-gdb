@@ -1,0 +1,788 @@
+# FIXME: beware of broken byte offsets before almost all registers
+# because of sys_num relocation.
+
+name:elbrus_v3
+xmltarget:elbrus-v3-linux.xml
+expedite:cwd
+
+# 0 - offset in bytes from the start of `user_regs_struct'.
+64:_sizeof
+
+# 2792
+64:sys_num
+
+# [1] 8
+64:_pcsp_offset
+
+
+# [32] - number of elements, 16 - offset of the first element from the start of
+# the struct
+64:g0
+64:g1
+64:g2
+64:g3
+64:g4
+64:g5
+64:g6
+64:g7
+64:g8
+64:g9
+64:g10
+64:g11
+64:g12
+64:g13
+64:g14
+64:g15
+64:g16
+64:g17
+64:g18
+64:g19
+64:g20
+64:g21
+64:g22
+64:g23
+64:g24
+64:g25
+64:g26
+64:g27
+64:g28
+64:g29
+64:g30
+64:g31
+
+# 272
+64:psr
+# 280
+64:upsr
+# 288
+64:oscud_lo
+# 296
+64:oscud_hi
+# 304
+64:osgd_lo
+# 312
+64:osgd_hi
+# 320
+64:osem
+# 328
+64:osr0
+# 336
+64:pfpfr
+# 344
+64:fpcr
+# 352
+64:fpsr
+# 360
+64:usbr
+# 368
+64:usd_lo
+# 376
+64:usd_hi
+# 384
+64:psp_lo
+# 392
+64:psp_hi
+# 400
+64:pshtp
+# 408
+64:cr0_lo
+# 416
+64:cr0_hi
+# 424
+64:cr1_lo
+# 432
+64:cr1_hi
+# 440
+64:cwd
+# 448
+64:pcsp_lo
+# 456
+64:pcsp_hi
+# 464
+64:pcshtp
+# 472
+64:cud_lo
+# 480
+64:cud_hi
+# 488
+64:gd_lo
+# 496
+64:gd_hi
+# 504
+64:cs_lo
+# 512
+64:cs_hi
+# 520
+64:ds_lo
+# 528
+64:ds_hi
+# 536
+64:es_lo
+# 544
+64:es_hi
+# 552
+64:fs_lo
+# 560
+64:fs_hi
+# 568
+64:gs_lo
+# 576
+64:gs_hi
+# 584
+64:ss_lo
+# 592
+64:ss_hi
+
+# [32*2] 600
+64:aad0_lo
+64:aad0_hi
+64:aad1_lo
+64:aad1_hi
+64:aad2_lo
+64:aad2_hi
+64:aad3_lo
+64:aad3_hi
+64:aad4_lo
+64:aad4_hi
+64:aad5_lo
+64:aad5_hi
+64:aad6_lo
+64:aad6_hi
+64:aad7_lo
+64:aad7_hi
+64:aad8_lo
+64:aad8_hi
+64:aad9_lo
+64:aad9_hi
+64:aad10_lo
+64:aad10_hi
+64:aad11_lo
+64:aad11_hi
+64:aad12_lo
+64:aad12_hi
+64:aad13_lo
+64:aad13_hi
+64:aad14_lo
+64:aad14_hi
+64:aad15_lo
+64:aad15_hi
+64:aad16_lo
+64:aad16_hi
+64:aad17_lo
+64:aad17_hi
+64:aad18_lo
+64:aad18_hi
+64:aad19_lo
+64:aad19_hi
+64:aad20_lo
+64:aad20_hi
+64:aad21_lo
+64:aad21_hi
+64:aad22_lo
+64:aad22_hi
+64:aad23_lo
+64:aad23_hi
+64:aad24_lo
+64:aad24_hi
+64:aad25_lo
+64:aad25_hi
+64:aad26_lo
+64:aad26_hi
+64:aad27_lo
+64:aad27_hi
+64:aad28_lo
+64:aad28_hi
+64:aad29_lo
+64:aad29_hi
+64:aad30_lo
+64:aad30_hi
+64:aad31_lo
+64:aad31_hi
+
+
+# [16] 1112
+64:aaind0
+64:aaind1
+64:aaind2
+64:aaind3
+64:aaind4
+64:aaind5
+64:aaind6
+64:aaind7
+64:aaind8
+64:aaind9
+64:aaind10
+64:aaind11
+64:aaind12
+64:aaind13
+64:aaind14
+64:aaind15
+
+
+
+# [8] 1240
+64:aaincr0
+64:aaincr1
+64:aaincr2
+64:aaincr3
+64:aaincr4
+64:aaincr5
+64:aaincr6
+64:aaincr7
+
+
+
+# [64]  1304
+64:aaldi0
+64:aaldi1
+64:aaldi2
+64:aaldi3
+64:aaldi4
+64:aaldi5
+64:aaldi6
+64:aaldi7
+64:aaldi8
+64:aaldi9
+64:aaldi10
+64:aaldi11
+64:aaldi12
+64:aaldi13
+64:aaldi14
+64:aaldi15
+64:aaldi16
+64:aaldi17
+64:aaldi18
+64:aaldi19
+64:aaldi20
+64:aaldi21
+64:aaldi22
+64:aaldi23
+64:aaldi24
+64:aaldi25
+64:aaldi26
+64:aaldi27
+64:aaldi28
+64:aaldi29
+64:aaldi30
+64:aaldi31
+64:aaldi32
+64:aaldi33
+64:aaldi34
+64:aaldi35
+64:aaldi36
+64:aaldi37
+64:aaldi38
+64:aaldi39
+64:aaldi40
+64:aaldi41
+64:aaldi42
+64:aaldi43
+64:aaldi44
+64:aaldi45
+64:aaldi46
+64:aaldi47
+64:aaldi48
+64:aaldi49
+64:aaldi50
+64:aaldi51
+64:aaldi52
+64:aaldi53
+64:aaldi54
+64:aaldi55
+64:aaldi56
+64:aaldi57
+64:aaldi58
+64:aaldi59
+64:aaldi60
+64:aaldi61
+64:aaldi62
+64:aaldi63
+
+
+
+# 1816
+64:aaldv
+
+# [64] 1824
+64:aalda0
+64:aalda1
+64:aalda2
+64:aalda3
+64:aalda4
+64:aalda5
+64:aalda6
+64:aalda7
+64:aalda8
+64:aalda9
+64:aalda10
+64:aalda11
+64:aalda12
+64:aalda13
+64:aalda14
+64:aalda15
+64:aalda16
+64:aalda17
+64:aalda18
+64:aalda19
+64:aalda20
+64:aalda21
+64:aalda22
+64:aalda23
+64:aalda24
+64:aalda25
+64:aalda26
+64:aalda27
+64:aalda28
+64:aalda29
+64:aalda30
+64:aalda31
+64:aalda32
+64:aalda33
+64:aalda34
+64:aalda35
+64:aalda36
+64:aalda37
+64:aalda38
+64:aalda39
+64:aalda40
+64:aalda41
+64:aalda42
+64:aalda43
+64:aalda44
+64:aalda45
+64:aalda46
+64:aalda47
+64:aalda48
+64:aalda49
+64:aalda50
+64:aalda51
+64:aalda52
+64:aalda53
+64:aalda54
+64:aalda55
+64:aalda56
+64:aalda57
+64:aalda58
+64:aalda59
+64:aalda60
+64:aalda61
+64:aalda62
+64:aalda63
+
+# 2336
+64:aaldm
+# 2344
+64:aasr
+# 2352
+64:aafstr
+
+# [16] 2360
+64:aasti0
+64:aasti1
+64:aasti2
+64:aasti3
+64:aasti4
+64:aasti5
+64:aasti6
+64:aasti7
+64:aasti8
+64:aasti9
+64:aasti10
+64:aasti11
+64:aasti12
+64:aasti13
+64:aasti14
+64:aasti15
+
+# 2488
+64:clkr
+# 2496
+64:dibcr
+# 2504
+64:ddbcr
+
+# [4] 2512
+64:dibar0
+64:dibar1
+64:dibar2
+64:dibar3
+
+# [4] 2544
+64:ddbar0
+64:ddbar1
+64:ddbar2
+64:ddbar3
+
+
+# 2576
+64:dimcr
+# 2584
+64:ddmcr
+
+# [2] 2592
+64:dimar0
+64:dimar1
+
+# [2] 2608
+64:ddmar0
+64:ddmar1
+
+# 2624
+64:dibsr
+# 2632
+64:ddbsr
+# 2640
+64:dtcr
+# 2648
+64:dtarf
+# 2656
+64:dtart
+# 2664
+64:wd
+# 2672
+64:br
+# 2680
+64:bgr
+# 2688
+64:ip
+# 2696
+64:nip
+# 2704
+64:ctpr1
+# 2712
+64:ctpr2
+# 2720
+64:ctpr3
+# 2728
+64:eir
+# 2736
+64:tr
+# 2744
+64:cutd
+# 2752
+64:cuir
+# 2760
+64:tsd
+# 2768
+64:lsr
+# 2776
+64:ilcr
+# 2784
+64:sys_rval
+# 2800
+64:arg1
+# 2808
+64:arg2
+# 2816
+64:arg3
+# 2824
+64:arg4
+# 2832
+64:arg5
+# 2840
+64:arg6
+
+# [32] 2848
+8:gtag0
+8:gtag1
+8:gtag2
+8:gtag3
+8:gtag4
+8:gtag5
+8:gtag6
+8:gtag7
+8:gtag8
+8:gtag9
+8:gtag10
+8:gtag11
+8:gtag12
+8:gtag13
+8:gtag14
+8:gtag15
+8:gtag16
+8:gtag17
+8:gtag18
+8:gtag19
+8:gtag20
+8:gtag21
+8:gtag22
+8:gtag23
+8:gtag24
+8:gtag25
+8:gtag26
+8:gtag27
+8:gtag28
+8:gtag29
+8:gtag30
+8:gtag31
+
+# [32] 2880
+16:gext0
+16:gext1
+16:gext2
+16:gext3
+16:gext4
+16:gext5
+16:gext6
+16:gext7
+16:gext8
+16:gext9
+16:gext10
+16:gext11
+16:gext12
+16:gext13
+16:gext14
+16:gext15
+16:gext16
+16:gext17
+16:gext18
+16:gext19
+16:gext20
+16:gext21
+16:gext22
+16:gext23
+16:gext24
+16:gext25
+16:gext26
+16:gext27
+16:gext28
+16:gext29
+16:gext30
+16:gext31
+
+# 2944
+64:rpr_hi
+# 2952
+64:rpr_lo
+
+# [19] 2960
+64:tir_0_lo
+64:tir_1_lo
+64:tir_2_lo
+64:tir_3_lo
+64:tir_4_lo
+64:tir_5_lo
+64:tir_6_lo
+64:tir_7_lo
+64:tir_8_lo
+64:tir_9_lo
+64:tir_10_lo
+64:tir_11_lo
+64:tir_12_lo
+64:tir_13_lo
+64:tir_14_lo
+64:tir_15_lo
+64:tir_16_lo
+64:tir_17_lo
+64:tir_18_lo
+
+# [19] 3112
+64:tir_0_hi
+64:tir_1_hi
+64:tir_2_hi
+64:tir_3_hi
+64:tir_4_hi
+64:tir_5_hi
+64:tir_6_hi
+64:tir_7_hi
+64:tir_8_hi
+64:tir_9_hi
+64:tir_10_hi
+64:tir_11_hi
+64:tir_12_hi
+64:tir_13_hi
+64:tir_14_hi
+64:tir_15_hi
+64:tir_16_hi
+64:tir_17_hi
+64:tir_18_hi
+
+# [10] 3264
+64:trap_cell_addr_0
+64:trap_cell_addr_1
+64:trap_cell_addr_2
+64:trap_cell_addr_3
+64:trap_cell_addr_4
+64:trap_cell_addr_5
+64:trap_cell_addr_6
+64:trap_cell_addr_7
+64:trap_cell_addr_8
+64:trap_cell_addr_9
+
+# [10] 3344
+64:trap_cell_val_0
+64:trap_cell_val_1
+64:trap_cell_val_2
+64:trap_cell_val_3
+64:trap_cell_val_4
+64:trap_cell_val_5
+64:trap_cell_val_6
+64:trap_cell_val_7
+64:trap_cell_val_8
+64:trap_cell_val_9
+
+# [10] 3424
+8:trap_cell_tag_0
+8:trap_cell_tag_1
+8:trap_cell_tag_2
+8:trap_cell_tag_3
+8:trap_cell_tag_4
+8:trap_cell_tag_5
+8:trap_cell_tag_6
+8:trap_cell_tag_7
+8:trap_cell_tag_8
+8:trap_cell_tag_9
+
+# [6] 3434
+8:dummy_1
+8:dummy_2
+8:dummy_3
+8:dummy_4
+8:dummy_5
+8:dummy_6
+
+
+# [10] 3440
+64:trap_cell_info_0
+64:trap_cell_info_1
+64:trap_cell_info_2
+64:trap_cell_info_3
+64:trap_cell_info_4
+64:trap_cell_info_5
+64:trap_cell_info_6
+64:trap_cell_info_7
+64:trap_cell_info_8
+64:trap_cell_info_9
+
+# [32] 3520
+64:dam_0
+64:dam_1
+64:dam_2
+64:dam_3
+64:dam_4
+64:dam_5
+64:dam_6
+64:dam_7
+64:dam_8
+64:dam_9
+64:dam_10
+64:dam_11
+64:dam_12
+64:dam_13
+64:dam_14
+64:dam_15
+64:dam_16
+64:dam_17
+64:dam_18
+64:dam_19
+64:dam_20
+64:dam_21
+64:dam_22
+64:dam_23
+64:dam_24
+64:dam_25
+64:dam_26
+64:dam_27
+64:dam_28
+64:dam_29
+64:dam_30
+64:dam_31
+
+# [32] 3776
+64:sbbp_0
+64:sbbp_1
+64:sbbp_2
+64:sbbp_3
+64:sbbp_4
+64:sbbp_5
+64:sbbp_6
+64:sbbp_7
+64:sbbp_8
+64:sbbp_9
+64:sbbp_10
+64:sbbp_11
+64:sbbp_12
+64:sbbp_13
+64:sbbp_14
+64:sbbp_15
+64:sbbp_16
+64:sbbp_17
+64:sbbp_18
+64:sbbp_19
+64:sbbp_20
+64:sbbp_21
+64:sbbp_22
+64:sbbp_23
+64:sbbp_24
+64:sbbp_25
+64:sbbp_26
+64:sbbp_27
+64:sbbp_28
+64:sbbp_29
+64:sbbp_30
+64:sbbp_31
+
+# [16] 4032
+192:mlt_0
+192:mlt_1
+192:mlt_2
+192:mlt_3
+192:mlt_4
+192:mlt_5
+192:mlt_6
+192:mlt_7
+192:mlt_8
+192:mlt_9
+192:mlt_10
+192:mlt_11
+192:mlt_12
+192:mlt_13
+192:mlt_14
+192:mlt_15
+
+# [1] 4416 == 4032 + 16 * 24
+64:idr
+
+# [1] 4424
+64:core_mode
+
+# [1] 4736
+64:pcsp_base
+
+# [1] 4744
+64:psp_base
+
+
+
+# FIXME: 1 byte could be enough for each of the underlying "registers",
+# however, I reserve 8 bytes for them to be compatible with
+# `gdb/features/e2k-feature.xml'
+
+# [1] 4792
+64:_e2k_arch_idx
+
+# [1] 4800
+64:_e2k_entry_point
+
+# [1] 4808
+64:_e2k_call_dummy
+
+# [1] 4816
+64:_e2k_prologue
+
+# [1] 4824
+64:_e2k_call_target
+
+# [1] 4832
+200:_e2k_dbl_reg
+
+# [1] 4857
+200:_e2k_dbl_stack
+
+# [1] 4882
+264:_e2k_quad_reg
+
+# [1] 4915
+264:_e2k_quad_stack
+
+# [?] 4948

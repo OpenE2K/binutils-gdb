@@ -250,7 +250,15 @@ gdb_pretty_print_disassembler::pretty_print_insn (const struct disasm_insn *insn
 	   the offset takes the place of the "+" here.  */
 	if (offset >= 0)
 	  m_uiout->text ("+");
-	m_uiout->field_signed ("offset", offset);
+
+	/* This hack lets me select the radix of symbolic offset used by GDB
+	   `disassemble' command (see Bug #80496). Note, that `x/i PC' makes use
+	   of `print_address_symbolic ()' which has been hacked too.  */
+	if (symbolic_offset_radix == 10)
+	  m_uiout->field_signed ("offset", offset);
+	else
+	  m_uiout->field_fmt ("offset", "0x%x", offset);
+
 	m_uiout->text (">:\t");
       }
     else
@@ -261,20 +269,23 @@ gdb_pretty_print_disassembler::pretty_print_insn (const struct disasm_insn *insn
     if (flags & DISASSEMBLY_RAW_INSN)
       {
 	CORE_ADDR end_pc;
-	bfd_byte data;
+	bfd_byte *data = (bfd_byte *) alloca (m_di.octets_per_byte ());
 	const char *spacer = "";
 
 	/* Build the opcodes using a temporary stream so we can
 	   write them out in a single go for the MI.  */
 	m_opcode_stb.clear ();
 
-	size = m_di.print_insn (pc);
+	size = m_di.print_insn (pc) / m_di.octets_per_byte ();
 	end_pc = pc + size;
 
 	for (;pc < end_pc; ++pc)
 	  {
-	    read_code (pc, &data, 1);
-	    m_opcode_stb.printf ("%s%02x", spacer, (unsigned) data);
+	    int i;
+
+	    read_code (pc, data, m_di.octets_per_byte ());
+	    for (i = 0; i < m_di.octets_per_byte (); i++)
+	      m_opcode_stb.printf ("%s%02x", spacer, (unsigned) data[i]);
 	    spacer = " ";
 	  }
 
@@ -282,7 +293,7 @@ gdb_pretty_print_disassembler::pretty_print_insn (const struct disasm_insn *insn
 	m_uiout->text ("\t");
       }
     else
-      size = m_di.print_insn (pc);
+      size = m_di.print_insn (pc) / m_di.octets_per_byte ();
 
     m_uiout->field_stream ("inst", m_insn_stb);
   }
@@ -775,6 +786,11 @@ gdb_disassembler::gdb_disassembler (struct gdbarch *gdbarch,
   m_di.endian = gdbarch_byte_order (gdbarch);
   m_di.endian_code = gdbarch_byte_order_for_code (gdbarch);
   m_di.application_data = this;
+
+#ifdef ENABLE_E2K_QUIRKS
+  gdbarch_customize_disassemble_info (gdbarch, &m_di);
+#endif /* ENABLE_E2K_QUIRKS */
+
   m_disassembler_options_holder = get_all_disassembler_options (gdbarch);
   if (!m_disassembler_options_holder.empty ())
     m_di.disassembler_options = m_disassembler_options_holder.c_str ();
@@ -787,7 +803,8 @@ gdb_disassembler::print_insn (CORE_ADDR memaddr,
 {
   m_err_memaddr = 0;
 
-  int length = gdbarch_print_insn (arch (), memaddr, &m_di);
+  int length = (gdbarch_print_insn (arch (), memaddr, &m_di)
+		/ m_di.octets_per_byte);
 
   if (length < 0)
     memory_error (TARGET_XFER_E_IO, m_err_memaddr);

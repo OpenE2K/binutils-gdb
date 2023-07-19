@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2013-2017 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.mcst.gdb.sparc.v932">
+
+  <!-- %psr and %fsr registers are provided by sparc32-cp0.xml nowadays
+       where they turn out to be assigned raw "uint32" types which seems
+       to be rather inconvenient . . .
+       
+    <flags id="sparc_psr" size="4">
+      <field name="ET" start="5" end="5"/>
+      <field name="PS" start="6" end="6"/>
+      <field name="S" start="7" end="7"/>
+      <field name="EF" start="12" end="12"/>
+      <field name="EC" start="13" end="13"/>
+    </flags>
+
+    <flags id="sparc_fsr" size="4">
+      <field name="NXA" start="0" end="0"/>
+      <field name="DZA" start="1" end="1"/>
+      <field name="UFA" start="2" end="2"/>
+      <field name="OFA" start="3" end="3"/>
+      <field name="NVA" start="4" end="4"/>
+      <field name="NXC" start="5" end="5"/>
+      <field name="DZC" start="6" end="6"/>
+      <field name="UFC" start="7" end="7"/>
+      <field name="OFC" start="8" end="8"/>
+      <field name="NVC" start="9" end="9"/>
+      <field name="NS" start="22" end="22"/>
+      <field name="NXM" start="23" end="23"/>
+      <field name="DZM" start="24" end="24"/>
+      <field name="UFM" start="25" end="25"/>
+      <field name="OFM" start="26" end="26"/>
+      <field name="NVM" start="27" end="27"/>
+    </flags>
+
+. . .
+    <reg name="psr" bitsize="32" type="sparc_psr"/>
+. . .
+    <reg name="fsr" bitsize="32" type="sparc_fsr"/>
+    . . .
+  -->
+
+
+  <!-- Registers which can be safely believed to be 64 bits long on V9
+       operating in 32-bit mode.  -->
+
+  <reg name="eg0" bitsize="64" type="int64"/>
+  <reg name="eg1" bitsize="64" type="int64"/>
+  <reg name="eg2" bitsize="64" type="int64"/>
+  <reg name="eg3" bitsize="64" type="int64"/>
+  <reg name="eg4" bitsize="64" type="int64"/>
+  <reg name="eg5" bitsize="64" type="int64"/>
+  <reg name="eg6" bitsize="64" type="int64"/>
+  <reg name="eg7" bitsize="64" type="int64"/>
+  <reg name="eo0" bitsize="64" type="int64"/>
+  <reg name="eo1" bitsize="64" type="int64"/>
+  <reg name="eo2" bitsize="64" type="int64"/>
+  <reg name="eo3" bitsize="64" type="int64"/>
+  <reg name="eo4" bitsize="64" type="int64"/>
+  <reg name="eo5" bitsize="64" type="int64"/>
+  <reg name="eo6" bitsize="64" type="int64"/>
+  <reg name="eo7" bitsize="64" type="int64"/>
+
+  <reg name="d32" bitsize="64" type="float"/>
+  <reg name="d34" bitsize="64" type="float"/>
+  <reg name="d36" bitsize="64" type="float"/>
+  <reg name="d38" bitsize="64" type="float"/>
+  <reg name="d40" bitsize="64" type="float"/>
+  <reg name="d42" bitsize="64" type="float"/>
+  <reg name="d44" bitsize="64" type="float"/>
+  <reg name="d46" bitsize="64" type="float"/>
+  <reg name="d48" bitsize="64" type="float"/>
+  <reg name="d50" bitsize="64" type="float"/>
+  <reg name="d52" bitsize="64" type="float"/>
+  <reg name="d54" bitsize="64" type="float"/>
+  <reg name="d56" bitsize="64" type="float"/>
+  <reg name="d58" bitsize="64" type="float"/>
+  <reg name="d60" bitsize="64" type="float"/>
+  <reg name="d62" bitsize="64" type="float"/>
+
+</feature>

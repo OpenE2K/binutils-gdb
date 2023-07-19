@@ -15,6 +15,8 @@
 
 # This file was written by Fred Fish. (fnf@cygnus.com)
 
+set USE_GCC 1
+
 set ws "\[\r\n\t \]+"
 
 if { [skip_cplus_tests] } { continue }

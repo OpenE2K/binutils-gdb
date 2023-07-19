@@ -35,6 +35,7 @@
 #include "value.h"
 
 #include "sparc64-tdep.h"
+#include "target-descriptions.h"
 
 /* This file implements the SPARC 64-bit ABI as defined by the
    section "Low-Level System Information" of the SPARC Compliance
@@ -1951,6 +1952,17 @@ sparc64_supply_gregset (const struct sparc_gregmap *gregmap,
   if (regnum == SPARC_G0_REGNUM || regnum == -1)
     regcache->raw_supply (SPARC_G0_REGNUM, &zero);
 
+  /* Keep in mind that while attaching to a running process we may find
+     ourselves here BEFORE the target description has been read. Avoid
+     reading extended registers in this case.  */
+  if (gdbarch_tdep (gdbarch)->have_ext_regs)
+    {
+      /* We may find ourselves here when debugging a 32-bit program only.  */
+      gdb_assert (sparc32);
+      if (regnum == SPARC32_EG0_REGNUM || regnum == -1)
+        regcache->raw_supply (SPARC32_EG0_REGNUM, NULL);
+    }
+
   if ((regnum >= SPARC_G1_REGNUM && regnum <= SPARC_O7_REGNUM) || regnum == -1)
     {
       int offset = gregmap->r_g1_offset;
@@ -1964,6 +1976,24 @@ sparc64_supply_gregset (const struct sparc_gregmap *gregmap,
 	    regcache->raw_supply (i, regs + offset);
 	  offset += 8;
 	}
+    }
+
+  if (gdbarch_tdep (gdbarch)->have_ext_regs)
+    {
+      /* We may find ourselves here when debugging a 32-bit program only.  */
+      gdb_assert (sparc32);
+      if ((regnum >= SPARC32_EG1_REGNUM && regnum <= SPARC32_EO7_REGNUM)
+          || regnum == -1)
+        {
+          int offset = gregmap->r_g1_offset;
+
+          for (i = SPARC32_EG1_REGNUM; i <= SPARC32_EO7_REGNUM; i++)
+            {
+              if (regnum == i || regnum == -1)
+                regcache->raw_supply (i, regs + offset);
+              offset += 8;
+            }
+        }
     }
 
   if ((regnum >= SPARC_L0_REGNUM && regnum <= SPARC_I7_REGNUM) || regnum == -1)
@@ -2083,6 +2113,27 @@ sparc64_collect_gregset (const struct sparc_gregmap *gregmap,
 	}
     }
 
+  if (gdbarch_tdep (gdbarch)->have_ext_regs)
+    {
+      /* We may find ourselves here when debugging a 32-bit program only.  */
+      gdb_assert (sparc32);
+
+      if ((regnum >= SPARC32_EG1_REGNUM && regnum <= SPARC32_EO7_REGNUM)
+          || regnum == -1)
+        {
+          int offset = gregmap->r_g1_offset;
+
+          /* %eg0 is always zero.  */
+          for (i = SPARC32_EG1_REGNUM; i <= SPARC32_EO7_REGNUM; i++)
+            {
+              if (regnum == i || regnum == -1)
+                regcache->raw_collect (i, regs + offset);
+              offset += 8;
+            }
+        }
+    }
+
+
   if ((regnum >= SPARC_L0_REGNUM && regnum <= SPARC_I7_REGNUM) || regnum == -1)
     {
       /* Not all of the register set variants include Locals and
@@ -2109,7 +2160,9 @@ sparc64_supply_fpregset (const struct sparc_fpregmap *fpregmap,
 			 struct regcache *regcache,
 			 int regnum, const void *fpregs)
 {
-  int sparc32 = (gdbarch_ptr_bit (regcache->arch ()) == 32);
+  struct gdbarch *gdbarch = regcache->arch ();
+  int have_ext_regs = gdbarch_tdep (gdbarch)->have_ext_regs;
+  int sparc32 = (gdbarch_ptr_bit (gdbarch) == 32);
   const gdb_byte *regs = (const gdb_byte *) fpregs;
   int i;
 
@@ -2120,6 +2173,24 @@ sparc64_supply_fpregset (const struct sparc_fpregmap *fpregmap,
 			      regs + fpregmap->r_f0_offset + (i * 4));
     }
 
+  if (!sparc32 || have_ext_regs)
+    {
+      /* FIXME: the two underlying alternatives belong to different enums which
+	 makes g++ barf. For now use explicit cast to `int' to eliminate these
+	 warnings.  */
+      int f32_regnum
+	= (sparc32
+	   ? (int) SPARC32_D32_REGNUM : (int) SPARC64_F32_REGNUM);
+
+      for (i = 0; i < 16; i++)
+	{
+	  if (regnum == (f32_regnum + i) || regnum == -1)
+	    regcache->raw_supply (f32_regnum + i,
+				  (regs + fpregmap->r_f0_offset
+				   + (32 * 4) + (i * 8)));
+	}
+    }
+
   if (sparc32)
     {
       if (regnum == SPARC32_FSR_REGNUM || regnum == -1)
@@ -2128,14 +2199,6 @@ sparc64_supply_fpregset (const struct sparc_fpregmap *fpregmap,
     }
   else
     {
-      for (i = 0; i < 16; i++)
-	{
-	  if (regnum == (SPARC64_F32_REGNUM + i) || regnum == -1)
-	    regcache->raw_supply
-	      (SPARC64_F32_REGNUM + i,
-	       regs + fpregmap->r_f0_offset + (32 * 4) + (i * 8));
-	}
-
       if (regnum == SPARC64_FSR_REGNUM || regnum == -1)
 	regcache->raw_supply (SPARC64_FSR_REGNUM,
 			      regs + fpregmap->r_fsr_offset);
@@ -2147,7 +2210,9 @@ sparc64_collect_fpregset (const struct sparc_fpregmap *fpregmap,
 			  const struct regcache *regcache,
 			  int regnum, void *fpregs)
 {
-  int sparc32 = (gdbarch_ptr_bit (regcache->arch ()) == 32);
+  struct gdbarch *gdbarch = regcache->arch ();
+  int have_ext_regs = gdbarch_tdep (gdbarch)->have_ext_regs;
+  int sparc32 = (gdbarch_ptr_bit (gdbarch) == 32);
   gdb_byte *regs = (gdb_byte *) fpregs;
   int i;
 
@@ -2158,6 +2223,23 @@ sparc64_collect_fpregset (const struct sparc_fpregmap *fpregmap,
 			       regs + fpregmap->r_f0_offset + (i * 4));
     }
 
+  if (!sparc32 || have_ext_regs)
+    {
+      /* FIXME: the two underlying alternatives belong to different enums which
+	 makes g++ barf. For now use explicit cast to `int' to eliminate these
+	 warnings.  */
+      int f32_regnum
+	= (sparc32 ? (int) SPARC32_D32_REGNUM : (int) SPARC64_F32_REGNUM);
+
+      for (i = 0; i < 16; i++)
+	{
+	  if (regnum == (f32_regnum + i) || regnum == -1)
+	    regcache->raw_collect (f32_regnum + i,
+				   (regs + fpregmap->r_f0_offset
+				    + (32 * 4) + (i * 8)));
+	}
+    }
+
   if (sparc32)
     {
       if (regnum == SPARC32_FSR_REGNUM || regnum == -1)
@@ -2166,14 +2248,6 @@ sparc64_collect_fpregset (const struct sparc_fpregmap *fpregmap,
     }
   else
     {
-      for (i = 0; i < 16; i++)
-	{
-	  if (regnum == (SPARC64_F32_REGNUM + i) || regnum == -1)
-	    regcache->raw_collect (SPARC64_F32_REGNUM + i,
-				   (regs + fpregmap->r_f0_offset
-				    + (32 * 4) + (i * 8)));
-	}
-
       if (regnum == SPARC64_FSR_REGNUM || regnum == -1)
 	regcache->raw_collect (SPARC64_FSR_REGNUM,
 			       regs + fpregmap->r_fsr_offset);

@@ -284,6 +284,14 @@ frame_stash_find (struct frame_id id)
   return frame;
 }
 
+#ifdef ENABLE_E2K_QUIRKS
+void
+frame_stash_remove (struct frame_info *fi)
+{
+  htab_remove_elt (frame_stash, fi);
+}
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Internal function to invalidate the frame stash by removing all
    entries in it.  This only occurs when the frame cache is
    invalidated.  */
@@ -533,7 +541,10 @@ skip_tailcall_frames (struct frame_info *frame)
 /* Compute the frame's uniq ID that can be used to, later, re-find the
    frame.  */
 
-static void
+#ifndef ENABLE_E2K_QUIRKS
+static
+#endif /* ENABLE_E2K_QUIRKS  */
+void
 compute_frame_id (struct frame_info *fi)
 {
   gdb_assert (!fi->this_id.p);
@@ -1117,6 +1128,9 @@ void
 frame_register_unwind (frame_info *next_frame, int regnum,
 		       int *optimizedp, int *unavailablep,
 		       enum lval_type *lvalp, CORE_ADDR *addrp,
+#ifdef ENABLE_E2K_QUIRKS
+                       struct lval_funcs **funcs, void **closure,
+#endif /* ENABLE_E2K_QUIRKS  */
 		       int *realnump, gdb_byte *bufferp)
 {
   struct value *value;
@@ -1151,6 +1165,27 @@ frame_register_unwind (frame_info *next_frame, int regnum,
 	memset (bufferp, 0, TYPE_LENGTH (value_type (value)));
     }
 
+#ifdef ENABLE_E2K_QUIRKS
+  if (*lvalp == lval_computed)
+    {
+      if (funcs)
+        {
+	  /* FIXME: the underlying function returns `const struct lval_funcs *',
+	     don't stupidly cast it to the non-const variant.  */
+          *funcs = (struct lval_funcs *) value_computed_funcs (value);
+
+          if (closure)
+            *closure = (*funcs)->copy_closure (value);
+        }
+
+      /* Get an address of a register saved in memory which has a computed
+         value. Currently this is required for tagged window registers only.
+         For other "computed" registers (e.g., preds) `get_addr' is not
+         implemented.  */
+      if (value_computed_funcs (value)->get_addr)
+        *addrp = value_computed_funcs (value)->get_addr (value);
+    }
+#endif /* ENABLE_E2K_QUIRKS  */
   /* Dispose of the new value.  This prevents watchpoints from
      trying to watch the saved frame pointer.  */
   release_value (value);
@@ -1159,7 +1194,11 @@ frame_register_unwind (frame_info *next_frame, int regnum,
 void
 frame_register (struct frame_info *frame, int regnum,
 		int *optimizedp, int *unavailablep, enum lval_type *lvalp,
-		CORE_ADDR *addrp, int *realnump, gdb_byte *bufferp)
+                CORE_ADDR *addrp, 
+#ifdef ENABLE_E2K_QUIRKS
+		struct lval_funcs **funcs, void **closure,
+#endif /* ENABLE_E2K_QUIRKS  */
+                int *realnump, gdb_byte *bufferp)
 {
   /* Require all but BUFFERP to be valid.  A NULL BUFFERP indicates
      that the value proper does not need to be fetched.  */
@@ -1173,7 +1212,11 @@ frame_register (struct frame_info *frame, int regnum,
      (more inner frame).  */
   gdb_assert (frame != NULL && frame->next != NULL);
   frame_register_unwind (frame->next, regnum, optimizedp, unavailablep,
-			 lvalp, addrp, realnump, bufferp);
+			 lvalp, addrp,
+#ifdef ENABLE_E2K_QUIRKS
+                         funcs, closure,
+#endif /* ENABLE_E2K_QUIRKS  */
+                         realnump, bufferp);
 }
 
 void
@@ -1186,7 +1229,11 @@ frame_unwind_register (frame_info *next_frame, int regnum, gdb_byte *buf)
   enum lval_type lval;
 
   frame_register_unwind (next_frame, regnum, &optimized, &unavailable,
-			 &lval, &addr, &realnum, buf);
+			 &lval, &addr,
+#ifdef ENABLE_E2K_QUIRKS
+			 NULL, NULL,
+#endif /* ENABLE_E2K_QUIRKS  */
+			 &realnum, buf);
 
   if (optimized)
     throw_error (OPTIMIZED_OUT_ERROR,
@@ -1377,7 +1424,11 @@ put_frame_register (struct frame_info *frame, int regnum,
   CORE_ADDR addr;
 
   frame_register (frame, regnum, &optim, &unavail,
-		  &lval, &addr, &realnum, NULL);
+		  &lval, &addr,
+#ifdef ENABLE_E2K_QUIRKS
+                  NULL, NULL,
+#endif /* ENABLE_E2K_QUIRKS  */
+                  &realnum, NULL);
   if (optim)
     error (_("Attempt to assign to a register that was not saved."));
   switch (lval)
@@ -1414,7 +1465,11 @@ deprecated_frame_register_read (struct frame_info *frame, int regnum,
   int realnum;
 
   frame_register (frame, regnum, &optimized, &unavailable,
-		  &lval, &addr, &realnum, myaddr);
+		  &lval, &addr,
+#ifdef ENABLE_E2K_QUIRKS
+                  NULL, NULL,
+#endif /* ENABLE_E2K_QUIRKS  */
+                  &realnum, myaddr);
 
   return !optimized && !unavailable;
 }
@@ -1467,7 +1522,11 @@ get_frame_register_bytes (struct frame_info *frame, int regnum,
 	  int realnum;
 
 	  frame_register (frame, regnum, optimizedp, unavailablep,
-			  &lval, &addr, &realnum, myaddr);
+			  &lval, &addr,
+#ifdef ENABLE_E2K_QUIRKS
+                          NULL, NULL,
+#endif /* ENABLE_E2K_QUIRKS  */
+                          &realnum, myaddr);
 	  if (*optimizedp || *unavailablep)
 	    return 0;
 	}
@@ -1882,7 +1941,11 @@ frame_register_unwind_location (struct frame_info *this_frame, int regnum,
       int unavailable;
 
       frame_register_unwind (this_frame, regnum, optimizedp, &unavailable,
-			     lvalp, addrp, realnump, NULL);
+			     lvalp, addrp,
+#ifdef ENABLE_E2K_QUIRKS
+                             NULL, NULL,
+#endif /* ENABLE_E2K_QUIRKS  */
+                             realnump, NULL);
 
       if (*optimizedp)
 	break;
@@ -1894,6 +1957,25 @@ frame_register_unwind_location (struct frame_info *this_frame, int regnum,
       this_frame = get_next_frame (this_frame);
     }
 }
+
+#ifdef ENABLE_E2K_QUIRKS
+void
+reset_prev_frame_raw (struct frame_info *fi, int success)
+{
+  fi->prev = NULL;
+  fi->prev_p = 0;
+  fi->prev_pc.status = CC_UNKNOWN;
+
+  if (! success)
+    {
+      /* Do extra "cleanups" in case of e2k sigtramp unwinder's failure
+	 so as to prevent GDB from failing with internall errors (i.e.
+	 on asserts).  */
+      fi->prologue_cache = NULL;
+      fi->this_id.p = 0;
+    }
+}
+#endif /* ENABLE_E2K_QUIRKS  */
 
 /* Get the previous raw frame, and check that it is not identical to
    same other frame frame already in the chain.  If it is, there is

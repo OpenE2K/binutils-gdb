@@ -221,6 +221,12 @@ extern void default_gen_return_address (struct gdbarch *gdbarch,
 extern const char *default_auto_charset (void);
 extern const char *default_auto_wide_charset (void);
 
+#ifdef ENABLE_E2K_QUIRKS
+extern void default_override_examine_val_type (struct gdbarch *gdbarch, CORE_ADDR addr, char size, struct type **type);
+extern struct value * default_examine_value (struct gdbarch *gdbarch, char format, struct type *type, CORE_ADDR addr);
+extern void default_next_address (struct gdbarch *gdbarch, struct value *val, CORE_ADDR *addr);
+#endif /* ENABLE_E2K_QUIRKS  */
+
 extern int default_return_in_first_hidden_param_p (struct gdbarch *,
 						   struct type *);
 

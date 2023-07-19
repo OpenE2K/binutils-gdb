@@ -207,7 +207,7 @@ So instead we use the macro below and test it against specific values.  */
    a function pointer.  Format attributes were allowed on function
    pointers as of gcc 3.1.  */
 #ifndef ATTRIBUTE_FPTR_PRINTF
-# if (GCC_VERSION >= 3001)
+# if (GCC_VERSION >= 3001) && (!defined __LCC__)
 #  define ATTRIBUTE_FPTR_PRINTF(m, n) ATTRIBUTE_PRINTF(m, n)
 # else
 #  define ATTRIBUTE_FPTR_PRINTF(m, n)

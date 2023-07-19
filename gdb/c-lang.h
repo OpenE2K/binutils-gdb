@@ -202,4 +202,8 @@ extern std::string cplus_compute_program (compile_instance *inst,
 					  const struct block *expr_block,
 					  CORE_ADDR expr_pc);
 
+#ifdef ENABLE_E2K_QUIRKS
+extern const char *c_extensions[];
+#endif /* ENABLE_E2K_QUIRKS  */
+
 #endif /* !defined (C_LANG_H) */

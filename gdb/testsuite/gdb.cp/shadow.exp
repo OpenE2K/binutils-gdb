@@ -16,6 +16,8 @@
 # Test that when multiple variables have the same
 # name the one from the correct scope is printed.
 
+set USE_GCC 1
+
 
 standard_testfile .cc
 

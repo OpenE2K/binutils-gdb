@@ -92,6 +92,12 @@ struct gdbarch_tdep
   struct type *sparc64_pstate_type;
   struct type *sparc64_fsr_type;
   struct type *sparc64_fprs_type;
+
+  int have_ext_regs;
+
+  /* This one can be less than `SPARC32_D62_REGNUM + 1' in case we don't
+     have extended registers (e.g., when running native GDB at V8).  */
+  int first_pseudo_reg;
 };
 
 /* Register numbers of various important registers.  */
@@ -153,6 +159,28 @@ enum sparc32_regnum
   SPARC32_NPC_REGNUM,		/* %npc */
   SPARC32_FSR_REGNUM,		/* %fsr */
   SPARC32_CSR_REGNUM,		/* %csr */
+
+  /* Extended V9-specific registers.  */
+  SPARC32_EG0_REGNUM,
+  SPARC32_EG1_REGNUM,
+  SPARC32_EG7_REGNUM
+  = SPARC32_EG1_REGNUM + 6,
+  SPARC32_EO0_REGNUM,
+  SPARC32_EO7_REGNUM
+  = SPARC32_EO0_REGNUM + 7,
+  /* Q: What's the point in using `SPARC64_F32_REGNUM, . . .' raw register
+        names in `sparc64-tdep.h'?
+     A: They want 64-bit floating-point registers to be accessible as %f32
+        . . . %f62 (see Figure 6 in sparcv9.pdf).
+
+     Q: What's the point in having identical pseudo registers such as
+        `SPARC64_D32_REGNUM, . . .'?
+     A: They want them to be accessible as %d32 . . . %d62 as well.
+
+     Currently I allow for the second variant only at V932.   */
+  SPARC32_D32_REGNUM,           /* %d32  */
+  SPARC32_D62_REGNUM            /* %d62  */
+  = SPARC32_D32_REGNUM + 15,
 };
 
 /* Pseudo registers.  */
@@ -160,7 +188,16 @@ enum sparc32_pseudo_regnum
 {
   SPARC32_D0_REGNUM = 0,	/* %d0 */
   SPARC32_D30_REGNUM		/* %d30 */
-  = SPARC32_D0_REGNUM + 15
+  = SPARC32_D0_REGNUM + 15,
+
+  /* Extended V9-specific pseudo registers.  */
+  SPARC32_Q0_REGNUM,
+  SPARC32_Q28_REGNUM
+  = SPARC32_Q0_REGNUM + 7,
+  SPARC32_Q32_REGNUM
+  = SPARC32_Q0_REGNUM + 8,
+  SPARC32_Q60_REGNUM
+  = SPARC32_Q0_REGNUM + 15
 };
 
 

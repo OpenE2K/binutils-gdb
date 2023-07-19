@@ -10883,7 +10883,14 @@ dwarf2_compute_name (const char *name,
      will set the demangled name to the result of dwarf2_full_name, and it is
      the demangled name that GDB uses if it exists.  */
   if (cu->language == language_ada
-      || (cu->language == language_fortran && physname))
+      || (cu->language == language_fortran && physname)
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+      /* We employ `DW_AT_linkage_name' attribute for functions defined
+         inside C++ namespaces (for example, when setting breakpoints
+         at them). Hasn't anyone employed it for C++ before???  */
+      || (cu->language == language_cplus)
+#endif /* ENABLE_E2K_QUIRKS */
+      )
     {
       /* For Ada unit, we prefer the linkage name over the name, as
 	 the former contains the exported name, which the user expects
@@ -15597,7 +15604,12 @@ dwarf2_add_member_fn (struct field_info *fip, struct die_info *die,
     {
       if (attr_form_is_block (attr) && DW_BLOCK (attr)->size > 0)
         {
-	  if (DW_BLOCK (attr)->data[0] == DW_OP_constu)
+	  if (DW_BLOCK (attr)->data[0] == DW_OP_constu
+#ifdef ENABLE_E2K_QUIRKS
+              /* See Bug #49183. */
+              || DW_BLOCK (attr)->data[0] == DW_OP_plus_uconst
+#endif /* ENABLE_E2K_QUIRKS */
+	      )
 	    {
 	      /* Old-style GCC.  */
 	      fnp->voffset = decode_locdesc (DW_BLOCK (attr), cu) + 2;

@@ -62,6 +62,7 @@ HFILES = \
 	bpf-desc.h bpf-opc.h \
 	epiphany-desc.h epiphany-opc.h \
 	fr30-desc.h fr30-opc.h \
+	e2k-opc.h \
 	frv-desc.h frv-opc.h \
 	i386-init.h \
 	i386-opc.h \
@@ -123,6 +124,8 @@ TARGET_LIBOPCODES_CFILES = \
 	bpf-dis.c \
 	bpf-ibld.c \
 	bpf-opc.c \
+	e2k-dis.c \
+	e2k-opc.c \
 	epiphany-asm.c \
 	epiphany-desc.c \
 	epiphany-dis.c \

@@ -573,6 +573,12 @@ CFLAGS = @CFLAGS@
 CXXFLAGS = @CXXFLAGS@
 CPPFLAGS = @CPPFLAGS@
 
+# At MCST an ancient FLEX creates `gdb/ada-lex.c' in the build tree which
+# causes a compilation warning leading to the subsequent failure when gdb is
+# configured without `--disable-werror'. Note that CFLAGS is passed via make
+# command line from the outer directory. Therefore `override' is used below.
+ada-exp.o: override CFLAGS := $(CFLAGS) -w
+
 # Set by configure, for e.g. expat.  Python installations are such that
 # C headers are included using their basename (for example, we #include
 # <Python.h> rather than, say, <python/Python.h>).  Since the file names

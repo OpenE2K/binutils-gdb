@@ -363,10 +363,10 @@ set filelist [pathexpand $srcabsdir $dirs "/$srctmpfile"]
 set dircreatelist [pathexpand $srcabsdir $dirs ""]
 set dirremovelist [pathexpand $srcabsdir [lreverse $dirs] ""]
 
-remote_exec host "sh -c \"rm -f $filelist\""
-remote_exec host "sh -c \"rmdir $dirremovelist\""
-remote_exec host "sh -c \"mkdir $dircreatelist\""
-remote_exec host "sh -c \"for d in $dircreatelist; do cp ${srcdir}/${subdir}/${srcfile} \\\$d/${srctmpfile}; done\""
+remote_exec host "rm -f $filelist"
+remote_exec host "rmdir $dirremovelist"
+remote_exec host "mkdir $dircreatelist"
+remote_exec host "for d in $dircreatelist; do cp ${srcdir}/${subdir}/${srcfile} \\\$d/${srctmpfile}; done"
 
 clean_restart ${testfile}
 

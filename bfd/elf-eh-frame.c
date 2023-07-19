@@ -142,6 +142,10 @@ read_sleb128 (bfd_byte **iter, bfd_byte *end, bfd_signed_vma *value)
 static
 int get_DW_EH_PE_width (int encoding, int ptr_size)
 {
+  /* For the sake of E2K Protected Mode.  */
+  if (encoding == DW_EH_PE_aligned)
+    return 16;
+
   /* DW_EH_PE_ values of 0x60 and 0x70 weren't defined at the time .eh_frame
      was added to bfd.  */
   if ((encoding & 0x60) == 0x60)
@@ -998,6 +1002,15 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 	     CIE instructions.  */
 	  || (set_loc_count && this_inf->cie))
 	goto free_no_table;
+
+      /* Prevent e2k-linux-ld from adjusting the size of entries (are only CIEs
+	 adjusted this way?) and thus ensure that the 16 byte alignment of all
+	 subsequent CIEs and FDEs is preserved in such a primitive way . . .  */
+      if (((elf_elfheader (abfd)->e_flags & 32 /* EF_E2K_PM  */)
+	   == 32 /* EF_E2K_PM  */)
+	  && strcmp (abfd->xvec->name, "elf32-e2k-pm") == 0)
+	insns_end = end;
+
       this_inf->size -= end - insns_end;
       if (insns_end != end && this_inf->cie)
 	{

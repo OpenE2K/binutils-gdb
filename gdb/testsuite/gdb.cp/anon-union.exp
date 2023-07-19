@@ -22,6 +22,7 @@
 # test running programs
 #
 
+set USE_GCC 1
 
 if { [skip_cplus_tests] } { continue }
 

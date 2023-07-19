@@ -621,7 +621,8 @@ generate_c_for_variable_locations (compile_instance *compiler,
     return NULL;
 
   gdb::unique_xmalloc_ptr<unsigned char> registers_used
-    (XCNEWVEC (unsigned char, gdbarch_num_regs (gdbarch)));
+    (XCNEWVEC (unsigned char, (gdbarch_num_regs (gdbarch)
+			       + gdbarch_num_pseudo_regs (gdbarch))));
 
   /* Ensure that a given name is only entered once.  This reflects the
      reality of shadowing.  */

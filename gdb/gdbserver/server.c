@@ -1632,6 +1632,43 @@ handle_qxfer_statictrace (const char *annex,
   return nbytes;
 }
 
+#ifdef __e2k__
+
+/* Handle qXfer:tags:read and qXfer:tags:write.  */
+
+static int
+handle_qxfer_tags (const char *annex,
+                   gdb_byte *readbuf, const gdb_byte *writebuf,
+                   ULONGEST offset, LONGEST len)
+{
+  if (the_target->qxfer_tags == NULL)
+    return -2;
+
+  if (!target_running ())
+    return -1;
+
+  return (*the_target->qxfer_tags) (readbuf, writebuf, offset, len);
+}
+
+/* Handle qXfer:packed_tags:read.  */
+
+static int
+handle_qxfer_packed_tags (const char *annex,
+                          gdb_byte *readbuf, const gdb_byte *writebuf,
+                          ULONGEST offset, LONGEST len)
+{
+  if (the_target->qxfer_packed_tags == NULL)
+    return -2;
+
+  if (!target_running ())
+    return -1;
+
+  return (*the_target->qxfer_packed_tags) (readbuf, writebuf, offset, len);
+}
+
+
+#endif /* __e2k__ */
+
 /* Helper for handle_qxfer_threads_proper.
    Emit the XML to describe the thread of INF.  */
 
@@ -1966,6 +2003,10 @@ static const struct qxfer qxfer_packets[] =
     { "osdata", handle_qxfer_osdata },
     { "siginfo", handle_qxfer_siginfo },
     { "statictrace", handle_qxfer_statictrace },
+#ifdef __e2k__
+    { "tags", handle_qxfer_tags },
+    { "packed_tags", handle_qxfer_packed_tags },
+#endif /* __e2k __ */
     { "threads", handle_qxfer_threads },
     { "traceframe-info", handle_qxfer_traceframe_info },
   };
@@ -2377,6 +2418,13 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
       if (the_target->read_auxv != NULL)
 	strcat (own_buf, ";qXfer:auxv:read+");
 
+#ifdef __e2k__
+      if (the_target->qxfer_tags != NULL)
+	strcat (own_buf, ";qXfer:tags:read+;qXfer:tags:write+");
+      if (the_target->qxfer_packed_tags != NULL)
+	strcat (own_buf, ";qXfer:packed_tags:read+");
+#endif /* __e2k__  */
+
       if (the_target->qxfer_siginfo != NULL)
 	strcat (own_buf, ";qXfer:siginfo:read+;qXfer:siginfo:write+");
 
@@ -2751,6 +2799,10 @@ handle_v_cont (char *own_buf)
 	resume_info[i].kind = resume_continue;
       else if (p[0] == 't')
 	resume_info[i].kind = resume_stop;
+#ifdef ENABLE_E2K_QUIRKS
+      else if (p[0] == 'y')
+        resume_info[i].kind = resume_syscall;
+#endif /* ENABLE_E2K_QUIRKS  */
       else
 	goto err;
 
@@ -4143,6 +4195,10 @@ process_serial_event (void)
 	    {
 	      regcache = get_thread_regcache (current_thread, 1);
 	      registers_from_string (regcache, &cs.own_buf[1]);
+#if defined __e2k__ && defined __linux__
+	      extern void e2k_linux_regcache_changed (struct regcache *);
+	      e2k_linux_regcache_changed (regcache);
+#endif /* defined __e2k__ && defined __linux__  */
 	      write_ok (cs.own_buf);
 	    }
 	}

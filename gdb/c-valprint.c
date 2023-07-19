@@ -368,8 +368,107 @@ c_val_print_ptr (struct type *type, const gdb_byte *valaddr,
 
       print_function_pointer_address (options, gdbarch, addr, stream);
     }
+  else if (options->raw && gdbarch_ptr_bit (arch) == 128)
+    {
+      enum target_xfer_status status;
+      ULONGEST xfered;
+      gdb_byte tags[4];
+
+      enum bfd_endian byte_order = gdbarch_byte_order (arch);
+      const gdb_byte *buf = valaddr + embedded_offset * unit_size;
+
+      ui_file_style black = { ui_file_style::BLACK, ui_file_style::NONE,
+			      ui_file_style::BOLD };
+      ui_file_style green = { ui_file_style::GREEN, ui_file_style::NONE,
+			      ui_file_style::BOLD };
+      ui_file_style red = { ui_file_style::RED, ui_file_style::NONE,
+			    ui_file_style::BOLD };
+
+      status = target_xfer_partial (current_top_target (),
+				    TARGET_OBJECT_TAG, NULL,
+				    tags, NULL,
+				    value_address (original_value),
+				    2, &xfered);
+
+      if (status == TARGET_XFER_OK && xfered == 2)
+	{
+	  status = target_xfer_partial (current_top_target (),
+					TARGET_OBJECT_TAG, NULL,
+					&tags[2], NULL,
+					value_address (original_value) + 8,
+					2, &xfered);
+	}
+
+      if (status != TARGET_XFER_OK || xfered != 2)
+	goto fallback;
+
+      if (tags[0] == 2 && tags[1] == 2)
+	{
+	  ULONGEST pl = extract_unsigned_integer (buf, 8, byte_order);
+	  ULONGEST tgt = pl & 0xffffffffffffULL;
+	  ULONGEST pm = (pl & 800000000000000ULL) >> 59;
+	  ULONGEST itag = (pl & 0x4000000000000000ULL) >> 62;
+	  
+	  fprintf_styled (stream, black, "PL <22>\n");
+	  fprintf_styled (stream, black, "target:\t");
+	  fprintf_styled (stream, green, "0x%06lx\n", tgt);
+	  fprintf_styled (stream, black, "pm:\t");
+	  fprintf_styled (stream, green, "0x%01lx\n", pm);
+	  fprintf_styled (stream, black, "itag:\t");
+	  fprintf_styled (stream, itag == 0 ? green : red, "0x%01lx", itag);
+	}
+      else if (tags[0] == 3 && tags[1] == 3 && tags[2] == 0 && tags[3] == 3)
+	{
+	  unsigned int size =
+	    (unsigned int) extract_unsigned_integer (buf + 12, 4, byte_order);
+
+	  unsigned int index =
+	    (unsigned int) extract_unsigned_integer (buf + 8, 4, byte_order);
+
+	  fprintf_styled (stream, black, "AP <3330>\n");
+	  fprintf_styled (stream, black, "base:\t");
+	  fprintf_styled (stream, green, "0x%04x%08x\n",
+			  (unsigned int) extract_unsigned_integer (buf + 4, 2,
+								   byte_order),
+			  (unsigned int) extract_unsigned_integer (buf, 4,
+								   byte_order));
+
+	  fprintf_styled (stream, black, "size:\t");
+	  fprintf_styled (stream, green, "0x%08x\n", size);
+
+	  fprintf_styled (stream, black, "offset:\t");
+	  fprintf_styled (stream, index < size ? green : red, "0x%08x", index);
+	}
+      else if (tags[0] == 0 && tags[1] == 0 && tags[2] == 0 && tags[3] == 0
+	       && extract_unsigned_integer (buf, 8, byte_order) == 0
+	       && extract_unsigned_integer (buf + 8, 8, byte_order) == 0)
+	{
+	  fprintf_styled (stream, red, "NP <0000> 0x0");
+	}
+      
+      else
+	{
+	  int i;
+	  fprintf_styled (stream, black, "\n");
+	  for (i = 0; i < 4; i++)
+	    {
+	       ULONGEST word = extract_unsigned_integer (buf + 4 * i, 4,
+							 byte_order);
+
+	       if (tags[i] == 1)
+		 fprintf_styled (stream, red, "%s <1> 0x%08lx%s",
+				 (word & 0x40000000ULL) == 0 ? "EW" : "DW",
+				 word, i < 3 ? "\n" : "");
+	       else
+		 fprintf_styled (stream, red, "<%d> 0x%08lx%s", tags[i], word,
+				 i < 3 ? "\n" : "");
+	    }
+	    
+	}
+    }
   else
     {
+    fallback:
       struct type *unresolved_elttype = TYPE_TARGET_TYPE (type);
       struct type *elttype = check_typedef (unresolved_elttype);
       CORE_ADDR addr = unpack_pointer (type,

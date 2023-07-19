@@ -18985,6 +18985,20 @@ $as_echo "#define GDB_SELF_TEST 1" >>confdefs.h
 
 fi
 
+if test x"${enable_e2k_quirks}" != x ; then
+
+cat >>confdefs.h <<_ACEOF
+#define ENABLE_E2K_QUIRKS 1
+_ACEOF
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define NEW_E2K_CALLS 1
+_ACEOF
+
+fi
+
 
 
   gdb_ac_transform=`echo "$program_transform_name" | sed -e 's/\\$\\$/\\$/g'`

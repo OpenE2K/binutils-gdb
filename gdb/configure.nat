@@ -295,6 +295,10 @@ case ${gdb_host} in
 		# Host: Xtensa, running GNU/Linux.
 		NATDEPFILES="${NATDEPFILES} xtensa-linux-nat.o"
 		;;
+	    e2k)
+		# Host: GNU/Linux E2K
+		NATDEPFILES="${NATDEPFILES} e2k-nat.o e2k-linux-nat.o nat/e2k-dregs.o nat/e2k-linux-dregs.o nat/e2k-linux.o nat/linux-btrace.o"
+		;;
 	esac
 	;;
     linux64)

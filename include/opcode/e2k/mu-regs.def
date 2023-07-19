@@ -1,0 +1,392 @@
+ENTRY (1, "%mmu_cr", 0x0, 0x8, 2, 1)
+
+ENTRY (1, "%cont", 0x10, 0x8, 2, 1)
+ENTRY (6, "%pid", 0x10, 0x8, 2, 1)
+
+ENTRY (1, "%cr3_rg", 0x20, 0x8, 2, 1)
+ENTRY (6, "%u2_pptb", 0x20, 0x8, 2, 1)
+
+ENTRY (1, "%elb_ptb", 0x30, 0x8, 2, 1)
+ENTRY (6, "%u_vptb", 0x30, 0x8, 2, 1)
+
+ENTRY (1, "%root_ptb", 0x40, 0x8, 2, 1)
+ENTRY (6, "%u_pptb", 0x40, 0x8, 2, 1)
+
+ENTRY (1, "%trap_point", 0x50, 0x8, 2, 1)
+ENTRY (1, "%trap_count", 0x60, 0x8, 2, 0)
+ENTRY (1, "%mpt_b", 0x70, 0x8, 2, 1)
+ENTRY (1, "%pci_l_b", 0x80, 0x8, 2, 1)
+ENTRY (1, "%us_cl_d", 0x90, 0x8, 2, 1)
+ENTRY (1, "%ph_h_b", 0xa0, 0x8, 2, 1)
+
+/* These idiots name the underlying two entries as %apic_base in
+   iset-v1.single. Therefore I believe that the corresponding registers are
+   missing from elbrus-v1, though it may be just a misprint.  */
+ENTRY (2, "%used_4kb_dtlb", 0xb0, 0x8, 2, 1)
+ENTRY (2, "%used_dtlb_mpt_dw", 0xc0, 0x8, 2, 1)
+
+/* This seems to be the real %apic_base which is present everywhere.  */
+ENTRY (1, "%apic_base", 0xd0, 0x8, 2, 1)
+
+ENTRY (2, "%mu_hw0", 0xe0, 0x8, 2, 1)
+
+ENTRY (3, "%cont_second", 0xf0, 0x8, 2, 1)
+ENTRY (6, "%pid2", 0xf0, 0x8, 2, 1)
+
+
+/* `0x100 + 0x10 * j' with `0 <= j <= 32'.  */
+ENTRY (1, "%mtrr0", 0x100, 0x8, 2, 1)
+ENTRY (1, "%mtrr1", 0x110, 0x8, 2, 1)
+ENTRY (1, "%mtrr2", 0x120, 0x8, 2, 1)
+ENTRY (1, "%mtrr3", 0x130, 0x8, 2, 1)
+ENTRY (1, "%mtrr4", 0x140, 0x8, 2, 1)
+ENTRY (1, "%mtrr5", 0x150, 0x8, 2, 1)
+ENTRY (1, "%mtrr6", 0x160, 0x8, 2, 1)
+ENTRY (1, "%mtrr7", 0x170, 0x8, 2, 1)
+ENTRY (1, "%mtrr8", 0x180, 0x8, 2, 1)
+ENTRY (1, "%mtrr9", 0x190, 0x8, 2, 1)
+ENTRY (1, "%mtrr10", 0x1a0, 0x8, 2, 1)
+ENTRY (1, "%mtrr11", 0x1b0, 0x8, 2, 1)
+ENTRY (1, "%mtrr12", 0x1c0, 0x8, 2, 1)
+ENTRY (1, "%mtrr13", 0x1d0, 0x8, 2, 1)
+ENTRY (1, "%mtrr14", 0x1e0, 0x8, 2, 1)
+ENTRY (1, "%mtrr15", 0x1f0, 0x8, 2, 1)
+ENTRY (1, "%mtrr16", 0x200, 0x8, 2, 1)
+ENTRY (1, "%mtrr17", 0x210, 0x8, 2, 1)
+ENTRY (1, "%mtrr18", 0x220, 0x8, 2, 1)
+ENTRY (1, "%mtrr19", 0x230, 0x8, 2, 1)
+ENTRY (1, "%mtrr20", 0x240, 0x8, 2, 1)
+ENTRY (1, "%mtrr21", 0x250, 0x8, 2, 1)
+ENTRY (1, "%mtrr22", 0x260, 0x8, 2, 1)
+ENTRY (1, "%mtrr23", 0x270, 0x8, 2, 1)
+ENTRY (1, "%mtrr24", 0x280, 0x8, 2, 1)
+ENTRY (1, "%mtrr25", 0x290, 0x8, 2, 1)
+ENTRY (1, "%mtrr26", 0x2a0, 0x8, 2, 1)
+ENTRY (1, "%mtrr27", 0x2b0, 0x8, 2, 1)
+ENTRY (1, "%mtrr28", 0x2c0, 0x8, 2, 1)
+ENTRY (1, "%mtrr29", 0x2d0, 0x8, 2, 1)
+ENTRY (1, "%mtrr30", 0x2e0, 0x8, 2, 1)
+ENTRY (1, "%mtrr31", 0x2f0, 0x8, 2, 1)
+ENTRY (1, "%mtrr32", 0x300, 0x8, 2, 1)
+
+ENTRY (3, "%pat", 0x310, 0x8, 2, 1)
+ENTRY (3, "%ph_hi_l_b", 0x320, 0x8, 2, 1)
+ENTRY (3, "%ph_hi_h_b", 0x330, 0x8, 2, 1)
+
+ENTRY (6, "%os_vptb", 0x340, 0x8, 2, 1)
+ENTRY (6, "%os_pptb", 0x350, 0x8, 2, 1)
+
+
+/* FIXME: these ones are supported starting from elbrus-v3 only. However,
+   because of the inability of LCC to take this into account when producing
+   `MMURR's accessing these registers from loads in `-masm-inline' mode (see
+   Bug #91866) I have to support them for all iset versions for the sake of
+   E2KT.  */
+ENTRY (1, "%pdpte0", 0x380, 0x8, 2, 1)
+ENTRY (1, "%pdpte1", 0x390, 0x8, 2, 1)
+ENTRY (1, "%pdpte2", 0x3a0, 0x8, 2, 1)
+ENTRY (1, "%pdpte3", 0x3b0, 0x8, 2, 1)
+
+ENTRY (3, "%tlu_cache", 0x3c0, 0x8, 2, 1)
+ENTRY (3, "%tlu_cmd_mem", 0x3e0, 0x8, 2, 1)
+
+ENTRY (6, "%virt_ctrl_mu", 0x400, 0x8, 2, 1)
+ENTRY (6, "%gid", 0x410, 0x8, 2, 1)
+ENTRY (6, "%gp_vptb", 0x420, 0x8, 2, 1)
+ENTRY (6, "%gp_pptb", 0x430, 0x8, 2, 1)
+ENTRY (6, "%intc_info_mu", 0x440, 0x8, 2, 1)
+ENTRY (6, "%intc_ptr_mu", 0x450, 0x8, 2, 1)
+ENTRY (6, "%sh_os_vptb", 0x460, 0x8, 2, 1)
+ENTRY (6, "%sh_os_pptb", 0x470, 0x8, 2, 1)
+ENTRY (6, "%g_w_imask_mmu_cr", 0x480, 0x8, 2, 1)
+ENTRY (6, "%sh_pid", 0x490, 0x8, 2, 1)
+ENTRY (6, "%sh_mmu_cr", 0x4a0, 0x8, 2, 1)
+ENTRY (6, "%os_vab", 0x4c0, 0x8, 2, 1)
+ENTRY (6, "%sh_os_vab", 0x4d0, 0x8, 2, 1)
+
+ENTRY (1, "%us_cl_b", 0x24, 0xd, 5, 6)
+ENTRY (1, "%us_cl_up", 0x124, 0xd, 5, 6)
+ENTRY (1, "%us_cl_m0", 0x4, 0xd, 5, 6)
+ENTRY (1, "%us_cl_m1", 0x84, 0xd, 5, 6)
+ENTRY (1, "%us_cl_m2", 0x104, 0xd, 5, 6)
+ENTRY (1, "%us_cl_m3", 0x184, 0xd, 5, 6)
+
+ENTRY (1, "%mlta0", 0x5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta0", 0x6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta0", 0x7, 0xd, 2, 0)
+
+ENTRY (1, "%mltb0", 0x25, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb0", 0x26, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb0", 0x27, 0xd, 2, 0)
+
+ENTRY (1, "%mltc0", 0x45, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc0", 0x46, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc0", 0x47, 0xd, 2, 0)
+
+ENTRY (1, "%mlta1", 0x85, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta1", 0x86, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta1", 0x87, 0xd, 2, 0)
+
+ENTRY (1, "%mltb1", 0xa5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb1", 0xa6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb1", 0xa7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc1", 0xc5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc1", 0xc6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc1", 0xc7, 0xd, 2, 0)
+
+ENTRY (1, "%mlta2", 0x105, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta2", 0x106, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta2", 0x107, 0xd, 2, 0)
+
+ENTRY (1, "%mltb2", 0x125, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb2", 0x126, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb2", 0x127, 0xd, 2, 0)
+
+ENTRY (1, "%mltc2", 0x145, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc2", 0x146, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc2", 0x147, 0xd, 2, 0)
+
+ENTRY (1, "%mlta3", 0x185, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta3", 0x186, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta3", 0x187, 0xd, 2, 0)
+
+ENTRY (1, "%mltb3", 0x1a5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb3", 0x1a6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb3", 0x1a7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc3", 0x1c5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc3", 0x1c6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc3", 0x1c7, 0xd, 2, 0)
+
+
+ENTRY (1, "%mlta4", 0x205, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta4", 0x206, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta4", 0x207, 0xd, 2, 0)
+
+ENTRY (1, "%mltb4", 0x225, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb4", 0x226, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb4", 0x227, 0xd, 2, 0)
+
+ENTRY (1, "%mltc4", 0x245, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc4", 0x246, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc4", 0x247, 0xd, 2, 0)
+
+ENTRY (1, "%mlta5", 0x285, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta5", 0x286, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta5", 0x287, 0xd, 2, 0)
+
+ENTRY (1, "%mltb5", 0x2a5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb5", 0x2a6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb5", 0x2a7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc5", 0x2c5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc5", 0x2c6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc5", 0x2c7, 0xd, 2, 0)
+
+ENTRY (1, "%mlta6", 0x305, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta6", 0x306, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta6", 0x307, 0xd, 2, 0)
+
+ENTRY (1, "%mltb6", 0x325, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb6", 0x326, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb6", 0x327, 0xd, 2, 0)
+
+ENTRY (1, "%mltc6", 0x345, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc6", 0x346, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc6", 0x347, 0xd, 2, 0)
+
+
+ENTRY (1, "%mlta7", 0x385, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta7", 0x386, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta7", 0x387, 0xd, 2, 0)
+
+ENTRY (1, "%mltb7", 0x3a5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb7", 0x3a6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb7", 0x3a7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc7", 0x3c5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc7", 0x3c6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc7", 0x3c7, 0xd, 2, 0)
+
+ENTRY (1, "%mlta8", 0x405, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta8", 0x406, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta8", 0x407, 0xd, 2, 0)
+
+ENTRY (1, "%mltb8", 0x425, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb8", 0x426, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb8", 0x427, 0xd, 2, 0)
+
+ENTRY (1, "%mltc8", 0x445, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc8", 0x446, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc8", 0x447, 0xd, 2, 0)
+
+
+ENTRY (1, "%mlta9", 0x485, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta9", 0x486, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta9", 0x487, 0xd, 2, 0)
+
+ENTRY (1, "%mltb9", 0x4a5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb9", 0x4a6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb9", 0x4a7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc9", 0x4c5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc9", 0x4c6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc9", 0x4c7, 0xd, 2, 0)
+
+
+ENTRY (1, "%mlta10", 0x505, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta10", 0x506, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta10", 0x507, 0xd, 2, 0)
+
+ENTRY (1, "%mltb10", 0x525, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb10", 0x526, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb10", 0x527, 0xd, 2, 0)
+
+ENTRY (1, "%mltc10", 0x545, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc10", 0x546, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc10", 0x547, 0xd, 2, 0)
+
+
+ENTRY (1, "%mlta11", 0x585, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta11", 0x586, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta11", 0x587, 0xd, 2, 0)
+
+ENTRY (1, "%mltb11", 0x5a5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb11", 0x5a6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb11", 0x5a7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc11", 0x5c5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc11", 0x5c6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc11", 0x5c7, 0xd, 2, 0)
+
+ENTRY (1, "%mlta12", 0x605, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta12", 0x606, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta12", 0x607, 0xd, 2, 0)
+
+ENTRY (1, "%mltb12", 0x625, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb12", 0x626, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb12", 0x627, 0xd, 2, 0)
+
+ENTRY (1, "%mltc12", 0x645, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc12", 0x646, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc12", 0x647, 0xd, 2, 0)
+
+ENTRY (1, "%mlta13", 0x685, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta13", 0x686, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta13", 0x687, 0xd, 2, 0)
+
+ENTRY (1, "%mltb13", 0x6a5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb13", 0x6a6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb13", 0x6a7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc13", 0x6c5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc13", 0x6c6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc13", 0x6c7, 0xd, 2, 0)
+
+ENTRY (1, "%mlta14", 0x705, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta14", 0x706, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta14", 0x707, 0xd, 2, 0)
+
+ENTRY (1, "%mltb14", 0x725, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb14", 0x726, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb14", 0x727, 0xd, 2, 0)
+
+ENTRY (1, "%mltc14", 0x745, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc14", 0x746, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc14", 0x747, 0xd, 2, 0)
+
+
+ENTRY (1, "%mlta15", 0x785, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta15", 0x786, 0xd, 2, 0)
+DIS_ENTRY (1, "%mlta15", 0x787, 0xd, 2, 0)
+
+ENTRY (1, "%mltb15", 0x7a5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb15", 0x7a6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltb15", 0x7a7, 0xd, 2, 0)
+
+ENTRY (1, "%mltc15", 0x7c5, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc15", 0x7c6, 0xd, 2, 0)
+DIS_ENTRY (1, "%mltc15", 0x7c7, 0xd, 2, 0)
+
+
+ENTRY (1, "%ddbcr", 0x87, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbcr", 0x85, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbcr", 0x86, 0xd, 5, 1)
+
+ENTRY (1, "%ddmcr", 0x107, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddmcr", 0x105, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddmcr", 0x106, 0xd, 5, 1)
+
+ENTRY (1, "%ddbsr", 0xa7, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbsr", 0xa5, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbsr", 0xa6, 0xd, 5, 1)
+
+ENTRY (1, "%ddbar0", 0x7, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar0", 0x5, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar0", 0x6, 0xd, 5, 1)
+
+ENTRY (1, "%ddbar1", 0x27, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar1", 0x25, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar1", 0x26, 0xd, 5, 1)
+
+ENTRY (1, "%ddbar2", 0x47, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar2", 0x45, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar2", 0x46, 0xd, 5, 1)
+
+ENTRY (1, "%ddbar3", 0x67, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar3", 0x65, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddbar3", 0x66, 0xd, 5, 1)
+
+ENTRY (1, "%ddmar0", 0xc7, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddmar0", 0xc5, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddmar0", 0xc6, 0xd, 5, 1)
+
+ENTRY (1, "%ddmar1", 0xe7, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddmar1", 0xe5, 0xd, 5, 1)
+DIS_ENTRY (1, "%ddmar1", 0xe6, 0xd, 5, 1)
+
+ENTRY (2, "%l2_b0_bist_sig1", 0x0, 0xb, 2, 0)
+ENTRY (2, "%l2_b0_bist_sig2", 0x100, 0xb, 2, 1)
+ENTRY (2, "%l2_b0_bisr_ctrl", 0x200, 0xb, 2, 1)
+ENTRY (2, "%l2_b0_ctrl", 0x300, 0xb, 2, 1)
+ENTRY (2, "%l2_b0_ecc_dbg", 0x400, 0xb, 2, 1)
+ENTRY (2, "%l2_b0_err", 0x500, 0xb, 2, 1)
+
+
+ENTRY (2, "%l2_b1_bist_sig1", 0x40, 0xb, 2, 0)
+ENTRY (2, "%l2_b1_bist_sig2", 0x140, 0xb, 2, 1)
+ENTRY (2, "%l2_b1_bisr_ctrl", 0x240, 0xb, 2, 1)
+ENTRY (2, "%l2_b1_ctrl", 0x340, 0xb, 2, 1)
+ENTRY (2, "%l2_b1_ecc_dbg", 0x440, 0xb, 2, 1)
+ENTRY (2, "%l2_b1_err", 0x540, 0xb, 2, 1)
+
+
+ENTRY (2, "%l2_b2_bist_sig1", 0x80, 0xb, 2, 0)
+ENTRY (2, "%l2_b2_bist_sig2", 0x180, 0xb, 2, 1)
+ENTRY (2, "%l2_b2_bisr_ctrl", 0x280, 0xb, 2, 1)
+ENTRY (2, "%l2_b2_ctrl", 0x380, 0xb, 2, 1)
+ENTRY (2, "%l2_b2_ecc_dbg", 0x480, 0xb, 2, 1)
+ENTRY (2, "%l2_b2_err", 0x580, 0xb, 2, 1)
+
+
+ENTRY (2, "%l2_b3_bist_sig1", 0xc0, 0xb, 2, 0)
+ENTRY (2, "%l2_b3_bist_sig2", 0x1c0, 0xb, 2, 1)
+ENTRY (2, "%l2_b3_bisr_ctrl", 0x2c0, 0xb, 2, 1)
+ENTRY (2, "%l2_b3_ctrl", 0x3c0, 0xb, 2, 1)
+ENTRY (2, "%l2_b3_ecc_dbg", 0x4c0, 0xb, 2, 1)
+ENTRY (2, "%l2_b3_err", 0x5c0, 0xb, 2, 1)
+
+
+
+/* Those in Table A.3.2 are write-only.  */
+
+/* Strangely enough this one is present in `iset-v{1,3,4,5,6}', but missing
+   from `iset-v2', however, believe that it's available everywhere.  */
+WONLY (1, "%dam_inv", 0x0, 0x3)
+
+/* These ones are present starting from `iset-v3'. However, if `%dam_inf' has
+   been missed from `iset-v2' by mistake, these ones may have been lost from
+   `iset-v2' too . . .   */
+WONLY (3, "%mlt_inv", 0x1, 0x3)
+WONLY (3, "%ldstgt_inv", 0x2, 0x3)

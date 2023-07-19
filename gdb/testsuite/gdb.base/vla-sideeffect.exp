@@ -16,6 +16,8 @@
 # Tests side-effects of sizeof evaluation.
 # Based on gcc/testsuite/gcc.dg/vla-4.c; vla-15.c
 
+set USE_GCC 1
+
 standard_testfile
 
 if { [prepare_for_testing "failed to prepare" ${testfile} ${srcfile}] } {

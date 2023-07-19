@@ -1,0 +1,46 @@
+<feature name="org.mcst.gdb.elbrus-v6.linux">
+  <!-- RWAP_LO and RWAP_HI types are duplicated here because in e2k-feature.xml
+       they are associated with "org.mcst.gdb.e2k.linux" feature.  -->
+  <!-- RWAP_LO  -->
+  <struct id="rwap_lo_bits" size="8">
+    <field name="base" start="0" end="47"/>
+    <field name="stub3" start="56" end="56"/>
+    <field name="stub2" start="57" end="57"/>
+    <field name="stub1" start="58" end="58"/>
+    <field name="rw" start="59" end="60"/>
+  </struct>
+
+  <union id="rwap_lo">
+    <field name="dword" type="uint64"/>
+    <field name="" type="rwap_lo_bits"/>
+  </union>
+
+  <!-- RWAP_HI  -->
+  <struct id="rwap_hi_bits" size="8">
+    <field name="curptr" start="0" end="31"/>
+    <field name="size" start="32" end="63"/>
+  </struct>
+
+  <union id="rwap_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="rwap_hi_bits"/>
+  </union>
+
+
+  <struct id="ctpr_hi_bits" size="8">
+    <field name="cui" start="0" end="15"/>
+  </struct>
+
+  <union id="ctpr_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="ctpr_hi_bits"/>
+  </union>
+
+
+  <reg name="dimtp_lo" bitsize="64" type="rwap_lo"/>
+  <reg name="dimtp_hi" bitsize="64" type="rwap_hi"/>
+  <reg name="ctpr1_hi" bitsize="64" type="ctpr_hi"/>
+  <reg name="ctpr2_hi" bitsize="64" type="ctpr_hi"/>
+  <reg name="ctpr3_hi" bitsize="64" type="ctpr_hi"/>
+
+</feature>

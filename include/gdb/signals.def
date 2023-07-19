@@ -196,7 +196,19 @@ SET (GDB_EXC_BREAKPOINT, 150, "EXC_BREAKPOINT", "Breakpoint")
 
 SET (GDB_SIGNAL_LIBRT, 151, "SIGLIBRT", "librt internal signal")
 
+/* I don't know what this signal is actually used for, but it's defined
+   at E2k.  */
+SET (GDB_SIGNAL_RESTART, 152, "SIGRESTART", "SIGRESTART E2k-specific signal")
+
+/* The latter three signals are used by E2k binary compiler.  */
+SET (GDB_SIGNAL_SRP, 153, "SIGSRP", "SRP signal for E2k binary compiler")
+SET (GDB_SIGNAL_MLT, 154, "SIGMLT", "MLT signal for E2k binary compiler")
+SET (GDB_SIGNAL_BIN, 155, "SIGBIN", "BIN signal for E2k binary compiler")
+
+SET (GDB_SIGNAL_STKFLT, 156, "SIGSTKFLT", "Coprocessor stack error")
+
+
 /* If you are adding a new signal, add it just above this comment.  */
 
 /* Last and unused enum value, for sizing arrays, etc.  */
-SET (GDB_SIGNAL_LAST, 152, NULL, "GDB_SIGNAL_LAST")
+SET (GDB_SIGNAL_LAST, 157, NULL, "GDB_SIGNAL_LAST")

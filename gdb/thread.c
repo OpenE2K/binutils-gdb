@@ -347,6 +347,10 @@ thread_info::thread_info (struct inferior *inf_, ptid_t ptid_)
   memset (&this->pending_follow, 0, sizeof (this->pending_follow));
   this->pending_follow.kind = TARGET_WAITKIND_SPURIOUS;
   this->suspend.waitstatus.kind = TARGET_WAITKIND_IGNORE;
+
+#if defined __LCC__
+  this->btrace = {0};
+#endif
 }
 
 thread_info::~thread_info ()

@@ -15,6 +15,8 @@
 
 # This file is part of the gdb testsuite.
 
+set USE_GCC 1
+
 # This contains tests for GDB's use of RTTI information.  This stems
 # from a bug reported in PR gdb/488 and other places, which leads to
 # statements like 'warning: can't find class named 'C::D', as given by

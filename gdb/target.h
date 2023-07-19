@@ -204,6 +204,8 @@ enum target_object
   /* FreeBSD process strings.  */
   TARGET_OBJECT_FREEBSD_PS_STRINGS,
   /* Possible future objects: TARGET_OBJECT_FILE, ...  */
+  /* External tags. See "e2k-tdep.c".  */
+  TARGET_OBJECT_TAG,
 };
 
 /* Possible values returned by target_xfer_partial, etc.  */
@@ -539,10 +541,12 @@ struct target_ops
 
     /* Documentation of what the two routines below are expected to do is
        provided with the corresponding target_* macros.  */
-    virtual int remove_watchpoint (CORE_ADDR, int,
+    virtual int remove_watchpoint (struct gdbarch *,
+				   CORE_ADDR, int,
 				 enum target_hw_bp_type, struct expression *)
       TARGET_DEFAULT_RETURN (-1);
-    virtual int insert_watchpoint (CORE_ADDR, int,
+    virtual int insert_watchpoint (struct gdbarch *,
+				   CORE_ADDR, int,
 				 enum target_hw_bp_type, struct expression *)
       TARGET_DEFAULT_RETURN (-1);
 
@@ -1238,6 +1242,13 @@ struct target_ops
     /* Prepare to generate a core file.  */
     virtual void prepare_to_generate_core ()
       TARGET_DEFAULT_IGNORE ();
+
+    /* Make target-specific corefile sections. For E2K targets these are
+       sections containing external tags. Can't I delegate this work to the
+       preceding method and thus get rid of my hacks in this file and in
+       gdb/gcore.c?  */
+    virtual void make_corefile_sections (bfd *)
+      TARGET_DEFAULT_FUNC (dummy_make_corefile_sections);
 
     /* Cleanup after generating a core file.  */
     virtual void done_generating_core ()
@@ -1997,11 +2008,11 @@ extern gdb::byte_vector target_thread_info_to_thread_handle
    Returns 0 for success, 1 if the watchpoint type is not supported,
    -1 for failure.  */
 
-#define	target_insert_watchpoint(addr, len, type, cond) \
-     (current_top_target ()->insert_watchpoint) (addr, len, type, cond)
+#define	target_insert_watchpoint(gdbarch, addr, len, type, cond) \
+     (current_top_target ()->insert_watchpoint) (gdbarch, addr, len, type, cond)
 
-#define	target_remove_watchpoint(addr, len, type, cond) \
-     (current_top_target ()->remove_watchpoint) (addr, len, type, cond)
+#define	target_remove_watchpoint(gdbarch, addr, len, type, cond) \
+     (current_top_target ()->remove_watchpoint) (gdbarch, addr, len, type, cond)
 
 /* Insert a new masked watchpoint at ADDR using the mask MASK.
    RW may be hw_read for a read watchpoint, hw_write for a write watchpoint
@@ -2567,6 +2578,16 @@ extern void target_call_history_range (ULONGEST begin, ULONGEST end,
 
 /* See to_prepare_to_generate_core.  */
 extern void target_prepare_to_generate_core (void);
+
+/* FIXME: I wonder what principal difference is between the usage of `extern
+   . . . target_ . . . ()' functions defined in `gdb/target.c' and the macros
+   like the one coming next (you can find plenty of analogous macros above).
+   Until I understand the difference, a macro is used since this lets me avoid
+   the need for hacking `gdb/target.c'.  */
+/* See to_make_corefile_sections.  */
+#define target_make_corefile_sections(abfd)				\
+  (current_top_target ()->make_corefile_sections) (abfd)
+
 
 /* See to_done_generating_core.  */
 extern void target_done_generating_core (void);

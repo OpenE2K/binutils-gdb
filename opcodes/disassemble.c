@@ -38,6 +38,7 @@
 #define ARCH_d30v
 #define ARCH_dlx
 #define ARCH_bpf
+#define ARCH_e2k
 #define ARCH_epiphany
 #define ARCH_fr30
 #define ARCH_frv
@@ -204,6 +205,11 @@ disassembler (enum bfd_architecture a,
     case bfd_arch_dlx:
       /* As far as I know we only handle big-endian DLX objects.  */
       disassemble = print_insn_dlx;
+      break;
+#endif
+#ifdef ARCH_e2k
+    case bfd_arch_e2k:
+      disassemble = print_insn_e2k;
       break;
 #endif
 #ifdef ARCH_h8300

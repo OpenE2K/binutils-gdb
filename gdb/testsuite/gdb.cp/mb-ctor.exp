@@ -16,6 +16,8 @@
 # Test that breakpoints on C++ constructors work, despite the
 # fact that gcc generates several versions of constructor function.
 
+set USE_GCC 1
+
 if { [skip_cplus_tests] } { continue }
 
 

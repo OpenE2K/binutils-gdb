@@ -18,6 +18,8 @@
 
 # This file is part of the gdb testsuite
 
+set USE_GCC 1
+
 # Note: The original tests were geared to the HP aCC compiler,
 # which has an idiosyncratic way of emitting debug info
 # for namespaces.
