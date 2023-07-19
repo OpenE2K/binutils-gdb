@@ -1349,7 +1349,7 @@ valpy_binop_throw (enum valpy_opcode opcode, PyObject *self, PyObject *other)
 
   if (!handled)
     {
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	res_val = value_x_binop (arg1, arg2, op, OP_NULL, EVAL_NORMAL);
       else
 	res_val = value_binop (arg1, arg2, op);

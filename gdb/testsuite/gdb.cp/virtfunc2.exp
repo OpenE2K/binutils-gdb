@@ -16,6 +16,8 @@
 # This file was written by Chris Moller <moller@redhat.com> based on
 # virtfunc.exp
 
+set USE_GCC 1
+
 set nl		"\[\r\n\]+"
 
 if { [skip_cplus_tests] } { continue }

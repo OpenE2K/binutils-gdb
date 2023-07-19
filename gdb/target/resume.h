@@ -30,6 +30,11 @@ enum resume_kind
   /* Thread should single-step.  */
   resume_step,
 
+#ifdef ENABLE_E2K_QUIRKS
+  /* Thread should catch a syscall. */
+  resume_syscall,
+#endif /* ENABLE_E2K_QUIRKS  */
+
   /* Thread should be stopped.  */
   resume_stop
 };

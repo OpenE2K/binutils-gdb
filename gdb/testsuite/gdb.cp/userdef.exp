@@ -19,6 +19,8 @@
 # source file "userdef.cc"
 #
 
+set USE_GCC 1
+
 if { [skip_stl_tests] } { continue }
 
 standard_testfile .cc

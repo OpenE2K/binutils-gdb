@@ -62,7 +62,7 @@ if {[gdb_gnu_strip_debug $binfile] != 0} {
 # gdb_gnu_strip_debug uses only --strip-debug and keeps the ELF symbol table
 # in $binfile.
 set test "strip"
-set strip_program [transform strip]
+set strip_program [gdb_find_strip]
 set result [catch "exec $strip_program $binfile" output]
 verbose "result is $result"
 verbose "output is $output"

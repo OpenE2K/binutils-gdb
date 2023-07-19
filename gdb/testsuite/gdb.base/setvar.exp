@@ -24,6 +24,8 @@
 # test running programs
 #
 
+set USE_GCC 1
+
 standard_testfile
 
 # Create and source the file that provides information about the compiler

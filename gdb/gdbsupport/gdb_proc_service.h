@@ -23,6 +23,11 @@
 
 #ifdef HAVE_PROC_SERVICE_H
 
+/* I guess "gregset.h" is needed here for the same reason as in case of
+   undefined HAVE_PROC_SERVICE_H below. Otherwise the build of GDB with
+   upstream glibc providing <proc_service.h> is sure to fail.  */
+#include "gregset.h"
+
 /* glibc's proc_service.h doesn't wrap itself with extern "C".  Need
    to do it ourselves.  */
 EXTERN_C_PUSH

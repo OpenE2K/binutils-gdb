@@ -33,6 +33,8 @@
 #include "sparc-nat.h"
 #include "inf-ptrace.h"
 
+#include "target-descriptions.h"
+
 /* With some trickery we can use the code in this file for most (if
    not all) ptrace(2) based SPARC systems, which includes SunOS 4,
    GNU/Linux and the various SPARC BSD's.
@@ -104,6 +106,11 @@ sparc32_gregset_supplies_p (struct gdbarch *gdbarch, int regnum)
       || (regnum >= SPARC_I0_REGNUM && regnum <= SPARC_I7_REGNUM))
     return 1;
 
+  if (gdbarch_tdep (gdbarch)->have_ext_regs
+      && ((regnum >= SPARC32_EG1_REGNUM && regnum <= SPARC32_EG7_REGNUM)
+          || (regnum >= SPARC32_EO0_REGNUM && regnum <= SPARC32_EO7_REGNUM)))
+    return 1;
+
   /* Control registers.  */
   if (regnum == SPARC32_PC_REGNUM
       || regnum == SPARC32_NPC_REGNUM
@@ -121,6 +128,10 @@ sparc32_fpregset_supplies_p (struct gdbarch *gdbarch, int regnum)
 {
   /* Floating-point registers.  */
   if (regnum >= SPARC_F0_REGNUM && regnum <= SPARC_F31_REGNUM)
+    return 1;
+
+if (gdbarch_tdep (gdbarch)->have_ext_regs
+    && (regnum >= SPARC32_D32_REGNUM && regnum <= SPARC32_D62_REGNUM))
     return 1;
 
   /* Control registers.  */

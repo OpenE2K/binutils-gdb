@@ -18,6 +18,8 @@
 # Verify that, using the MI, we can create, update, delete variables.
 #
 
+set USE_GCC 1
+
 
 load_lib mi-support.exp
 set MIFLAGS "-i=mi"
@@ -565,7 +567,7 @@ mi_gdb_test "-var-update selected_a" \
 	"update selected_a in do_special_tests"
 
 if [is_remote host] {
-    set filename ${testfile}
+    set filename ${binfile}
 } else {
     set filename ${binfile}
 }

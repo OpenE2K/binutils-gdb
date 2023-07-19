@@ -1485,6 +1485,9 @@ extern void disable_watchpoints_before_interactive_call_start (void);
 
 extern void enable_watchpoints_after_interactive_call_stop (void);
 
+extern void disable_breakpoints_before_preparation_to_call (void);
+extern void enable_breakpoints_after_preparation_to_call (void);
+
 /* These functions disable and re-enable all breakpoints during
    inferior startup.  They are intended to be called from solib
    code where necessary.  This is needed on platforms where the
@@ -1585,7 +1588,7 @@ extern int insert_single_step_breakpoints (struct gdbarch *);
 
 /* Check if any hardware watchpoints have triggered, according to the
    target.  */
-int watchpoints_triggered (struct target_waitstatus *);
+int watchpoints_triggered (struct gdbarch *, struct target_waitstatus *);
 
 /* Helper for transparent breakpoint hiding for memory read and write
    routines.
@@ -1681,6 +1684,13 @@ extern int pc_at_non_inline_function (const address_space *aspace,
 				      const struct target_waitstatus *ws);
 
 extern int user_breakpoint_p (struct breakpoint *);
+
+#ifdef ENABLE_E2K_QUIRKS
+extern struct breakpoint *set_raw_breakpoint (struct gdbarch *gdbarch,
+					      struct symtab_and_line,
+					      enum bptype,
+					      const struct breakpoint_ops *);
+#endif /* ENABLE_E2K_QUIRKS  */
 
 /* Return true if this breakpoint is pending, false if not.  */
 extern int pending_breakpoint_p (struct breakpoint *);

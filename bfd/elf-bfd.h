@@ -519,6 +519,7 @@ enum elf_target_id
   TILEGX_ELF_DATA,
   TILEPRO_ELF_DATA,
   RISCV_ELF_DATA,
+  E2K_ELF_DATA,
   GENERIC_ELF_DATA
 };
 
@@ -1603,6 +1604,8 @@ struct elf_backend_data
   /* True if the 64-bit Linux PRPSINFO structure's `pr_uid' and `pr_gid'
      members use a 16-bit data type.  */
   unsigned linux_prpsinfo64_ugid16 : 1;
+
+  bfd_vma r_none_info;
 };
 
 /* Information about reloc sections associated with a bfd_elf_section_data
@@ -2819,6 +2822,12 @@ extern bfd_boolean _bfd_elf_allocate_ifunc_dyn_relocs
   (struct bfd_link_info *, struct elf_link_hash_entry *,
    struct elf_dyn_relocs **, bfd_boolean *, unsigned int,
    unsigned int, unsigned int, bfd_boolean);
+
+/* Leave it in place since E2K needs it.  */
+extern long _bfd_elf_ifunc_get_synthetic_symtab
+  (bfd *, long, asymbol **, long, asymbol **, asymbol **, asection *,
+   int, void *,
+   bfd_vma *(*) (bfd *, asymbol **, asection *, asection *, int, void *));
 
 extern void elf_append_rela (bfd *, asection *, Elf_Internal_Rela *);
 extern void elf_append_rel (bfd *, asection *, Elf_Internal_Rela *);

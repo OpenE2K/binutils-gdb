@@ -538,6 +538,18 @@ generic_elf_osabi_sniff_abi_tag_sections (bfd *abfd, asection *sect, void *obj)
 static enum gdb_osabi
 generic_elf_osabi_sniffer (bfd *abfd)
 {
+  /* FIXME!!! Currently I don't know how to override this generic
+     ELF sniffer with a target-dependent one. The latter's
+     `_initialize'-method is run BEFORE the one in this file
+     and therefore the corresponding ELF sniffer is sure to
+     loose this game. */
+
+  /* We aren't interested in anything except GDB_OSABI_LINUX
+     meanwhile. */
+
+  return GDB_OSABI_LINUX;
+
+#if 0
   unsigned int elfosabi;
   enum gdb_osabi osabi = GDB_OSABI_UNKNOWN;
 
@@ -593,6 +605,7 @@ generic_elf_osabi_sniffer (bfd *abfd)
     }
 
   return osabi;
+#endif /* 0 */
 }
 
 static void

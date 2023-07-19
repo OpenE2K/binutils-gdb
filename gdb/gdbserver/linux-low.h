@@ -391,6 +391,10 @@ struct lwp_info
   thread_t thread_handle;
 #endif
 
+#if 0
+  int syscall_state;
+#endif /* 0  */
+
   /* Arch-specific additions.  */
   struct arch_lwp_info *arch_private;
 };

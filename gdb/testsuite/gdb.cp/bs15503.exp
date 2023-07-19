@@ -17,6 +17,8 @@
 # This file was written by Sue Kimura (sue_kimura@hp.com)
 # Rewritten by Michael Chastain (mec.gnu@mindspring.com)
 
+set USE_GCC 1
+
 if { [skip_stl_tests] } { continue }
 
 standard_testfile .cc

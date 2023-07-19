@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <sys/uio.h>
+#include <stdio.h>
 #include "gdbsupport/filestuff.h"
 #include "tracepoint.h"
 #include "hostio.h"
@@ -134,6 +135,10 @@ typedef struct
     } a_un;
 } Elf64_auxv_t;
 #endif
+
+#if defined __e2k__
+#include "nat/e2k-linux.h"
+#endif /* __e2k__  */
 
 /* Does the current host support PTRACE_GETREGSET?  */
 int have_ptrace_getregset = -1;
@@ -261,7 +266,11 @@ int using_threads = 1;
 static int stabilizing_threads;
 
 static void linux_resume_one_lwp (struct lwp_info *lwp,
-				  int step, int signal, siginfo_t *info);
+				  int step,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+                                  int trace_syscall,
+#endif /* ENABLE_E2K_QUIRKS  */
+				  int signal, siginfo_t *info);
 static void linux_resume (struct thread_resume *resume_info, size_t n);
 static void stop_all_lwps (int suspend, struct lwp_info *except);
 static void unstop_all_lwps (int unsuspend, struct lwp_info *except);
@@ -1802,7 +1811,11 @@ status_pending_p_callback (thread_info *thread, ptid_t ptid)
   if (lp->status_pending_p
       && !thread_still_has_status_pending_p (thread))
     {
-      linux_resume_one_lwp (lp, lp->stepping, GDB_SIGNAL_0, NULL);
+      linux_resume_one_lwp (lp, lp->stepping,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+			    0,
+#endif /* ENABLE_E2K_QUIRKS  */
+			    GDB_SIGNAL_0, NULL);
       return 0;
     }
 
@@ -2545,7 +2558,11 @@ linux_low_filter_event (int lwpid, int wstat)
 			  child->stepping ? "step" : "continue",
 			  target_pid_to_str (ptid_of (thread)));
 
-	  linux_resume_one_lwp (child, child->stepping, 0, NULL);
+	  linux_resume_one_lwp (child, child->stepping,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+				0,
+#endif /* ENABLE_E2K_QUIRKS  */
+				0, NULL);
 	  return NULL;
 	}
     }
@@ -2595,7 +2612,11 @@ resume_stopped_resumed_lwps (thread_info *thread)
 		      paddress (lp->stop_pc),
 		      step);
 
-      linux_resume_one_lwp (lp, step, GDB_SIGNAL_0, NULL);
+      linux_resume_one_lwp (lp, step,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+			    0,
+#endif /* ENABLE_E2K_QUIRKS  */
+			    GDB_SIGNAL_0, NULL);
     }
 }
 
@@ -2650,7 +2671,11 @@ linux_wait_for_event_filtered (ptid_t wait_ptid, ptid_t filter_ptid,
 				       &requested_child->status_pending);
 	  requested_child->status_pending_p = 0;
 	  requested_child->status_pending = 0;
-	  linux_resume_one_lwp (requested_child, 0, 0, NULL);
+	  linux_resume_one_lwp (requested_child, 0,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+				0,
+#endif /* ENABLE_E2K_QUIRKS  */
+				0, NULL);
 	}
 
       if (requested_child->suspended
@@ -3320,7 +3345,11 @@ linux_wait_1 (ptid_t ptid,
 	    debug_printf ("Signal %d for LWP %ld deferred (in jump pad)\n",
 			  WSTOPSIG (w), lwpid_of (current_thread));
 
-	  linux_resume_one_lwp (event_child, 0, 0, NULL);
+	  linux_resume_one_lwp (event_child, 0,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+				0,
+#endif /* ENABLE_E2K_QUIRKS  */
+				0, NULL);
 
 	  if (debug_threads)
 	    debug_exit ();
@@ -3478,6 +3507,9 @@ linux_wait_1 (ptid_t ptid,
       else
 	{
 	  linux_resume_one_lwp (event_child, event_child->stepping,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+				0,
+#endif /* ENABLE_E2K_QUIRKS  */
 				WSTOPSIG (w), info_p);
 	}
 
@@ -3745,6 +3777,17 @@ linux_wait_1 (ptid_t ptid,
       /* Clear the event lwp's waitstatus since we handled it already.  */
       event_child->waitstatus.kind = TARGET_WAITKIND_IGNORE;
     }
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+  else if (WSTOPSIG (w) == (SIGTRAP | 0x80))
+    {
+      event_child->syscall_state =
+        (event_child->syscall_state == TARGET_WAITKIND_SYSCALL_ENTRY
+         ? TARGET_WAITKIND_SYSCALL_RETURN
+         : TARGET_WAITKIND_SYSCALL_ENTRY);
+        
+      ourstatus->kind = event_child->syscall_state;
+    }
+#endif /* ENABLE_E2K_QUIRKS  */
   else
     ourstatus->kind = TARGET_WAITKIND_STOPPED;
 
@@ -4089,7 +4132,11 @@ move_out_of_jump_pad_callback (thread_info *thread)
 			  WSTOPSIG (*wstat), lwpid_of (thread));
 	}
 
-      linux_resume_one_lwp (lwp, 0, 0, NULL);
+      linux_resume_one_lwp (lwp, 0,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+			    0,
+#endif /* ENABLE_E2K_QUIRKS  */
+			    0, NULL);
     }
   else
     lwp_suspended_inc (lwp);
@@ -4233,7 +4280,11 @@ lwp_signal_can_be_delivered (struct lwp_info *lwp)
 
 static void
 linux_resume_one_lwp_throw (struct lwp_info *lwp,
-			    int step, int signal, siginfo_t *info)
+			    int step,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+			    int trace_syscall,
+#endif /* ENABLE_E2K_QUIRKS  */
+			    int signal, siginfo_t *info)
 {
   struct thread_info *thread = get_lwp_thread (lwp);
   struct thread_info *saved_thread;
@@ -4475,11 +4526,19 @@ check_ptrace_stopped_lwp_gone (struct lwp_info *lp)
 
 static void
 linux_resume_one_lwp (struct lwp_info *lwp,
-		      int step, int signal, siginfo_t *info)
+		      int step,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+                      int trace_syscall,
+#endif /* ENABLE_E2K_QUIRKS  */
+		      int signal, siginfo_t *info)
 {
   try
     {
-      linux_resume_one_lwp_throw (lwp, step, signal, info);
+      linux_resume_one_lwp_throw (lwp, step,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+				  trace_syscall,
+#endif /* ENABLE_E2K_QUIRKS  */
+				  signal, info);
     }
   catch (const gdb_exception_error &ex)
     {
@@ -4803,7 +4862,11 @@ start_step_over (struct lwp_info *lwp)
 
   current_thread = saved_thread;
 
-  linux_resume_one_lwp (lwp, step, 0, NULL);
+  linux_resume_one_lwp (lwp, step,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+			0,
+#endif /* ENABLE_E2K_QUIRKS  */
+			0, NULL);
 
   /* Require next event from this LWP.  */
   step_over_bkpt = thread->id;
@@ -5086,6 +5149,9 @@ proceed_one_lwp (thread_info *thread, lwp_info *except)
 {
   struct lwp_info *lwp = get_thread_lwp (thread);
   int step;
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+  int trace_syscall = 0;
+#endif /* ENABLE_E2K_QUIRKS  */
 
   if (lwp == except)
     return;
@@ -5175,7 +5241,11 @@ proceed_one_lwp (thread_info *thread, lwp_info *except)
   else
     step = 0;
 
-  linux_resume_one_lwp (lwp, step, 0, NULL);
+  linux_resume_one_lwp (lwp, step,
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+			trace_syscall,
+#endif /* ENABLE_E2K_QUIRKS  */
+			0, NULL);
 }
 
 static void
@@ -5292,6 +5362,7 @@ disable_regset (struct regsets_info *info, struct regset_info *regset)
   info->disabled_regsets[dr_offset] = 1;
 }
 
+
 static int
 regsets_fetch_inferior_registers (struct regsets_info *regsets_info,
 				  struct regcache *regcache)
@@ -5322,7 +5393,9 @@ regsets_fetch_inferior_registers (struct regsets_info *regsets_info,
       else
 	data = buf;
 
-#ifndef __sparc__
+#if defined __e2k__
+      res = e2k_linux_getregs (pid, (greg_t *) data);
+#elif !defined __sparc__
       res = ptrace (regset->get_request, pid,
 		    (PTRACE_TYPE_ARG3) (long) nt_type, data);
 #else
@@ -5406,7 +5479,9 @@ regsets_store_inferior_registers (struct regsets_info *regsets_info,
       else
 	data = buf;
 
-#ifndef __sparc__
+#if defined __e2k__
+      res = e2k_linux_getregs (pid, (greg_t *) data);
+#elif ! defined __sparc__
       res = ptrace (regset->get_request, pid,
 		    (PTRACE_TYPE_ARG3) (long) nt_type, data);
 #else
@@ -5419,7 +5494,9 @@ regsets_store_inferior_registers (struct regsets_info *regsets_info,
 	  regset->fill_function (regcache, buf);
 
 	  /* Only now do we write the register set.  */
-#ifndef __sparc__
+#if defined __e2k__
+	  res = e2k_linux_setregs (pid, (greg_t *) data);
+#elif ! defined __sparc__
 	  res = ptrace (regset->set_request, pid,
 			(PTRACE_TYPE_ARG3) (long) nt_type, data);
 #else
@@ -6354,6 +6431,78 @@ linux_supports_range_stepping (void)
 
   return (*the_low_target.supports_range_stepping) ();
 }
+
+#ifdef __e2k__
+/* Implements the to_xfer_partial interface for
+   the TARGET_OBJECT_TAG object type.  */
+static int
+linux_qxfer_tags (unsigned char *readbuf,
+                  unsigned const char *writebuf,
+                  CORE_ADDR offset, int len)
+{
+  int i;
+  long pid = lwpid_of (current_thread);
+
+  /* Take into account that these idiots in `handle_qxfer ()' pass us
+     `LEN + 1' in fact . . .  */
+  len -= 1;
+
+  if (offset & 3)
+    /* What should we return in this case? */
+    return -1;
+
+  if (!readbuf && !writebuf)
+    return -1;
+
+  if (readbuf)
+    {
+      ULONGEST xfered;
+      e2k_linux_read_tags (pid, readbuf, offset, len, &xfered);
+      len = (int) xfered;
+    }
+  else
+    {
+      for (i = 0; i < len; i++)
+        ptrace (PTRACE_POKETAG, pid, offset + 4 * i,
+                0 /* Should I have writebuf[i] here? */);
+    }
+
+  return len;
+}
+
+static int
+linux_qxfer_packed_tags (unsigned char *readbuf,
+                         unsigned const char *writebuf,
+                         CORE_ADDR offset, int len)
+{
+  ULONGEST xfered;
+  long pid = lwpid_of (current_thread);
+
+  if (offset & 3)
+    /* What should we return in this case? */
+    return -1;
+
+  if (!readbuf && !writebuf)
+    return -1;
+
+  /* Note that these idiots in `handle_qxfer ()' supply us with `LEN + 1'
+     in fact . . .  */
+  len -= 1;
+
+  /* Writing packed tags back into memory is not supported and makes no sense
+     at present.  */
+  gdb_assert (writebuf == NULL);
+
+  /* Note that we've already been passed LEN divided by four (see `remote_xfer_
+     partial ()' in `gdb/remote.c'). It's equal to the actual number of bytes
+     to be transferred to e2k-linux-gdb. Multiply it back here to make the
+     current implementation of `e2k_linux_read_tags ()' happy.  */
+  e2k_linux_read_tags (pid, readbuf, offset, len << 2, &xfered);
+
+  len = (int) xfered;
+  return len >> 2;
+}
+#endif /* __e2k__ */
 
 #if defined PT_GETDSBT || defined PTRACE_GETFDPIC
 struct target_loadseg
@@ -7395,6 +7544,10 @@ static struct target_ops linux_target_ops = {
   thread_db_get_tls_address,
 #else
   NULL,
+#endif
+#ifdef __e2k__
+  linux_qxfer_tags,
+  linux_qxfer_packed_tags,
 #endif
   hostio_last_error_from_errno,
   linux_qxfer_osdata,

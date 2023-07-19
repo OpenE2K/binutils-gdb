@@ -117,6 +117,16 @@ int tdesc_numbered_register (const struct tdesc_feature *feature,
 			     struct tdesc_arch_data *data,
 			     int regno, const char *name);
 
+/* This function does the same as the previous one. In addition it sets the
+   name of a register to the empty string after it has been recognized and
+   associated with REGNO. This way it will hopefully become unavailable for
+   direct access by the user.  */
+
+int tdesc_invisible_numbered_register (const struct tdesc_feature *feature,
+                                       struct tdesc_arch_data *data,
+                                       int regno, const char *name);
+
+
 /* Search FEATURE for a register named NAME, but do not assign a fixed
    register number to it.  */
 

@@ -75,6 +75,8 @@ FUNC (compdir_absolute_ldir_absolute_file_absolute_different)
    alignment across all supported architectures, such that the label
    never points into the alignment gap.  */
 
+#ifndef __LCC__
+
 #define FUNC(name)					\
   asm (".balign 8");					\
   asm (#name "_start: .globl " #name "_start\n");	\
@@ -85,6 +87,23 @@ FUNC (compdir_absolute_ldir_absolute_file_absolute_different)
     v++;						\
   }							\
   asm (#name "_end: .globl " #name "_end\n");
+
+#else /* __LCC__  */
+#define FUNC(name)					\
+  START_INSNS						\
+  static void						\
+  name (void)						\
+  {							\
+    v++;						\
+  }							\
+  asm (".text\n");                                      \
+  asm (#name "_start = " #name"\n");                    \
+  asm (".globl " #name "_start\n");                     \
+  asm (#name "_end = " #name" + 0x20\n");               \
+  asm (".globl " #name "_end\n");
+
+
+#endif /* __LCC__  */
 FUNCBLOCK
 #undef FUNC
 

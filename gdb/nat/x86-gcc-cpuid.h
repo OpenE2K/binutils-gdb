@@ -188,6 +188,11 @@
    pointer is non-null, then first four bytes of the signature
    (as found in ebx register) are returned in location pointed by sig.  */
 
+/* FIXME: when this file is stupidly compiled for E2K as a part of "btrace"
+   with LCC (at least at -O0), this compiler unlike e2k-linux-gcc turns out
+   to be incapable of ignoring unused `static __inline' functions containing
+   asm's inappropriate for E2K.  */
+#ifndef __LCC__
 static __inline unsigned int
 __get_cpuid_max (unsigned int __ext, unsigned int *__sig)
 {
@@ -272,5 +277,5 @@ __get_cpuid_count (unsigned int __leaf, unsigned int __subleaf,
   __cpuid_count (__leaf, __subleaf, *__eax, *__ebx, *__ecx, *__edx);
   return 1;
 }
-
+#endif /* __LCC__  */
 #endif /* NAT_X86_GCC_CPUID_H */

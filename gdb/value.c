@@ -181,6 +181,9 @@ struct value
       type (type_),
       enclosing_type (type_)
   {
+    /* This code is here because of lval_computed (rather than lval_register)
+       E2K specific tagged register values.  */
+    VALUE_NEXT_FRAME_ID (this) = null_frame_id;
   }
 
   ~value ()
@@ -239,10 +242,6 @@ struct value
     {
       /* Register number.  */
       int regnum;
-      /* Frame ID of "next" frame to which a register value is relative.
-	 If the register value is found relative to frame F, then the
-	 frame id of F->next will be stored in next_frame_id.  */
-      struct frame_id next_frame_id;
     } reg;
 
     /* Pointer to internal variable.  */
@@ -288,6 +287,11 @@ struct value
      single read from the target when displaying multiple
      bitfields.  */
   value_ref_ptr parent;
+
+  /* Frame ID of "next" frame to which a register value is relative.
+     If the register value is found relative to frame F, then the
+     frame id of F->next will be stored in next_frame_id.  */
+  struct frame_id next_frame_id;
 
   /* Type of the value.  */
   struct type *type;
@@ -1543,8 +1547,8 @@ deprecated_value_internalvar_hack (struct value *value)
 struct frame_id *
 deprecated_value_next_frame_id_hack (struct value *value)
 {
-  gdb_assert (value->lval == lval_register);
-  return &value->location.reg.next_frame_id;
+  // gdb_assert (value->lval == lval_register);
+  return &value->next_frame_id;
 }
 
 int *
@@ -1672,6 +1676,7 @@ value_copy (struct value *arg)
   val->offset = arg->offset;
   val->bitpos = arg->bitpos;
   val->bitsize = arg->bitsize;
+  VALUE_NEXT_FRAME_ID (val) = VALUE_NEXT_FRAME_ID (arg);
   val->lazy = arg->lazy;
   val->embedded_offset = value_embedded_offset (arg);
   val->pointed_to_offset = arg->pointed_to_offset;
@@ -2033,6 +2038,22 @@ create_internalvar (const char *name)
   return var;
 }
 
+#ifdef ENABLE_E2K_QUIRKS
+
+struct internalvar *
+create_nameless_internalvar (void)
+{
+  struct internalvar *var;
+
+  var = (struct internalvar *) xmalloc (sizeof (struct internalvar));
+  var->name = NULL;
+  var->kind = INTERNALVAR_VOID;
+  var->next = NULL;
+  return var;
+}
+
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Create an internal variable with name NAME and register FUN as the
    function that value_of_internalvar uses to create a value whenever
    this variable is referenced.  NAME should not normally include a
@@ -2174,6 +2195,22 @@ value_of_internalvar (struct gdbarch *gdbarch, struct internalvar *var)
     }
 
   return val;
+}
+
+
+/* FIXME. I really need this in set_ivar_field when dealing with
+   iternalvars with associated lval_memory values for which
+   synchronization with memory is required. Probably it's
+   better to use `lval_computed'-values rather than
+   `lval_memory' ones  for this purpose? */
+
+struct value *
+value_ref_of_internalvar (struct internalvar *var)
+{
+  if (var->kind == INTERNALVAR_VALUE)
+    return var->u.value;
+
+  return NULL;
 }
 
 int
@@ -2363,6 +2400,16 @@ clear_internalvar (struct internalvar *var)
 
   /* Reset to void kind.  */
   var->kind = INTERNALVAR_VOID;
+}
+
+void
+free_nameless_internalvar (struct internalvar *var)
+{
+  gdb_assert (var->name == NULL);
+  gdb_assert (var->next == NULL);
+
+  clear_internalvar (var);
+  xfree (var);
 }
 
 char *
@@ -3013,6 +3060,7 @@ value_primitive_field (struct value *arg1, LONGEST offset,
 		   + value_embedded_offset (arg1));
     }
   set_value_component_location (v, arg1);
+  VALUE_NEXT_FRAME_ID (v) = VALUE_NEXT_FRAME_ID (arg1);
   return v;
 }
 
@@ -3602,6 +3650,7 @@ value_from_component (struct value *whole, struct type *type, LONGEST offset)
     }
   v->offset = value_offset (whole) + offset + value_embedded_offset (whole);
   set_value_component_location (v, whole);
+  VALUE_NEXT_FRAME_ID (v) = VALUE_NEXT_FRAME_ID (whole);
 
   return v;
 }

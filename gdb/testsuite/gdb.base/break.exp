@@ -397,7 +397,7 @@ gdb_test "break +1" \
 # Check to see if breakpoint is hit when stepped onto
 
 gdb_test "step" \
-    ".*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location10.*$bp_location10\[\t \]+return argc;.*breakpoint 10 here.*" \
+    ".*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location10.*$bp_location10\[\t \]+.*return argc;.*breakpoint 10 here.*" \
     "step onto breakpoint"
 
 # Check to see if breakpoint can be set on ending brace of function

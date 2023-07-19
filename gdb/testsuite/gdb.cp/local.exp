@@ -20,6 +20,8 @@
 
 # This file is part of the gdb testsuite
 
+set USE_GCC 1
+
 set ws "\[\r\n\t \]+"
 set nl "\[\r\n\]+"
 

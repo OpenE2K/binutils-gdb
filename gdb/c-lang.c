@@ -880,7 +880,11 @@ const struct exp_descriptor exp_descriptor_c =
   evaluate_subexp_c
 };
 
+#ifdef ENABLE_E2K_QUIRKS
+const char *c_extensions[] =
+#else /*ENABLE_E2K_QUIRKS  */
 static const char *c_extensions[] =
+#endif /* ENABLE_E2K_QUIRKS  */
 {
   ".c", NULL
 };

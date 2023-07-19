@@ -2557,12 +2557,18 @@ svr4_exec_displacement (CORE_ADDR *displacementp)
   if (exec_bfd == NULL)
     return 0;
 
+#if 0
+
+  /* As mentioned above this condition may very well become obsolete. In
+     fact it has as to e2k protected mode. */
+
   /* Therefore for ELF it is ET_EXEC and not ET_DYN.  Both shared libraries
      being executed themselves and PIE (Position Independent Executable)
      executables are ET_DYN.  */
 
   if ((bfd_get_file_flags (exec_bfd) & DYNAMIC) == 0)
     return 0;
+#endif /* 0 */
 
   if (target_auxv_search (current_top_target (), AT_ENTRY, &entry_point) <= 0)
     return 0;

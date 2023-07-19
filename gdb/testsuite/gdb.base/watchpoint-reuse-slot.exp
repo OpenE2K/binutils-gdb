@@ -75,6 +75,15 @@ proc stepi {} {
 	    }
 	    set cur_addr addr
 	}
+	-re ".*[string_to_regexp $srcline]\r\n$gdb_prompt $" {
+	    set addr [get_pc]
+	    if {$addr != $cur_addr} {
+		pass $test
+	    } else {
+		fail $test
+	    }
+	    set cur_addr addr
+	}
     }
 }
 

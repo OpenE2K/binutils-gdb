@@ -336,6 +336,31 @@ gdb_signal_from_host (int hostsig)
     return GDB_SIGNAL_LIBRT;
 #endif
 
+#if defined (SIGRESTART)
+  if (hostsig == SIGRESTART)
+    return GDB_SIGNAL_RESTART;
+#endif
+
+#if defined (SIGSRP)
+  if (hostsig == SIGSRP)
+    return GDB_SIGNAL_SRP;
+#endif
+
+#if defined (SIGMLT)
+  if (hostsig == SIGMLT)
+    return GDB_SIGNAL_MLT;
+#endif
+
+#if defined (SIGBIN)
+  if (hostsig == SIGBIN)
+    return GDB_SIGNAL_BIN;
+#endif
+
+#if defined (SIGSTKFLT)
+  if (hostsig == SIGSTKFLT)
+    return GDB_SIGNAL_STKFLT;
+#endif
+
 #if defined (REALTIME_LO)
   if (hostsig >= REALTIME_LO && hostsig < REALTIME_HI)
     {
@@ -591,6 +616,31 @@ do_gdb_signal_to_host (enum gdb_signal oursig,
 #if defined (SIGLIBRT)
     case GDB_SIGNAL_LIBRT:
       return SIGLIBRT;
+#endif
+
+#if defined (SIGRESTART)
+    case GDB_SIGNAL_RESTART:
+      return SIGRESTART;
+#endif
+
+#if defined (SIGSRP)
+    case GDB_SIGNAL_SRP:
+      return SIGSRP;
+#endif
+
+#if defined (SIGMLT)
+    case GDB_SIGNAL_MLT:
+      return SIGMLT;
+#endif
+
+#if defined (SIGBIN)
+    case GDB_SIGNAL_BIN:
+      return SIGBIN;
+#endif
+
+#if defined (SIGSTKFLT)
+    case GDB_SIGNAL_STKFLT:
+      return SIGSTKFLT;
 #endif
 
     default:

@@ -2228,6 +2228,14 @@ GDB_AC_SELFTEST([
   CONFIG_SRCS="$CONFIG_SRCS \$(SUBDIR_UNITTESTS_SRCS) gdbsupport/selftest.c selftest-arch.c"
 ])
 
+if test x"${enable_e2k_quirks}" != x ; then
+    AC_DEFINE_UNQUOTED(ENABLE_E2K_QUIRKS, 1,
+		       [Define to enable e2k quirks in arch-independent code.])
+
+    AC_DEFINE_UNQUOTED(NEW_E2K_CALLS, 1,
+		       [Define to enable new implementation of CALLs for E2K.])
+fi
+
 GDB_AC_TRANSFORM([gdb], [GDB_TRANSFORM_NAME])
 GDB_AC_TRANSFORM([gcore], [GCORE_TRANSFORM_NAME])
 AC_CONFIG_FILES([gcore], [chmod +x gcore])

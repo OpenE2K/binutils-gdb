@@ -2693,6 +2693,16 @@ clear_proceed_status_thread (struct thread_info *tp)
   if (!signal_pass_state (tp->suspend.stop_signal))
     tp->suspend.stop_signal = GDB_SIGNAL_0;
 
+#if 0
+  /* FIXME: is this hack of any value now with NEW_E2K_CALLS in use?  */
+  /* For E2K I need to keep the CALL FSM when continuing after the interrupted
+     CALL to properly escape from the CALL trampoline. FIXME: I guess this hack
+     may very well break GDB behaviour in other cases . . .  */
+#if !defined ENABLE_E2K_QUIRKS
+  thread_fsm_delete (tp->thread_fsm);
+#endif /* ENABLE_E2K_QUIRKS  */
+#endif /* 0  */
+
   delete tp->thread_fsm;
   tp->thread_fsm = NULL;
 
@@ -2873,7 +2883,21 @@ proceed (CORE_ADDR addr, enum gdb_signal siggnal)
 	   Note, we don't do this in reverse, because we won't
 	   actually be executing the breakpoint insn anyway.
 	   We'll be (un-)executing the previous instruction.  */
-	cur_thr->stepping_over_breakpoint = 1;
+	{
+#ifdef ENABLE_E2K_QUIRKS
+          /* All this is true when we haven't hit a syscall catchpoint.
+             In the latter case we may very well wish to hit a breakpoint
+             at the next instruction after syscall. */
+
+          ptid_t wait_ptid;
+          struct target_waitstatus wait_status;
+
+          get_last_target_status (&wait_ptid, &wait_status);
+          if (wait_status.kind != TARGET_WAITKIND_SYSCALL_ENTRY
+              && wait_status.kind != TARGET_WAITKIND_SYSCALL_RETURN)
+#endif /* ENABLE_E2K_QUIRKS  */
+	    cur_thr->stepping_over_breakpoint = 1;
+	}
       else if (gdbarch_single_step_through_delay_p (gdbarch)
 	       && gdbarch_single_step_through_delay (gdbarch,
 						     get_current_frame ()))
@@ -4679,6 +4703,16 @@ handle_inferior_event (struct execution_control_state *ecs)
      non-executable stack.  This happens for call dummy breakpoints
      for architectures like SPARC that place call dummies on the
      stack.  */
+
+  /* I believe that on E2K no signal different from SIGTRAP can be obtained for
+     a breakpoint. The last statement that SIGSEGV can be generated when hitting
+     a breakpoint on a non-executable stack isn't relevant to E2K as well, since
+     I no longer use CALL trampolines on stack. At the same time on E2K one may
+     very well get SIGSEGV related to the preceding instruction simultaneously
+     with hitting a breakpoint, in which case the underlying activity will make
+     GDB ignore it (see Bug #81627 for an example). Therefore, it's probably
+     safe and makes sense to skip this on E2K.  */
+#ifndef ENABLE_E2K_QUIRKS
   if (ecs->ws.kind == TARGET_WAITKIND_STOPPED
       && (ecs->ws.value.sig == GDB_SIGNAL_ILL
 	  || ecs->ws.value.sig == GDB_SIGNAL_SEGV
@@ -4695,6 +4729,7 @@ handle_inferior_event (struct execution_control_state *ecs)
 	  ecs->ws.value.sig = GDB_SIGNAL_TRAP;
 	}
     }
+#endif /* ENABLE_E2K_QUIRKS  */
 
   /* Mark the non-executing threads accordingly.  In all-stop, all
      threads of all processes are stopped when we get any event
@@ -5556,7 +5591,7 @@ handle_signal_stop (struct execution_control_state *ecs)
       && ecs->event_thread->stepping_over_watchpoint)
     stopped_by_watchpoint = 0;
   else
-    stopped_by_watchpoint = watchpoints_triggered (&ecs->ws);
+    stopped_by_watchpoint = watchpoints_triggered (gdbarch, &ecs->ws);
 
   /* If necessary, step over this watchpoint.  We'll be back to display
      it in a moment.  */
@@ -7721,10 +7756,18 @@ print_signal_received_reason (struct ui_out *uiout, enum gdb_signal siggnal)
       annotate_signal_string ();
       uiout->field_string ("signal-meaning", gdb_signal_to_string (siggnal));
 
+#ifndef ENABLE_E2K_QUIRKS
       if (siggnal == GDB_SIGNAL_SEGV)
+#endif /* ENABLE_E2K_QUIRKS  */
 	handle_segmentation_fault (uiout);
 
       annotate_signal_string_end ();
+
+#ifdef ENABLE_E2K_QUIRKS
+      /* The underlying ".\n" looks irrelevant after E2K-specific `handle_
+         segmenation_fault ()' has produced its output.  */
+      return;
+#endif /* ENABLE_E2K_QUIRKS  */
     }
   uiout->text (".\n");
 }

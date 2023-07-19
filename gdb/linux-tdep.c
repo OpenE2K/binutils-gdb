@@ -290,7 +290,18 @@ linux_get_siginfo_type_with_fields (struct gdbarch *gdbarch,
     int size_of_int = gdbarch_int_bit (gdbarch) / HOST_CHAR_BIT;
 
     /* _pad */
-    if (gdbarch_ptr_bit (gdbarch) == 64)
+    if (
+#ifndef ENABLE_E2K_QUIRKS
+	gdbarch_ptr_bit (gdbarch) == 64
+#else /* defined ENABLE_E2K_QUIRKS  */
+	/* This E2K-specific implementation of the test allows to properly
+	   take into account PM with `gdbarch_ptr_bit () == 128' requiring
+	   the "64-bit" variant of siginfo. Note that below they use the
+	   length of long to appropriately set the alignment of the
+	   "_sifields" field depending on the bitness of siginfo.  */
+	TYPE_LENGTH (long_type) == 8
+#endif /* defined ENABLE_E2K_QUIRKS  */
+	)
       si_pad_size = (si_max_size / size_of_int) - 4;
     else
       si_pad_size = (si_max_size / size_of_int) - 3;
@@ -2313,7 +2324,12 @@ linux_vsyscall_range (struct gdbarch *gdbarch, struct mem_range *range)
 /* Symbols for linux_infcall_mmap's ARG_FLAGS; their Linux MAP_* system
    definitions would be dependent on compilation host.  */
 #define GDB_MMAP_MAP_PRIVATE	0x02		/* Changes are private.  */
+
+#ifdef ENABLE_E2K_QUIRKS
+#define GDB_MMAP_MAP_ANONYMOUS	0x10		/* Don't use a file.  */
+#else /* ENABLE_E2K_QUIRKS  */
 #define GDB_MMAP_MAP_ANONYMOUS	0x20		/* Don't use a file.  */
+#endif /* ENABLE_E2K_QUIRKS  */
 
 /* See gdbarch.sh 'infcall_mmap'.  */
 
@@ -2327,6 +2343,9 @@ linux_infcall_mmap (CORE_ADDR size, unsigned prot)
   struct value *addr_val;
   struct gdbarch *gdbarch = get_objfile_arch (objf);
   CORE_ADDR retval;
+
+  /* FIXME  */
+#undef ARG_MAX
   enum
     {
       ARG_ADDR, ARG_LENGTH, ARG_PROT, ARG_FLAGS, ARG_FD, ARG_OFFSET, ARG_LAST

@@ -260,9 +260,23 @@ binop_types_user_defined_p (enum exp_opcode op,
 
 int
 binop_user_defined_p (enum exp_opcode op,
-		      struct value *arg1, struct value *arg2)
+		      struct value **arg1, struct value **arg2)
 {
-  return binop_types_user_defined_p (op, value_type (arg1), value_type (arg2));
+#ifdef ENABLE_E2K_QUIRKS
+
+  struct gdbarch *gdbarch;
+
+  gdbarch = get_type_arch (value_type (*arg1));
+  if (gdbarch)
+    gdbarch_adjust_binop_arg (gdbarch, arg1);
+
+  gdbarch = get_type_arch (value_type (*arg2));
+  if (gdbarch)
+    gdbarch_adjust_binop_arg (gdbarch, arg2);
+
+#endif /* ENABLE_E2K_QUIRKS  */
+
+  return binop_types_user_defined_p (op, value_type (*arg1), value_type (*arg2));
 }
 
 /* Check to see if argument is a structure.  This is called so
@@ -272,13 +286,24 @@ binop_user_defined_p (enum exp_opcode op,
    For now, we do not overload the `&' operator.  */
 
 int
-unop_user_defined_p (enum exp_opcode op, struct value *arg1)
+unop_user_defined_p (enum exp_opcode op, struct value **arg1)
 {
   struct type *type1;
 
+#ifdef ENABLE_E2K_QUIRKS
+  struct gdbarch *gdbarch;
+#endif /* ENABLE_E2K_QUIRKS  */
+
   if (op == UNOP_ADDR)
     return 0;
-  type1 = check_typedef (value_type (arg1));
+
+#ifdef ENABLE_E2K_QUIRKS
+  gdbarch = get_type_arch (value_type (*arg1));
+  if (gdbarch)
+    gdbarch_adjust_binop_arg (gdbarch, arg1);
+#endif /* ENABLE_E2K_QUIRKS  */
+
+  type1 = check_typedef (value_type (*arg1));
   if (TYPE_IS_REFERENCE (type1))
     type1 = check_typedef (TYPE_TARGET_TYPE (type1));
   return TYPE_CODE (type1) == TYPE_CODE_STRUCT;
@@ -911,6 +936,7 @@ value_args_as_target_float (struct value *arg1, struct value *arg2,
 	     TYPE_NAME (type2));
 }
 
+
 /* Perform a binary operation on two operands which have reasonable
    representations as integers or floats.  This includes booleans,
    characters, integers, or floats.
@@ -925,6 +951,20 @@ scalar_binop (struct value *arg1, struct value *arg2, enum exp_opcode op)
 
   arg1 = coerce_ref (arg1);
   arg2 = coerce_ref (arg2);
+
+#ifdef ENABLE_E2K_QUIRKS
+  {
+    struct gdbarch *gdbarch;
+
+    gdbarch = get_type_arch (value_type (arg1));
+    if (gdbarch)
+      gdbarch_adjust_binop_arg (gdbarch, &arg1);
+
+    gdbarch = get_type_arch (value_type (arg2));
+    if (gdbarch)
+      gdbarch_adjust_binop_arg (gdbarch, &arg2);
+  }
+#endif /* ENABLE_E2K_QUIRKS */
 
   type1 = check_typedef (value_type (arg1));
   type2 = check_typedef (value_type (arg2));

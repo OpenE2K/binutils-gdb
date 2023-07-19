@@ -409,8 +409,14 @@ tdesc_start_field (struct gdb_xml_parser *parser,
 
       if (field_type != NULL)
 	tdesc_add_typed_bitfield (t, field_name, start, end, field_type);
+      /* On E2K 1-bit register fields should be bitfields, not flags because
+	 the latter are interpreted and output as signed values (Bugs #113098,
+	 #123939) unlike the former being uint{32,64} depending on the size of
+	 the enclosing type.  */
+#ifndef ENABLE_E2K_QUIRKS
       else if (start == end)
 	tdesc_add_flag (t, start, field_name);
+#endif /* ! defined ENABLE_E2K_QUIRKS  */
       else
 	tdesc_add_bitfield (t, field_name, start, end);
     }

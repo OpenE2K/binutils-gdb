@@ -16,6 +16,8 @@
 # This file was written by Fred Fish. (fnf@cygnus.com)
 # And rewritten by Michael Chastain <mec.gnu@mindspring.com>.
 
+set USE_GCC 1
+
 set nl "\[\r\n\]+"
 
 if { [skip_cplus_tests] } { continue }

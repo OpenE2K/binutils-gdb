@@ -305,6 +305,12 @@ if test "${srv_linux_btrace}" = "yes"; then
 	    [Define if the target supports branch tracing.])
 fi
 
+if test x"${enable_e2k_quirks}" != x ; then
+    AC_DEFINE(ENABLE_E2K_QUIRKS, 1,
+              [Define to enable e2k quirks in arch-independent code.])
+fi
+
+
 if test "$ac_cv_header_sys_procfs_h" = yes; then
   BFD_HAVE_SYS_PROCFS_TYPE(lwpid_t)
   BFD_HAVE_SYS_PROCFS_TYPE(psaddr_t)

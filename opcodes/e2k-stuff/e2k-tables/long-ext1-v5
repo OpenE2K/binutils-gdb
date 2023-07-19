@@ -1,0 +1,71 @@
+| 00 | QPSRLW   | QPSRLW   |	      |  | 40 | QPMINUB  |	    |	       |
+| 01 | QPSRLH   | QPSRLH   |	      |  | 41 | QPMINSH  |	    |	       |
+| 02 | QPSRAW   | QPSRAW   |	      |  | 42 | QPMAXUB  |	    |	       |
+| 03 | QPSRAH   | QPSRAH   |	      |  | 43 | QPMAXSH  |	    |	       |
+| 04 | QPSLLW   | QPSLLW   |	      |  | 44 | QPMINSB  |	    |	       |
+| 05 | QPSLLH   | QPSLLH   |	      |  | 45 | QPMINUH  |	    |	       |
+| 06 | QPSRLD   | QPSRLD   |	      |  | 46 | QPMAXSB  |	    |	       |
+| 07 | QPSLLD   | QPSLLD   |	      |  | 47 | QPMAXUH  |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 08 | QPAND 	| QPAND    |	      |  | 48 | QPADDB   | QPACKSSHB|	       |
+| 09 | QPANDN   | QPANDN   |	      |  | 49 | QPADDH   | QPACKUSHB|	       |
+| 0a | QPOR 	| QPOR     |	      |  | 4a | QPADDSB  | QPACKSSWH|	       |
+| 0b | QPXOR 	| QPXOR    |	      |  | 4b | QPADDSH  | QPACKUSWH|	       |
+| 0c | QPMINUW  |          |          |  | 4c | QPADDUSB |          |          |
+| 0d | QPMINSW  |          |          |  | 4d | QPADDUSH |          |          |
+| 0e | QPMAXUW  |          |          |  | 4e | QPADDW   |          |          |
+| 0f | QPMAXSW  |          |          |  | 4f | QPADDD   |          |          |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 10 | PSRLW	|          |	      |  | 50 | QPSUBB   |	    |	       |
+| 11 | PSRLH	|          | STMQP    |  | 51 | QPSUBH   |	    |	       |
+| 12 | PSRAW	|          | STCSMQP  |  | 52 | QPSUBSB  |	    |	       |
+| 13 | PSRAH	|          | STDSMQP  |  | 53 | QPSUBSH  |	    |	       |
+| 14 | PSLLW	|          | STESMQP  |  | 54 | QPSUBUSB |	    |	       |
+| 15 | PSLLH	|          | STFSMQP  |  | 55 | QPSUBUSH |	    |	       |
+| 16 | PSRCW    | PSRCW    | STGSMQP  |  | 56 | QPSUBW   |	    |	       |
+| 17 | PSRCD    | PSRCD    | STSSMQP  |  | 57 | QPSUBD   |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 18 | QPCMPEQD |	   |	      |  | 58 | QPCMPEQB | QPMULHH  |	       |
+| 19 | QPHADDH  |	   | STGDMQP  |  | 59 | QPCMPEQH | QPMULLH  |	       |
+| 1a | QPHADDW  |	   | STAPMQP  |  | 5a | QPCMPEQW | QPMADDH  |	       |
+| 1b | QPHADDSH |	   |	      |  | 5b | QPCMPGTB | QPMULHUH |	       |
+| 1c | QPCMPGTD |	   |	      |  | 5c | QPCMPGTH | QPSADBW  |	       |
+| 1d | QPHSUBH  |	   |	      |  | 5d | QPCMPGTW | QPMULUBHH|	       |
+| 1e | QPHSUBW  |	   |	      |  | 5e | QPAVGUSB | QPMULLW  |	       |
+| 1f | QPHSUBSH |	   |	      |  | 5f | QPAVGUSH |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 20 | PMINUW	|	   | STAAQP   |  | 60 | 	 |	    | LDAAQP   |
+| 21 | PMINSW	|	   | STQP     |  | 61 | LDQP	 |	    | LDQP     |
+| 22 | PMAXUW	|	   | STCSQP   |  | 62 | LDCSQP   |	    | LDCSQP   |
+| 23 | PMAXSW	|	   | STDSQP   |  | 63 | LDDSQP   |	    | LDDSQP   |
+| 24 |  	|	   | STESQP   |  | 64 | LDESQP   |	    | LDESQP   |
+| 25 |  	|	   | STFSQP   |  | 65 | LDFSQP   |	    | LDFSQP   |
+| 26 | QPSRCW	| QPSRCW   | STGSQP   |  | 66 | LDGSQP   |	    | LDGSQP   |
+| 27 | QPSRCD	| QPSRCD   | STSSQP   |  | 67 | LDSSQP   |	    | LDSSQP   |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 28 |  	|	   |	      |  | 68 | LDCUDQP  |QPMADDUBSH| LDCUDQP  |
+| 29 | PHADDH	|	   | STGDQP   |  | 69 | LDGDQP   | QPMULHRSH| LDGDQP   |
+| 2a | PHADDW	|	   | STAPQP   |  | 6a | LDAPQP   |QPHMINPOSUH | LDAPQP   |
+| 2b | PHADDSH  |	   | STRQP    |  | 6b | LDRQP    | QPMPSADBH| LDRQP    |
+| 2c |  	|	   |	      |  | 6c | PUTTAGQP | PUTTAGQP |	       |
+| 2d | PHSUBH	|	   |	      |  | 6d |  QPTOQP  |  QPTOQP  |	       |
+| 2e | PHSUBW	|	   |	      |  | 6e | QPFSTOIFs| QPFSTOIFs|	       |
+| 2f | PHSUBSH  |	   |	      |  | 6f | QPFDTOIFd| QPFDTOIFd|	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 30 | PSIGNB	|	   | FADDs    |  | 70 | QPFADDs  | QPFADDs  | QPFADDs  |
+| 31 | PSIGNH	|	   | FADDd    |  | 71 | QPFADDd  | QPFADDd  | QPFADDd  |
+| 32 | PSIGNW	|	   | FSUBs    |  | 72 | QPFSUBs  | QPFSUBs  | QPFSUBs  |
+| 33 |  	|	   | FSUBd    |  | 73 | QPFSUBd  | QPFSUBd  | QPFSUBd  |
+| 34 |QPMSK2SGNB|QPMSK2SGNB|	      |  | 74 | QPFMINs  | QPFMINs  |          |
+| 35 |  	|	   |	      |  | 75 | QPFMINd  | QPFMINd  |	       |
+| 36 |  	|	   |	      |  | 76 | QPFMAXs  | QPFMAXs  |	       |
+| 37 |  	|	   |	      |  | 77 | QPFMAXd  | QPFMAXd  |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 38 | QPSIGNB	|	   | FMULs    |  | 78 | QPFMULs  | QPFMULs  | QPFMULs  |
+| 39 | QPSIGNH	|	   | FMULd    |  | 79 | QPFMULd  | QPFMULd  | QPFMULd  |
+| 3a | QPSIGNW	|	   |	      |  | 7a | QPFCMPs  | QPFCMPs  |	       |
+| 3b |          |	   |	      |  | 7b | QPFCMPd  | QPFCMPd  |          |
+| 3c |QPSGN2MSKB|QPSGN2MSKB|	      |  | 7c | QPFHADDs | QPFHADDs | QPFHADDs |
+| 3d | QPPACKDL | QPPACKDL |	      |  | 7d | QPFHSUBs | QPFHSUBs | QPFHSUBs |
+| 3e |QPSWITCHW |QPSWITCHW |	      |  | 7e |QPFADDSUBs|QPFADDSUBs|QPFADDSUBs|
+| 3f |QPSWITCHD |QPSWITCHD |	      |  | 7f |QPFADDSUBd|QPFADDSUBd|QPFADDSUBd|

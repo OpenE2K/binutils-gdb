@@ -1125,6 +1125,126 @@ info_sharedlibrary_command (const char *pattern, int from_tty)
     }
 }
 
+struct so_with_base
+{
+  struct so_list *so;
+  CORE_ADDR base;
+};
+
+int
+compare_so_bases (const void *l, const void *r)
+{
+  const struct so_with_base *lso = (const struct so_with_base *) l;
+  const struct so_with_base *rso = (const struct so_with_base *) r;
+
+  return lso->base < rso->base ? -1 : (lso->base == rso->base ? 0 : 1);
+}
+
+static void
+info_shared_base_command (const char *pattern, int from_tty)
+{
+  struct so_list *so = NULL;	/* link map state variable */
+  int i;
+  int nr_libs;
+  struct so_with_base *so_arr;
+  int addr_width;
+  struct gdbarch *gdbarch = target_gdbarch ();
+  const struct target_so_ops *ops = solib_ops (gdbarch);
+  struct ui_out *uiout = current_uiout;
+
+  if (pattern)
+    {
+      char *re_err = re_comp (pattern);
+
+      if (re_err)
+	error (_("Invalid regexp: %s"), re_err);
+    }
+
+  update_solib_list (from_tty);
+
+  /* make_cleanup_ui_out_table_begin_end needs to know the number of
+     rows, so we need to make two passes over the libs.  */
+
+  for (nr_libs = 0, so = so_list_head; so; so = so->next)
+    {
+      if (so->so_name[0])
+	{
+	  if (pattern && ! re_exec (so->so_name))
+	    continue;
+	  ++nr_libs;
+	}
+    }
+
+  /* FIXME: `alloca ()' should be probably replaced with `xmalloc ()'. This will
+     require an additional cleanup.  */
+  so_arr = ((struct so_with_base *)
+	    alloca (nr_libs * sizeof (struct so_with_base)));
+
+  for (i = 0, so = so_list_head; so; so = so->next)
+    {
+      struct target_section base_section;
+      struct bfd_section dummy = {0};
+
+      if (! so->so_name[0])
+	continue;
+      if (pattern && ! re_exec (so->so_name))
+	continue;
+
+      base_section.addr = base_section.endaddr = 0;
+      dummy.owner = NULL;
+      base_section.the_bfd_section = &dummy;
+      /* This one shouldn't matter at all since `base_section' is used in a
+         rather specific way.  */
+      base_section.owner = NULL;
+      ops->relocate_section_addresses (so, &base_section);
+
+      so_arr[i].so = so;
+      so_arr[i].base = base_section.addr;
+      ++i;
+    }
+
+  gdb_assert (i == nr_libs);
+
+  /* In Bug #82744 mareev@mcst.ru states that shared libraries in the list may
+     turn out to be unsorted by their base addresses. I wonder under which
+     circumstances this may happen provided that libraries are added to the list
+     as they are loaded and mmap () usually allocates addresses in an increasing
+     order. An evidence is needed . . .  */
+  qsort (so_arr, nr_libs, sizeof (so_arr[0]), compare_so_bases);
+
+  {
+    ui_out_emit_table table_emitter (uiout, 2, nr_libs, "SharedBaseTable");
+
+    
+    /* "0x", a little whitespace, and two hex digits per byte of pointers.  */
+    addr_width = 4 + (gdbarch_ptr_bit (gdbarch) / 4);
+
+    /* The "- 1" is because ui_out adds one space between columns.  */
+    uiout->table_header (addr_width - 1, ui_left, "base", "Base");
+    uiout->table_header (0, ui_noalign,
+			 "name", "Shared Object Library");
+
+    uiout->table_body ();
+
+    for (i = 0; i < nr_libs; i++)
+      {
+	ui_out_emit_tuple tuple_emitter (uiout, "lib");
+	uiout->field_core_addr ("base", gdbarch, so_arr[i].base);
+	uiout->field_string ("name", so_arr[i].so->so_name);
+	uiout->text ("\n");
+      }
+  }
+
+  if (nr_libs == 0)
+    {
+      if (pattern)
+	uiout->message (_("No shared libraries matched.\n"));
+      else
+	uiout->message (_("No shared libraries loaded at this time.\n"));
+    }
+}
+
+
 /* See solib.h.  */
 
 bool
@@ -1134,7 +1254,13 @@ solib_contains_address_p (const struct so_list *const solib,
   struct target_section *p;
 
   for (p = solib->sections; p < solib->sections_end; p++)
-    if (p->addr <= address && address < p->endaddr)
+    if ((bfd_section_flags (p->the_bfd_section) & SEC_ALLOC)
+	/* Address space isn't actually allocated by LD for .tbss which is
+	   why they are not mapped at runtime.  */
+	&& ((bfd_section_flags (p->the_bfd_section) & (SEC_LOAD
+						       | SEC_THREAD_LOCAL))
+	    != SEC_THREAD_LOCAL)
+	&& p->addr <= address && address < p->endaddr)
       return true;
 
   return false;
@@ -1581,6 +1707,8 @@ _initialize_solib (void)
   add_info ("sharedlibrary", info_sharedlibrary_command,
 	    _("Status of loaded shared object libraries."));
   add_info_alias ("dll", "sharedlibrary", 1);
+  add_info ("shared-base", info_shared_base_command,
+	    _("Base addresses of loaded shared object libraries."));
   add_com ("nosharedlibrary", class_files, no_shared_libraries,
 	   _("Unload all shared object library symbols."));
 

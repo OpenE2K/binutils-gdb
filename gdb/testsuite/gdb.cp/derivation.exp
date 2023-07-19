@@ -18,6 +18,8 @@
 
 # This file is part of the gdb testsuite
 
+set USE_GCC 1
+
 # tests for inheritance, with several derivations types combinations
 # (private, public, protected) 
 # classes have simple members and member functions.

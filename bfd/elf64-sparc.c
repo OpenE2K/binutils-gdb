@@ -662,6 +662,12 @@ elf64_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
   flagword new_flags, old_flags;
   int new_mm, old_mm;
 
+  /* No matter whether the output BFD is ELF or not, check magic in the input
+     one provided that it is.  */
+  if (bfd_get_flavour (ibfd) == bfd_target_elf_flavour
+      && ! _bfd_sparc_elf_check_magic (ibfd))
+    return FALSE;
+
   if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
       || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
     return TRUE;
@@ -682,8 +688,10 @@ elf64_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
     {
       error = FALSE;
 
+      /* MCST extensions should be considered Sun- rather than HAL-compatible.
+         See the code below.  */
 #define EF_SPARC_ISA_EXTENSIONS \
-  (EF_SPARC_SUN_US1 | EF_SPARC_SUN_US3 | EF_SPARC_HAL_R1)
+  (EF_SPARC_SUN_US1 | EF_SPARC_SUN_US3 | EF_SPARC_MCST | EF_SPARC_HAL_R1)
 
       if ((ibfd->flags & DYNAMIC) != 0)
 	{
@@ -699,12 +707,14 @@ elf64_sparc_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 	  /* Choose the highest architecture requirements.  */
 	  old_flags |= (new_flags & EF_SPARC_ISA_EXTENSIONS);
 	  new_flags |= (old_flags & EF_SPARC_ISA_EXTENSIONS);
-	  if ((old_flags & (EF_SPARC_SUN_US1 | EF_SPARC_SUN_US3))
+	  if ((old_flags & (EF_SPARC_SUN_US1 | EF_SPARC_SUN_US3
+                            | EF_SPARC_MCST))
 	      && (old_flags & EF_SPARC_HAL_R1))
 	    {
 	      error = TRUE;
 	      _bfd_error_handler
-		(_("%pB: linking UltraSPARC specific with HAL specific code"),
+		(_("%pB: linking either UltraSPARC or MCST specific "
+                   "with HAL specific code"),
 		 ibfd);
 	    }
 	  /* Choose the most restrictive memory ordering.  */
@@ -974,6 +984,18 @@ const struct elf_size_info elf64_sparc_size_info =
 
 /* Section 5.2.4 of the ABI specifies a 256-byte boundary for the table.  */
 #define elf_backend_plt_alignment 8
+
+/* EIR-specific hacks.  */
+#define bfd_elf64_bfd_link_add_symbols          _bfd_sparc_elf_link_add_symbols
+#define bfd_elf64_bfd_final_link                _bfd_sparc_elf_final_link
+#define elf_backend_ignore_discarded_relocs     _bfd_sparc_elf_ignore_discarded_relocs
+#define elf_backend_hide_symbol                 _bfd_sparc_elf_hide_symbol
+#define bfd_elf64_write_object_contents         _bfd_sparc_elf_write_object_contents
+
+/* Let `.magic' section be `SHT_NOTE'.  */
+#define elf_backend_special_sections    _bfd_sparc_elf_special_sections
+
+#define elf_backend_extern_protected_data       1
 
 #include "elf64-target.h"
 

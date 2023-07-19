@@ -30,8 +30,8 @@ struct dummy_target : public target_ops
   int ranged_break_num_registers () override;
   int insert_hw_breakpoint (struct gdbarch *arg0, struct bp_target_info *arg1) override;
   int remove_hw_breakpoint (struct gdbarch *arg0, struct bp_target_info *arg1) override;
-  int remove_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3) override;
-  int insert_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3) override;
+  int remove_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4) override;
+  int insert_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4) override;
   int insert_mask_watchpoint (CORE_ADDR arg0, CORE_ADDR arg1, enum target_hw_bp_type arg2) override;
   int remove_mask_watchpoint (CORE_ADDR arg0, CORE_ADDR arg1, enum target_hw_bp_type arg2) override;
   bool stopped_by_watchpoint () override;
@@ -169,6 +169,7 @@ struct dummy_target : public target_ops
   const struct frame_unwind *get_unwinder () override;
   const struct frame_unwind *get_tailcall_unwinder () override;
   void prepare_to_generate_core () override;
+  void make_corefile_sections (bfd *arg0) override;
   void done_generating_core () override;
 };
 
@@ -198,8 +199,8 @@ struct debug_target : public target_ops
   int ranged_break_num_registers () override;
   int insert_hw_breakpoint (struct gdbarch *arg0, struct bp_target_info *arg1) override;
   int remove_hw_breakpoint (struct gdbarch *arg0, struct bp_target_info *arg1) override;
-  int remove_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3) override;
-  int insert_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3) override;
+  int remove_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4) override;
+  int insert_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4) override;
   int insert_mask_watchpoint (CORE_ADDR arg0, CORE_ADDR arg1, enum target_hw_bp_type arg2) override;
   int remove_mask_watchpoint (CORE_ADDR arg0, CORE_ADDR arg1, enum target_hw_bp_type arg2) override;
   bool stopped_by_watchpoint () override;
@@ -337,6 +338,7 @@ struct debug_target : public target_ops
   const struct frame_unwind *get_unwinder () override;
   const struct frame_unwind *get_tailcall_unwinder () override;
   void prepare_to_generate_core () override;
+  void make_corefile_sections (bfd *arg0) override;
   void done_generating_core () override;
 };
 
@@ -843,31 +845,33 @@ debug_target::remove_hw_breakpoint (struct gdbarch *arg0, struct bp_target_info 
 }
 
 int
-target_ops::remove_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3)
+target_ops::remove_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4)
 {
-  return this->beneath ()->remove_watchpoint (arg0, arg1, arg2, arg3);
+  return this->beneath ()->remove_watchpoint (arg0, arg1, arg2, arg3, arg4);
 }
 
 int
-dummy_target::remove_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3)
+dummy_target::remove_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4)
 {
   return -1;
 }
 
 int
-debug_target::remove_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3)
+debug_target::remove_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4)
 {
   int result;
   fprintf_unfiltered (gdb_stdlog, "-> %s->remove_watchpoint (...)\n", this->beneath ()->shortname ());
-  result = this->beneath ()->remove_watchpoint (arg0, arg1, arg2, arg3);
+  result = this->beneath ()->remove_watchpoint (arg0, arg1, arg2, arg3, arg4);
   fprintf_unfiltered (gdb_stdlog, "<- %s->remove_watchpoint (", this->beneath ()->shortname ());
-  target_debug_print_CORE_ADDR (arg0);
+  target_debug_print_struct_gdbarch_p (arg0);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_int (arg1);
+  target_debug_print_CORE_ADDR (arg1);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_enum_target_hw_bp_type (arg2);
+  target_debug_print_int (arg2);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_struct_expression_p (arg3);
+  target_debug_print_enum_target_hw_bp_type (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_expression_p (arg4);
   fputs_unfiltered (") = ", gdb_stdlog);
   target_debug_print_int (result);
   fputs_unfiltered ("\n", gdb_stdlog);
@@ -875,31 +879,33 @@ debug_target::remove_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_typ
 }
 
 int
-target_ops::insert_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3)
+target_ops::insert_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4)
 {
-  return this->beneath ()->insert_watchpoint (arg0, arg1, arg2, arg3);
+  return this->beneath ()->insert_watchpoint (arg0, arg1, arg2, arg3, arg4);
 }
 
 int
-dummy_target::insert_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3)
+dummy_target::insert_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4)
 {
   return -1;
 }
 
 int
-debug_target::insert_watchpoint (CORE_ADDR arg0, int arg1, enum target_hw_bp_type arg2, struct expression *arg3)
+debug_target::insert_watchpoint (struct gdbarch *arg0, CORE_ADDR arg1, int arg2, enum target_hw_bp_type arg3, struct expression *arg4)
 {
   int result;
   fprintf_unfiltered (gdb_stdlog, "-> %s->insert_watchpoint (...)\n", this->beneath ()->shortname ());
-  result = this->beneath ()->insert_watchpoint (arg0, arg1, arg2, arg3);
+  result = this->beneath ()->insert_watchpoint (arg0, arg1, arg2, arg3, arg4);
   fprintf_unfiltered (gdb_stdlog, "<- %s->insert_watchpoint (", this->beneath ()->shortname ());
-  target_debug_print_CORE_ADDR (arg0);
+  target_debug_print_struct_gdbarch_p (arg0);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_int (arg1);
+  target_debug_print_CORE_ADDR (arg1);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_enum_target_hw_bp_type (arg2);
+  target_debug_print_int (arg2);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_struct_expression_p (arg3);
+  target_debug_print_enum_target_hw_bp_type (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_expression_p (arg4);
   fputs_unfiltered (") = ", gdb_stdlog);
   target_debug_print_int (result);
   fputs_unfiltered ("\n", gdb_stdlog);
@@ -4313,6 +4319,28 @@ debug_target::prepare_to_generate_core ()
   fprintf_unfiltered (gdb_stdlog, "-> %s->prepare_to_generate_core (...)\n", this->beneath ()->shortname ());
   this->beneath ()->prepare_to_generate_core ();
   fprintf_unfiltered (gdb_stdlog, "<- %s->prepare_to_generate_core (", this->beneath ()->shortname ());
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+void
+target_ops::make_corefile_sections (bfd *arg0)
+{
+  this->beneath ()->make_corefile_sections (arg0);
+}
+
+void
+dummy_target::make_corefile_sections (bfd *arg0)
+{
+  dummy_make_corefile_sections (this, arg0);
+}
+
+void
+debug_target::make_corefile_sections (bfd *arg0)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->make_corefile_sections (...)\n", this->beneath ()->shortname ());
+  this->beneath ()->make_corefile_sections (arg0);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->make_corefile_sections (", this->beneath ()->shortname ());
+  target_debug_print_bfd_p (arg0);
   fputs_unfiltered (")\n", gdb_stdlog);
 }
 

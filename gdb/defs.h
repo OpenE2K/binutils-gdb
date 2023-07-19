@@ -358,7 +358,13 @@ enum lval_type
     lval_internalvar_component,
     /* * Value's bits are fetched and stored using functions provided
        by its creator.  */
-    lval_computed
+    lval_computed,
+    /* * A temporary value used as a local variable within a function
+       which doesn't want to bother with bits offsets, endianness
+       and so on. I wonder why it hasn't been invented before or
+       why `not_lval' cannot be used in `value_assign ()' for
+       this purpose. */
+    lval_temp
   };
 
 /* * Parameters of the "info proc" command.  */
@@ -396,6 +402,12 @@ enum info_proc_what
 /* * Default radixes for input and output.  Only some values supported.  */
 extern unsigned input_radix;
 extern unsigned output_radix;
+
+/* Default radix for symbolic offsets. It has an influence on `print_address
+   _symbolic ()', which is used by `print ADDRESS', `x ADDRESS' and `gdb_pretty
+   _print_insn ()' used by `disassemble'. Implemented for the sake of Bug
+   #80496.  */
+extern unsigned symbolic_offset_radix;
 
 /* * Possibilities for prettyformat parameters to routines which print
    things.  Like enum language, this should be in value.h, but needs

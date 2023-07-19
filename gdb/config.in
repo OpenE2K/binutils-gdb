@@ -36,6 +36,9 @@
 /* Define to BFD's default target vector. */
 #undef DEFAULT_BFD_VEC
 
+/* Define to enable e2k quirks in arch-independent code. */
+#undef ENABLE_E2K_QUIRKS
+
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
 #undef ENABLE_NLS
@@ -596,6 +599,9 @@
 /* Define if the jit-reader-dir directory should be relocated when GDB is
    moved. */
 #undef JIT_READER_DIR_RELOCATABLE
+
+/* Define to enable new implementation of CALLs for E2K. */
+#undef NEW_E2K_CALLS
 
 /* Name of this package. */
 #undef PACKAGE

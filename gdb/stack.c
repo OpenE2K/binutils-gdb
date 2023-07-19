@@ -1454,6 +1454,11 @@ frame_selection_by_function_completer (struct cmd_list_element *ignore,
    provide a frame specification (for example 'info frame 0', 'info frame
    level 1') then SELECTED_FRAME_P will be false.  */
 
+#ifdef ENABLE_E2K_QUIRKS
+/* Include the declaration of `e2k_consider_reg_for_info_frame ()'.  */
+#include "e2k-tdep.h"
+#endif /* ENABLE_E2K_QUIRKS  */
+
 static void
 info_frame_command_core (struct frame_info *fi, bool selected_frame_p)
 {
@@ -1731,6 +1736,9 @@ info_frame_command_core (struct frame_info *fi, bool selected_frame_p)
     numregs = gdbarch_num_cooked_regs (gdbarch);
     for (i = 0; i < numregs; i++)
       if (i != sp_regnum
+#ifdef ENABLE_E2K_QUIRKS
+          && e2k_consider_reg_for_info_frame (i)
+#endif /* ENABLE_E2K_QUIRKS  */
 	  && gdbarch_register_reggroup_p (gdbarch, i, all_reggroup))
 	{
 	  enum lval_type lval;
@@ -1742,10 +1750,16 @@ info_frame_command_core (struct frame_info *fi, bool selected_frame_p)
 	  /* Find out the location of the saved register without
              fetching the corresponding value.  */
 	  frame_register_unwind (fi, i, &optimized, &unavailable,
-				 &lval, &addr, &realnum, NULL);
+				 &lval, &addr,
+#ifdef ENABLE_E2K_QUIRKS
+                                 NULL, NULL,
+#endif /* ENABLE_E2K_QUIRKS  */
+                                 &realnum, NULL);
 	  /* For moment, only display registers that were saved on the
 	     stack.  */
-	  if (!optimized && !unavailable && lval == lval_memory)
+	  if (!optimized && !unavailable
+              && (lval == lval_memory
+                  || lval == lval_computed))
 	    {
 	      if (count == 0)
 		puts_filtered (" Saved registers:\n ");

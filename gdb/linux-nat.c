@@ -3882,10 +3882,16 @@ linux_nat_target::xfer_partial (enum target_object object,
 
   if (object == TARGET_OBJECT_MEMORY)
     {
+      /* In 32-bit mode we should be probably able to access
+         addresses beyond 2^32 - 1 since hardware stacks
+         are likely to be located there. How can I override
+         this in a normal way? */
+#ifdef ENABLE_E2K_QUIRKS
       int addr_bit = gdbarch_addr_bit (target_gdbarch ());
 
       if (addr_bit < (sizeof (ULONGEST) * HOST_CHAR_BIT))
 	offset &= ((ULONGEST) 1 << addr_bit) - 1;
+#endif /* ENABLE_E2K_QUIRKS  */
     }
 
   xfer = linux_proc_xfer_partial (object, annex, readbuf, writebuf,

@@ -16,6 +16,8 @@
 # This file is part of the GDB testsuite.  It tests the mechanism
 # exposing values to Python.
 
+set USE_GCC 1
+
 if { [skip_cplus_tests] } { continue }
 
 standard_testfile .cc

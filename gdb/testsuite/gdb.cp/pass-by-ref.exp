@@ -16,6 +16,8 @@
 # Check that GDB can call C++ functions whose parameters have
 # object type, but are passed by reference.
 
+set USE_GCC 1
+
 if { [skip_cplus_tests] } { continue }
 
 standard_testfile .cc

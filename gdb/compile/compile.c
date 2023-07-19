@@ -867,7 +867,9 @@ compile_register_name_demangle (struct gdbarch *gdbarch,
     error (_("Invalid register name \"%s\"."), regname);
   regname += 2;
 
-  for (regnum = 0; regnum < gdbarch_num_regs (gdbarch); regnum++)
+  for (regnum = 0; regnum < (gdbarch_num_regs (gdbarch)
+                             + gdbarch_num_pseudo_regs (gdbarch));
+       regnum++)
     if (strcmp (regname, gdbarch_register_name (gdbarch, regnum)) == 0)
       return regnum;
 

@@ -784,6 +784,36 @@ tdesc_numbered_register (const struct tdesc_feature *feature,
   return 1;
 }
 
+/* Search FEATURE for a register named NAME.  Assign REGNO to it and make it
+   invisible to user. At E2K we have a number of raw registers which shouldn't
+   be accessible by user. The initially assigned name of such a register is used
+   in order to locate it within a target description. This guarantees that it'll
+   obtain a proper type.  */
+int
+tdesc_invisible_numbered_register (const struct tdesc_feature *feature,
+                                   struct tdesc_arch_data *data,
+                                   int regno, const char *name)
+{
+#if 0
+  /* This variable isn't used in any way except for being assigned to below.
+     Consider its removal.  */
+  struct tdesc_arch_reg *arch_reg;
+#endif /* 0  */
+
+  if (! tdesc_numbered_register (feature, data, regno, name))
+    return 0;
+
+#if 0
+  arch_reg = VEC_index (tdesc_arch_reg, data->arch_regs, regno);
+#endif /* 0  */
+
+#if 0
+  xfree (arch_reg->reg->name);
+  arch_reg->reg->name = xstrdup ("");
+#endif /* 0  */
+  return 1;
+}
+
 /* Search FEATURE for a register named NAME, but do not assign a fixed
    register number to it.  */
 

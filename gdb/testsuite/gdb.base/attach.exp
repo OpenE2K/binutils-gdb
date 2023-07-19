@@ -444,10 +444,10 @@ proc_with_prefix do_command_attach_tests {} {
     global INTERNAL_GDBFLAGS
     global GDBFLAGS
 
-    if ![isnative] then {
-	unsupported "command attach test"
-	return 0
-    }
+#    if ![isnative] then {
+#	unsupported "command attach test"
+#	return 0
+#    }
 
     set test_spawn_id [spawn_wait_for_attach $binfile]
     set testpid [spawn_id_get_pid $test_spawn_id]
@@ -474,10 +474,10 @@ proc test_command_line_attach_run {} {
     global gdb_prompt
     global binfile
 
-    if ![isnative] then {
-	unsupported "commandline attach run test"
-	return 0
-    }
+#    if ![isnative] then {
+#	unsupported "commandline attach run test"
+#	return 0
+#    }
 
     with_test_prefix "cmdline attach run" {
 	set test_spawn_id [spawn_wait_for_attach $binfile]

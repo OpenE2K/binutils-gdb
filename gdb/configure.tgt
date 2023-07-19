@@ -225,6 +225,19 @@ csky*-*-*)
 	gdb_target_obs="csky-tdep.o"
 	;;
 
+e2k*-*-linux*)
+	# Target: GNU/Linux E2K
+	gdb_target_obs="e2k-tdep.o gdbsupport/e2k-linux-regs.o \
+			e2k-linux-tdep.o \
+			e2k32-tdep.o e2k32-linux-tdep.o \
+			e2k-pm-tdep.o e2k-pm-linux-tdep.o \
+			linux-tdep.o \
+			c-e2k-lang.o \
+			solib-svr4.o solib-pm.o"
+	build_gdbserver=yes
+	enable_e2k_quirks=yes
+	;;
+
 frv-*-*)
 	# Target: Fujitsu FRV processor
 	gdb_target_obs="frv-tdep.o frv-linux-tdep.o linux-tdep.o solib-frv.o"

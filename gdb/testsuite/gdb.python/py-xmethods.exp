@@ -16,6 +16,8 @@
 # This file is part of the GDB testsuite.  It tests the debug methods
 # feature in the Python extension language.
 
+set USE_GCC 1
+
 load_lib gdb-python.exp
 
 if { [skip_cplus_tests] } {

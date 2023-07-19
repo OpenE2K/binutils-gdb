@@ -3240,6 +3240,11 @@ dummy_make_corefile_notes (struct target_ops *self,
   return NULL;
 }
 
+static void
+dummy_make_corefile_sections (struct target_ops *self, bfd *abfd)
+{
+}
+
 #include "target-delegates.c"
 
 /* The initial current target, so that there is always a semi-valid

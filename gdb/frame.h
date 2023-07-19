@@ -356,6 +356,12 @@ extern struct frame_info *frame_find_by_id (struct frame_id id);
    if the frame is not found.  */
 extern struct frame_id get_prev_frame_id_by_id (struct frame_id id);
 
+#ifdef ENABLE_E2K_QUIRKS
+extern void frame_stash_remove (struct frame_info *fi);
+extern void compute_frame_id (struct frame_info *fi);
+extern void reset_prev_frame_raw (struct frame_info *fi, int success);
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Base attributes of a frame: */
 
 /* The frame's `resume' address.  Where the program will resume in
@@ -557,6 +563,10 @@ const char *unwind_stop_reason_to_string (enum unwind_stop_reason);
 
 const char *frame_stop_reason_string (struct frame_info *);
 
+#ifdef ENABLE_E2K_QUIRKS
+struct lval_funcs;
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Unwind the stack frame so that the value of REGNUM, in the previous
    (up, older) frame is returned.  If VALUEP is NULL, don't
    fetch/compute the value.  Instead just return the location of the
@@ -564,7 +574,12 @@ const char *frame_stop_reason_string (struct frame_info *);
 extern void frame_register_unwind (frame_info *frame, int regnum,
 				   int *optimizedp, int *unavailablep,
 				   enum lval_type *lvalp,
-				   CORE_ADDR *addrp, int *realnump,
+				   CORE_ADDR *addrp,
+#ifdef ENABLE_E2K_QUIRKS
+                                   struct lval_funcs **funcs,
+                                   void **closure,
+#endif /* ENABLE_E2K_QUIRKS  */
+                                   int *realnump,
 				   gdb_byte *valuep);
 
 /* Fetch a register from this, or unwind a register from the next
@@ -608,7 +623,12 @@ extern int read_frame_register_unsigned (struct frame_info *frame,
 extern void frame_register (struct frame_info *frame, int regnum,
 			    int *optimizedp, int *unavailablep,
 			    enum lval_type *lvalp,
-			    CORE_ADDR *addrp, int *realnump,
+			    CORE_ADDR *addrp,
+#ifdef ENABLE_E2K_QUIRKS
+                            struct lval_funcs **funcs,
+                            void **closure,
+#endif /* ENABLE_E2K_QUIRKS  */
+                            int *realnump,
 			    gdb_byte *valuep);
 
 /* The reverse.  Store a register value relative to the specified

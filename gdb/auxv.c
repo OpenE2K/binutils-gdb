@@ -256,13 +256,22 @@ int
 default_auxv_parse (struct target_ops *ops, gdb_byte **readptr,
 		   gdb_byte *endptr, CORE_ADDR *typep, CORE_ADDR *valp)
 {
-  const int sizeof_auxv_field = gdbarch_ptr_bit (target_gdbarch ())
+#ifndef ENABLE_E2K_QUIRKS
+  const
+#endif
+    int sizeof_auxv_field = gdbarch_ptr_bit (target_gdbarch ())
 				/ TARGET_CHAR_BIT;
   const enum bfd_endian byte_order = gdbarch_byte_order (target_gdbarch ());
   gdb_byte *ptr = *readptr;
 
   if (endptr == ptr)
     return 0;
+
+#ifdef ENABLE_E2K_QUIRKS
+  /* In PM 32-bit auxv[] entries are currently used.  */
+  if (sizeof_auxv_field == 16)
+    sizeof_auxv_field = 4;
+#endif
 
   if (endptr - ptr < sizeof_auxv_field * 2)
     return -1;

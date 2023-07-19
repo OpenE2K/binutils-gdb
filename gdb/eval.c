@@ -948,7 +948,7 @@ evaluate_funcall (type *expect_type, expression *exp, int *pos,
 	     If the operator has been overloaded replace arg2 with the
 	     value returned by the custom operator and continue
 	     evaluation.  */
-	  while (unop_user_defined_p (op, arg2))
+	  while (unop_user_defined_p (op, &arg2))
 	    {
 	      struct value *value = NULL;
 	      try
@@ -2037,7 +2037,7 @@ evaluate_subexp_standard (struct type *expect_type,
 
       /* Check to see if operator '->' has been overloaded.  If so replace
          arg1 with the value returned by evaluating operator->().  */
-      while (unop_user_defined_p (op, arg1))
+      while (unop_user_defined_p (op, &arg1))
 	{
 	  struct value *value = NULL;
 	  try
@@ -2144,7 +2144,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp_with_coercion (exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	return value_x_binop (arg1, arg2, op, OP_NULL, noside);
       else
 	return value_concat (arg1, arg2);
@@ -2162,7 +2162,7 @@ evaluate_subexp_standard (struct type *expect_type,
 
       if (noside == EVAL_SKIP || noside == EVAL_AVOID_SIDE_EFFECTS)
 	return arg1;
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	return value_x_binop (arg1, arg2, op, OP_NULL, noside);
       else
 	return value_assign (arg1, arg2);
@@ -2174,7 +2174,7 @@ evaluate_subexp_standard (struct type *expect_type,
       if (noside == EVAL_SKIP || noside == EVAL_AVOID_SIDE_EFFECTS)
 	return arg1;
       op = exp->elts[pc + 1].opcode;
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	return value_x_binop (arg1, arg2, BINOP_ASSIGN_MODIFY, op, noside);
       else if (op == BINOP_ADD && ptrmath_type_p (exp->language_defn,
 						  value_type (arg1))
@@ -2205,7 +2205,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp_with_coercion (exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	return value_x_binop (arg1, arg2, op, OP_NULL, noside);
       else if (ptrmath_type_p (exp->language_defn, value_type (arg1))
 	       && is_integral_type (value_type (arg2)))
@@ -2224,7 +2224,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp_with_coercion (exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	return value_x_binop (arg1, arg2, op, OP_NULL, noside);
       else if (ptrmath_type_p (exp->language_defn, value_type (arg1))
 	       && ptrmath_type_p (exp->language_defn, value_type (arg2)))
@@ -2257,7 +2257,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	return value_x_binop (arg1, arg2, op, OP_NULL, noside);
       else
 	{
@@ -2300,7 +2300,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	return value_x_binop (arg1, arg2, op, OP_NULL, noside);
       else
 	{
@@ -2360,7 +2360,7 @@ evaluate_subexp_standard (struct type *expect_type,
 		}
 	    }
 
-	  if (binop_user_defined_p (op, arg1, arg2))
+	  if (binop_user_defined_p (op, &arg1, &arg2))
 	    {
 	      arg1 = value_x_binop (arg1, arg2, op, OP_NULL, noside);
 	    }
@@ -2443,7 +2443,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (NULL_TYPE, exp, pos, EVAL_AVOID_SIDE_EFFECTS);
       *pos = oldpos;
 
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
@@ -2470,7 +2470,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (NULL_TYPE, exp, pos, EVAL_AVOID_SIDE_EFFECTS);
       *pos = oldpos;
 
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  arg2 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
@@ -2490,7 +2490,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (value_type (arg1), exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
 	}
@@ -2507,7 +2507,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (value_type (arg1), exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
 	}
@@ -2524,7 +2524,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (value_type (arg1), exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
 	}
@@ -2541,7 +2541,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (value_type (arg1), exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
 	}
@@ -2558,7 +2558,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (value_type (arg1), exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
 	}
@@ -2575,7 +2575,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg2 = evaluate_subexp (value_type (arg1), exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (binop_user_defined_p (op, arg1, arg2))
+      if (binop_user_defined_p (op, &arg1, &arg2))
 	{
 	  return value_x_binop (arg1, arg2, op, OP_NULL, noside);
 	}
@@ -2612,7 +2612,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (unop_user_defined_p (op, arg1))
+      if (unop_user_defined_p (op, &arg1))
 	return value_x_unop (arg1, op, noside);
       else
 	{
@@ -2624,7 +2624,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (unop_user_defined_p (op, arg1))
+      if (unop_user_defined_p (op, &arg1))
 	return value_x_unop (arg1, op, noside);
       else
 	{
@@ -2638,7 +2638,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (unop_user_defined_p (UNOP_COMPLEMENT, arg1))
+      if (unop_user_defined_p (UNOP_COMPLEMENT, &arg1))
 	return value_x_unop (arg1, UNOP_COMPLEMENT, noside);
       else
 	{
@@ -2650,7 +2650,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (NULL_TYPE, exp, pos, noside);
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (unop_user_defined_p (op, arg1))
+      if (unop_user_defined_p (op, &arg1))
 	return value_x_unop (arg1, op, noside);
       else
 	{
@@ -2669,7 +2669,7 @@ evaluate_subexp_standard (struct type *expect_type,
 		 "to member without an object"));
       if (noside == EVAL_SKIP)
 	return eval_skip_value (exp);
-      if (unop_user_defined_p (op, arg1))
+      if (unop_user_defined_p (op, &arg1))
 	return value_x_unop (arg1, op, noside);
       else if (noside == EVAL_AVOID_SIDE_EFFECTS)
 	{
@@ -2786,7 +2786,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (expect_type, exp, pos, noside);
       if (noside == EVAL_SKIP || noside == EVAL_AVOID_SIDE_EFFECTS)
 	return arg1;
-      else if (unop_user_defined_p (op, arg1))
+      else if (unop_user_defined_p (op, &arg1))
 	{
 	  return value_x_unop (arg1, op, noside);
 	}
@@ -2810,7 +2810,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (expect_type, exp, pos, noside);
       if (noside == EVAL_SKIP || noside == EVAL_AVOID_SIDE_EFFECTS)
 	return arg1;
-      else if (unop_user_defined_p (op, arg1))
+      else if (unop_user_defined_p (op, &arg1))
 	{
 	  return value_x_unop (arg1, op, noside);
 	}
@@ -2834,7 +2834,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (expect_type, exp, pos, noside);
       if (noside == EVAL_SKIP || noside == EVAL_AVOID_SIDE_EFFECTS)
 	return arg1;
-      else if (unop_user_defined_p (op, arg1))
+      else if (unop_user_defined_p (op, &arg1))
 	{
 	  return value_x_unop (arg1, op, noside);
 	}
@@ -2861,7 +2861,7 @@ evaluate_subexp_standard (struct type *expect_type,
       arg1 = evaluate_subexp (expect_type, exp, pos, noside);
       if (noside == EVAL_SKIP || noside == EVAL_AVOID_SIDE_EFFECTS)
 	return arg1;
-      else if (unop_user_defined_p (op, arg1))
+      else if (unop_user_defined_p (op, &arg1))
 	{
 	  return value_x_unop (arg1, op, noside);
 	}
@@ -2999,7 +2999,7 @@ evaluate_subexp_for_address (struct expression *exp, int *pos,
       x = evaluate_subexp (NULL_TYPE, exp, pos, noside);
 
       /* We can't optimize out "&*" if there's a user-defined operator*.  */
-      if (unop_user_defined_p (op, x))
+      if (unop_user_defined_p (op, &x))
 	{
 	  x = value_x_unop (x, op, noside);
 	  goto default_case_after_eval;

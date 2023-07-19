@@ -51,6 +51,13 @@ struct tui_asm_line
   std::string insn;
 };
 
+#if ! defined ENABLE_E2K_QUIRKS
+/* TODO: this function appeared after our e2k-specific hacks in
+   `tui_disassemble ()'. See if the latter should be adapted to
+   make use of the former somehow. In particular, are their
+   enhancements achieved with its help applicable to our multi-
+   line wide instructions?  */
+
 /* Helper function to find the number of characters in STR, skipping
    any ANSI escape sequences.  */
 static size_t
@@ -80,6 +87,7 @@ len_without_escapes (const std::string &str)
     }
   return len;
 }
+#endif /* ! defined ENABLE_E2K_QUIRKS  */
 
 /* Function to set the disassembly window's content.
    Disassemble count lines starting at pc.
@@ -94,6 +102,52 @@ tui_disassemble (struct gdbarch *gdbarch,
   string_file gdb_dis_out (term_out);
 
   /* Now construct each line.  */
+#ifdef ENABLE_E2K_QUIRKS
+  /* Unlike our disassembler the one for IA-64, doesn't output the whole
+     wide command at once via `gdb_print_insn ()'. It outputs its
+     constituent parts  as strings without newlines instead and each
+     subcommand has its unique PC.  Since our implementation of
+     `gdb_print_insn ()' doesn't meet these requirements, we need a
+     e2k-specific implementation here (see Bug #58942).  */
+  for (int i = 0; i < count; )
+    {
+      std::string crnt_addr_string;
+      std::string buf;
+      CORE_ADDR crnt_addr;
+      
+      print_address (gdbarch, pc, &gdb_dis_out);
+      crnt_addr = pc;
+      crnt_addr_string = std::move (gdb_dis_out.string ());
+
+      gdb_dis_out.clear ();
+
+      pc = pc + gdb_print_insn (gdbarch, pc, &gdb_dis_out, NULL);
+
+      buf = std::move (gdb_dis_out.string ());
+      for (; i < count; i++)
+        {
+	  size_t n;
+
+          asm_lines[pos + i].addr = crnt_addr;
+          asm_lines[pos + i].addr_string = crnt_addr_string;
+
+          n = buf.find ('\n');
+          if (n == std::string::npos)
+	    {
+	      asm_lines[pos + i].insn = std::move (buf);
+	      break;
+	    }
+          else
+	    {
+	      asm_lines[pos + i].insn = buf.substr (0, n);
+	      buf = buf.substr (n + 1, std::string::npos);
+	    }
+        }
+
+      /* Reset the buffer to empty.  */
+      gdb_dis_out.clear ();
+    }
+#else /* ENABLE_E2K_QUIRKS  */
   for (int i = 0; i < count; ++i)
     {
       print_address (gdbarch, pc, &gdb_dis_out);
@@ -121,6 +175,7 @@ tui_disassemble (struct gdbarch *gdbarch,
       /* Reset the buffer to empty.  */
       gdb_dis_out.clear ();
     }
+#endif /* ENABLE_E2K_QUIRKS  */
   return pc;
 }
 
@@ -176,13 +231,66 @@ tui_find_disassembly_address (struct gdbarch *gdbarch, CORE_ADDR pc, int from)
         do
           {
             CORE_ADDR next_addr;
-                 
+#ifdef ENABLE_E2K_QUIRKS
+            {
+              /* To call disassembler as seldom as possible I prefer to
+                 disassemble 512 line portions at once. Despite all my
+                 efforts this method of searching the previous address
+                 turns out to be too slow for E2k. Therefore backward
+                 scrolling is very sluggish.  */
+	      std::vector <tui_asm_line> dummy_lines (512);
+              int k;
+
+              tui_disassemble (gdbarch, dummy_lines, last_addr, 0, 512);
+              k = 0;
+              next_addr = last_addr;
+
+              while (1)
+                {
+                  int j;
+
+                  j = k;
+
+                  while (k < 512
+                         && dummy_lines[k].addr == next_addr)
+                    k++;
+
+                  if (k < 512)
+                    {
+                      for (; j < k; j++)
+                        {
+                          pos++;
+                          if (pos >= max_lines)
+                            pos = 0;
+
+                          asm_lines[pos].addr = dummy_lines[k].addr;
+
+                          asm_lines[pos].addr_string
+			    = std::move (dummy_lines[k].addr_string);
+
+                          asm_lines[pos].insn
+			    = std::move (dummy_lines[k].insn);
+                        }
+
+                      next_addr = dummy_lines[k].addr;
+                      /* See the outermost cycle's condition. Under such
+                         a condition it's certain to continue. Therefore,
+                         we may also continue here.  */
+                      if (next_addr <= pc)
+                        continue;
+                    }
+
+                  break;
+                }
+            }
+#else /* ENABLE_E2K_QUIRKS  */
             pos++;
             if (pos >= max_lines)
               pos = 0;
 
             next_addr = tui_disassemble (gdbarch, asm_lines,
 					 last_addr, pos, 1);
+#endif /* ENABLE_E2K_QUIRKS  */
 
             /* If there are some problems while disassembling exit.  */
             if (next_addr <= last_addr)
@@ -383,7 +491,25 @@ tui_disasm_window::do_scroll_vertical (int num_to_scroll)
 	--num_to_scroll;
 
       val.loa = LOA_ADDRESS;
+#ifdef ENABLE_E2K_QUIRKS
+      /* At E2k we may have to scroll more than one line in order to
+         reach the previous (next) instruction. However, assume that
+         not more than 32 instructions should be scrolled. Otherwise
+         we may very well find ourselves in an infinite loop when an
+         instruction with the least address is reached and we are
+         attempting to scroll up . . .  */
+      do
+        {
+#endif /* ENABLE_E2K_QUIRKS  */
       val.u.addr = tui_find_disassembly_address (gdbarch, pc, num_to_scroll);
+#ifdef ENABLE_E2K_QUIRKS
+          num_to_scroll += (num_to_scroll >= 0) ? 1 : -1;
+        }
+      while (((num_to_scroll >= 0 && val.u.addr <= pc)
+              || (num_to_scroll < 0 && val.u.addr >= pc))
+	     && num_to_scroll < 32 && num_to_scroll > -32);
+#endif /* ENABLE_E2K_QUIRKS  */
+
       update_source_window_as_is (gdbarch, NULL, val);
     }
 }

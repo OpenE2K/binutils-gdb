@@ -451,10 +451,10 @@ public:
 
   int region_ok_for_hw_watchpoint (CORE_ADDR, int) override;
 
-  int insert_watchpoint (CORE_ADDR, int, enum target_hw_bp_type,
+  int insert_watchpoint (struct gdbarch *, CORE_ADDR, int, enum target_hw_bp_type,
 			 struct expression *) override;
 
-  int remove_watchpoint (CORE_ADDR, int, enum target_hw_bp_type,
+  int remove_watchpoint (struct gdbarch *, CORE_ADDR, int, enum target_hw_bp_type,
 			 struct expression *) override;
 
   void kill () override;
@@ -1301,6 +1301,13 @@ map_regcache_remote_table (struct gdbarch *gdbarch, struct packet_reg *regs)
     if (regs[regnum].pnum != -1)
       remote_regs[num_remote_regs++] = &regs[regnum];
 
+#if defined ENABLE_E2K_QUIRKS
+  regs[902].pnum = 902;
+  remote_regs[num_remote_regs++] = &regs[902];
+  regs[903].pnum = 903;
+  remote_regs[num_remote_regs++] = &regs[903];
+#endif
+
   std::sort (remote_regs, remote_regs + num_remote_regs,
 	     [] (const packet_reg *a, const packet_reg *b)
 	      { return a->pnum < b->pnum; });
@@ -1308,6 +1315,24 @@ map_regcache_remote_table (struct gdbarch *gdbarch, struct packet_reg *regs)
   for (regnum = 0, offset = 0; regnum < num_remote_regs; regnum++)
     {
       remote_regs[regnum]->in_g_packet = 1;
+#if defined ENABLE_E2K_QUIRKS
+      /* Share offsets in remote packet between `R_E2K_{,P}USD_LO_REGNUM' and
+	 `R_E2K_{,P}USD_HI_REGNUM' respectively in such a weird way. The present
+	 implementation of this function doesn't allow for that. Here I make use
+	 of the fact that the indices of `R_E2K_USD_{LO,HI}_REGNUM in `remote_
+	 regs[]' coincide with their numbers.   */
+      if (remote_regs[regnum]->pnum == 902)
+	{
+	  remote_regs[regnum]->offset = remote_regs[47]->offset;
+	  continue;
+	}
+      if (remote_regs[regnum]->pnum == 903)
+	{
+	  remote_regs[regnum]->offset = remote_regs[48]->offset;
+	  continue;
+	}
+#endif
+
       remote_regs[regnum]->offset = offset;
       offset += register_size (gdbarch, remote_regs[regnum]->regnum);
     }
@@ -1972,6 +1997,11 @@ enum {
   PACKET_qXfer_threads,
   PACKET_qXfer_statictrace_read,
   PACKET_qXfer_traceframe_info,
+#ifdef ENABLE_E2K_QUIRKS
+  PACKET_qXfer_tags_read,
+  PACKET_qXfer_tags_write,
+  PACKET_qXfer_packed_tags_read,
+#endif /* ENABLE_E2K_QUIRKS  */
   PACKET_qXfer_uib,
   PACKET_qGetTIBAddr,
   PACKET_qGetTLSAddr,
@@ -5085,6 +5115,14 @@ static const struct protocol_feature remote_protocol_features[] = {
     PACKET_qXfer_threads },
   { "qXfer:traceframe-info:read", PACKET_DISABLE, remote_supported_packet,
     PACKET_qXfer_traceframe_info },
+#ifdef ENABLE_E2K_QUIRKS
+  { "qXfer:tags:read", PACKET_DISABLE, remote_supported_packet,
+    PACKET_qXfer_tags_read },
+  { "qXfer:tags:write", PACKET_DISABLE, remote_supported_packet,
+    PACKET_qXfer_tags_write },
+  { "qXfer:packed_tags:read", PACKET_DISABLE, remote_supported_packet,
+    PACKET_qXfer_packed_tags_read },
+#endif /* ENABLE_E2K_QUIRKS  */
   { "QPassSignals", PACKET_DISABLE, remote_supported_packet,
     PACKET_QPassSignals },
   { "QCatchSyscalls", PACKET_DISABLE, remote_supported_packet,
@@ -7315,6 +7353,32 @@ Packet: '%s'\n"),
 	      event->ws.kind = TARGET_WAITKIND_THREAD_CREATED;
 	      p = strchrnul (p1 + 1, ';');
 	    }
+#ifdef ENABLE_E2K_QUIRKS
+	  else if (strncmp (p, "sysentry", p1 - p) == 0)
+	    {
+	      const char *p_temp;
+
+	      p1++;
+	      p_temp = p1;
+	      while (*p_temp && *p_temp != ';')
+		p_temp++;
+
+	      event->ws.kind = TARGET_WAITKIND_SYSCALL_ENTRY;
+	      p = p_temp;
+	    }
+	  else if (strncmp (p, "sysreturn", p1 - p) == 0)
+	    {
+	      const char *p_temp;
+
+	      p1++;
+	      p_temp = p1;
+	      while (*p_temp && *p_temp != ';')
+		p_temp++;
+
+	      event->ws.kind = TARGET_WAITKIND_SYSCALL_RETURN;
+	      p = p_temp;
+	    }
+#endif /* ENABLE_E2K_QUIRKS  */
 	  else
 	    {
 	      ULONGEST pnum;
@@ -10284,7 +10348,8 @@ watchpoint_to_Z_packet (int type)
 }
 
 int
-remote_target::insert_watchpoint (CORE_ADDR addr, int len,
+remote_target::insert_watchpoint (struct gdbarch *gdbarch,
+				  CORE_ADDR addr, int len,
 				  enum target_hw_bp_type type, struct expression *cond)
 {
   struct remote_state *rs = get_remote_state ();
@@ -10333,7 +10398,8 @@ remote_target::watchpoint_addr_within_range (CORE_ADDR addr,
 
 
 int
-remote_target::remove_watchpoint (CORE_ADDR addr, int len,
+remote_target::remove_watchpoint (struct gdbarch *gdbarch,
+				  CORE_ADDR addr, int len,
 				  enum target_hw_bp_type type, struct expression *cond)
 {
   struct remote_state *rs = get_remote_state ();
@@ -10888,6 +10954,52 @@ remote_target::xfer_partial (enum target_object object,
       else
 	return TARGET_XFER_E_IO;
     }
+
+#ifdef ENABLE_E2K_QUIRKS
+  if (object == TARGET_OBJECT_TAG)
+    {
+      if (readbuf)
+        {
+          int packet;
+          const char *packet_name;
+          enum target_xfer_status res;
+
+          if (len == 1 || len == 2)
+            {
+              packet = PACKET_qXfer_tags_read;
+              packet_name = "tags";
+            }
+          else
+            {
+              gdb_assert (len % 4 == 0);
+              packet = PACKET_qXfer_packed_tags_read;
+              packet_name = "packed_tags";
+
+              /* I adjust LEN here since this is something standard `remote_
+                 read_qxfer ()' is aware of: it uses this parameter as the
+                 number of bytes to be copied into READBUF.  */
+              len >>= 2;
+
+            }
+
+          res = remote_read_qxfer (packet_name, annex,
+                                   readbuf, offset, len, xfered_len,
+                                   &remote_protocol_packets[packet]);
+
+          /* When transferring packed tags adjust `*XFERED_LEN' to make `fill_
+             tags_section ()' happy with the result of `target_read ()'.  */
+          if (packet == PACKET_qXfer_packed_tags_read)
+            *xfered_len <<= 2;
+
+          return res;
+        }
+      else
+        return remote_write_qxfer ("tags", annex,
+				   writebuf, offset, len, xfered_len,
+                                   &remote_protocol_packets
+                                   [PACKET_qXfer_tags_write]);
+    }
+#endif /* ENABLE_E2K_QUIRKS  */
 
   /* Only handle flash writes.  */
   if (writebuf != NULL)
@@ -12263,7 +12375,11 @@ remote_target::filesystem_is_local ()
 	}
     }
 
+#ifdef ENABLE_E2K_QUIRKS
+  return true;
+#else /* ENABLE_E2K_QUIRKS  */
   return false;
+#endif /* ENABLE_E2K_QUIRKS  */
 }
 
 static int
@@ -13452,6 +13568,16 @@ remote_target::traceframe_info ()
   return NULL;
 }
 
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+static int
+remote_set_syscall_catchpoint (struct target_ops * self,
+			       int pid, int needed, int any_count,
+                               int table_size, int *table)
+{
+  return 0;
+}
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Handle the qTMinFTPILen packet.  Returns the minimum length of
    instruction on which a fast tracepoint may be placed.  Returns -1
    if the packet is not supported, and 0 if the minimum instruction
@@ -14631,6 +14757,16 @@ Show the maximum size of the address (in bits) in a memory packet."), NULL,
 
   add_packet_config_cmd (&remote_protocol_packets[PACKET_Qbtrace_conf_pt_size],
        "Qbtrace-conf:pt:size", "btrace-conf-pt-size", 0);
+#ifdef ENABLE_E2K_QUIRKS
+  add_packet_config_cmd (&remote_protocol_packets[PACKET_qXfer_tags_read],
+       "qXfer:tags:read", "read-tags", 0);
+
+  add_packet_config_cmd (&remote_protocol_packets[PACKET_qXfer_tags_write],
+       "qXfer:tags:write", "write-tags", 0);
+
+  add_packet_config_cmd (&remote_protocol_packets[PACKET_qXfer_packed_tags_read],
+       "qXfer:packed_tags:read", "read-packed-tags", 0);
+#endif /* ENABLE_E2K_QUIRKS  */
 
   add_packet_config_cmd (&remote_protocol_packets[PACKET_vContSupported],
 			 "vContSupported", "verbose-resume-supported", 0);

@@ -591,6 +591,17 @@ set_gdbarch_from_file (bfd *abfd)
   struct gdbarch_info info;
   struct gdbarch *gdbarch;
 
+#ifdef ENABLE_E2K_QUIRKS
+  /* Keep the previous GDBARCH (if there is one) in case no ABFD has been
+     specified. This is to ensure that shared objects are freed by the same
+     `solib_*' implementations that allocated and managed them. This is
+     crucial for e2k with incompatible `solib_*'s across ordinary and
+     protected modes.  */
+  if (abfd == NULL
+      && target_gdbarch () != NULL)
+    return;
+#endif /* ENABLE_E2K_QUIRKS  */
+
   gdbarch_info_init (&info);
   info.abfd = abfd;
   info.target_desc = target_current_description ();

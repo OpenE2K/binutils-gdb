@@ -377,6 +377,19 @@ static const char *sparc32_register_names[] =
 /* Total number of registers.  */
 #define SPARC32_NUM_REGS ARRAY_SIZE (sparc32_register_names)
 
+/* "Extended" V9-specific registers.  */
+static const char *sparc32_ext_register_names[] =
+{
+  "eg0", "eg1", "eg2", "eg3", "eg4", "eg5", "eg6", "eg7",
+  "eo0", "eo1", "eo2", "eo3", "eo4", "eo5", "eo6", "eo7",
+  "d32", "d34", "d36", "d38", "d40", "d42", "d44", "d46",
+  "d48", "d50", "d52", "d54", "d56", "d58", "d60", "d62"
+};
+
+/* Total number of "extended" V9-specific registers.  */
+#define SPARC32_NUM_EXT_REGS ARRAY_SIZE (sparc32_ext_register_names)
+
+
 /* We provide the aliases %d0..%d30 for the floating registers as
    "psuedo" registers.  */
 
@@ -389,15 +402,36 @@ static const char *sparc32_pseudo_register_names[] =
 /* Total number of pseudo registers.  */
 #define SPARC32_NUM_PSEUDO_REGS ARRAY_SIZE (sparc32_pseudo_register_names)
 
+
+/* V9-specific pseudo registers.  */
+static const char *sparc32_ext_pseudo_register_names[] =
+{
+
+  /* I believe that it's pointless treating `%d32 - %d62' as
+     pseudo registers.  */
+
+  "q0", "q4", "q8", "q12", "q16", "q20", "q24", "q28",
+  "q32", "q36", "q40", "q44", "q48", "q52", "q56", "q60",
+};
+
+/* Total number of V9-specific pseudo registers.  */
+#define SPARC32_NUM_EXT_PSEUDO_REGS ARRAY_SIZE (sparc32_ext_pseudo_register_names)
+
 /* Return the name of pseudo register REGNUM.  */
 
 static const char *
 sparc32_pseudo_register_name (struct gdbarch *gdbarch, int regnum)
 {
-  regnum -= gdbarch_num_regs (gdbarch);
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  regnum -= tdep->first_pseudo_reg;
 
   if (regnum < SPARC32_NUM_PSEUDO_REGS)
     return sparc32_pseudo_register_names[regnum];
+
+  regnum -= SPARC32_NUM_PSEUDO_REGS;
+
+  if (regnum < SPARC32_NUM_EXT_PSEUDO_REGS)
+    return sparc32_ext_pseudo_register_names[regnum];
 
   internal_error (__FILE__, __LINE__,
                   _("sparc32_pseudo_register_name: bad register number %d"),
@@ -409,6 +443,9 @@ sparc32_pseudo_register_name (struct gdbarch *gdbarch, int regnum)
 static const char *
 sparc32_register_name (struct gdbarch *gdbarch, int regnum)
 {
+  /* FIXME: does this function ever get called if target description is
+     used? In case it doesn't the following IF statement can be safely
+     removed.  */
   if (tdesc_has_registers (gdbarch_target_desc (gdbarch)))
     return tdesc_register_name (gdbarch, regnum);
 
@@ -481,10 +518,14 @@ sparc_fsr_type (struct gdbarch *gdbarch)
 static struct type *
 sparc32_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
 {
-  regnum -= gdbarch_num_regs (gdbarch);
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  regnum -= tdep->first_pseudo_reg;
 
   if (regnum >= SPARC32_D0_REGNUM && regnum <= SPARC32_D30_REGNUM)
     return builtin_type (gdbarch)->builtin_double;
+
+  if (regnum >= SPARC32_Q0_REGNUM && regnum <= SPARC32_Q60_REGNUM)
+    return builtin_type (gdbarch)->builtin_long_double;
 
   internal_error (__FILE__, __LINE__,
                   _("sparc32_pseudo_register_type: bad register number %d"),
@@ -497,6 +538,9 @@ sparc32_pseudo_register_type (struct gdbarch *gdbarch, int regnum)
 static struct type *
 sparc32_register_type (struct gdbarch *gdbarch, int regnum)
 {
+  /* FIXME: does this function ever get called if target description is
+     used? In case it doesn't the following IF statement can be safely
+     removed.  */
   if (tdesc_has_registers (gdbarch_target_desc (gdbarch)))
     return tdesc_register_type (gdbarch, regnum);
 
@@ -522,13 +566,56 @@ sparc32_register_type (struct gdbarch *gdbarch, int regnum)
 }
 
 static enum register_status
+sparc32_ext_pseudo_register_read (struct gdbarch *gdbarch,
+                                  readable_regcache *regcache,
+                                  int regnum, gdb_byte *buf)
+{
+  enum register_status status;
+
+  if (regnum >= SPARC32_Q0_REGNUM && regnum <= SPARC32_Q28_REGNUM)
+    {
+      regnum = SPARC_F0_REGNUM + 4 * (regnum - SPARC32_Q0_REGNUM);
+
+      status = regcache->raw_read (regnum, buf);
+      if (status == REG_VALID)
+	status = regcache->raw_read (regnum + 1, buf + 4);
+      if (status == REG_VALID)
+	status = regcache->raw_read (regnum + 2, buf + 8);
+      if (status == REG_VALID)
+	status = regcache->raw_read (regnum + 3, buf + 12);
+
+      return status;
+    }
+  else if (regnum >= SPARC32_Q32_REGNUM && regnum <= SPARC32_Q60_REGNUM)
+    {
+      regnum = SPARC32_D32_REGNUM + 2 * (regnum - SPARC32_Q32_REGNUM);
+
+      status = regcache->raw_read (regnum, buf);
+      if (status == REG_VALID)
+	status = regcache->raw_read (regnum + 1, buf + 8);
+
+      return status;
+    }
+
+  internal_error (__FILE__, __LINE__,
+                  _("sparc32_pseudo_register_read: bad register number %d"),
+		    regnum);
+}
+
+static enum register_status
 sparc32_pseudo_register_read (struct gdbarch *gdbarch,
 			      readable_regcache *regcache,
 			      int regnum, gdb_byte *buf)
 {
   enum register_status status;
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  regnum -= tdep->first_pseudo_reg;
 
-  regnum -= gdbarch_num_regs (gdbarch);
+  if (tdep->have_ext_regs
+      && regnum > SPARC32_D30_REGNUM)
+    return sparc32_ext_pseudo_register_read (gdbarch, regcache, regnum, buf);
+    
+
   gdb_assert (regnum >= SPARC32_D0_REGNUM && regnum <= SPARC32_D30_REGNUM);
 
   regnum = SPARC_F0_REGNUM + 2 * (regnum - SPARC32_D0_REGNUM);
@@ -539,11 +626,45 @@ sparc32_pseudo_register_read (struct gdbarch *gdbarch,
 }
 
 static void
+sparc32_ext_pseudo_register_write (struct gdbarch *gdbarch,
+                                   struct regcache *regcache,
+                                   int regnum, const gdb_byte *buf)
+{
+  if (regnum >= SPARC32_Q0_REGNUM && regnum <= SPARC32_Q28_REGNUM)
+    {
+      regnum = SPARC_F0_REGNUM + 4 * (regnum - SPARC32_Q0_REGNUM);
+      regcache->raw_write (regnum, buf);
+      regcache->raw_write (regnum + 1, buf + 4);
+      regcache->raw_write (regnum + 2, buf + 8);
+      regcache->raw_write (regnum + 3, buf + 12);
+    }
+  else if (regnum >= SPARC32_Q32_REGNUM && regnum <= SPARC32_Q60_REGNUM)
+    {
+      regnum = SPARC32_D32_REGNUM + 2 * (regnum - SPARC32_Q32_REGNUM);
+      regcache->raw_write (regnum, buf);
+      regcache->raw_write (regnum + 1, buf + 8);
+    }
+
+  internal_error (__FILE__, __LINE__,
+		  _("sparc32_pseudo_register_write: bad register number %d"),
+		  regnum);
+}
+
+static void
 sparc32_pseudo_register_write (struct gdbarch *gdbarch,
 			       struct regcache *regcache,
 			       int regnum, const gdb_byte *buf)
 {
-  regnum -= gdbarch_num_regs (gdbarch);
+  struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
+  regnum -= tdep->first_pseudo_reg;
+
+  if (tdep->have_ext_regs
+      && regnum > SPARC32_D30_REGNUM)
+    {
+      sparc32_ext_pseudo_register_write (gdbarch, regcache, regnum, buf);
+      return;
+    }
+
   gdb_assert (regnum >= SPARC32_D0_REGNUM && regnum <= SPARC32_D30_REGNUM);
 
   regnum = SPARC_F0_REGNUM + 2 * (regnum - SPARC32_D0_REGNUM);
@@ -1915,13 +2036,38 @@ sparc32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       if (!valid_p)
         {
           tdesc_data_cleanup (tdesc_data);
+	  /* FIXME: find out why they don't
+	     . . .
+	     xfree (tdep);
+	     gdbarch_free (gdbarch);
+	     . . .
+	     here.  */
           return NULL;
         }
+
+      if (validate_tdesc_registers (tdesc, tdesc_data, "org.mcst.gdb.sparc.v932",
+				    sparc32_ext_register_names,
+				    SPARC32_NUM_EXT_REGS, SPARC32_EG0_REGNUM))
+	{
+	  /* Reserve space for ext-registers among raw ones in such a way that
+	     they can be mapped to fixed numbers known by the target. Couldn't
+	     this be done unconditionally from the very beginning?  */
+	  set_gdbarch_num_regs (gdbarch,
+				SPARC32_NUM_REGS + SPARC32_NUM_EXT_REGS);
+	  set_gdbarch_num_pseudo_regs (gdbarch,
+				       (SPARC32_NUM_PSEUDO_REGS
+					+ SPARC32_NUM_EXT_PSEUDO_REGS));
+		
+	}
 
       /* Target description may have changed. */
       info.tdesc_data = tdesc_data;
       tdesc_use_registers (gdbarch, tdesc, tdesc_data);
+
+      tdep->have_ext_regs = 1;
     }
+
+  tdep->first_pseudo_reg = gdbarch_num_regs (gdbarch);
 
   /* If we have register sets, enable the generic core file support.  */
   if (tdep->gregset)
@@ -1943,6 +2089,11 @@ sparc_supply_rwindow (struct regcache *regcache, CORE_ADDR sp, int regnum)
   int offset = 0;
   gdb_byte buf[8];
   int i;
+  /* An attempt to extract window registers of a thread different from
+     INFERIOR_PTID via the latter may lead to inconsistent results. Temporarely
+     set INFERIOR_PTID to PTID associated with REGCACHE.  */
+  scoped_restore save_inferior_ptid = make_scoped_restore (&inferior_ptid);
+  inferior_ptid = regcache->ptid ();
 
   if (sp & 1)
     {
@@ -2017,6 +2168,11 @@ sparc_collect_rwindow (const struct regcache *regcache,
   int offset = 0;
   gdb_byte buf[8];
   int i;
+
+  /* It's not quite clear to me if REGCACHE may be associated with something
+     different from INFERIOR_PTID here. This assert will let us know if it
+     can.  */
+  gdb_assert (regcache->ptid () == inferior_ptid);
 
   if (sp & 1)
     {

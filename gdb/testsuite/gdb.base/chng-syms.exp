@@ -67,6 +67,7 @@ if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable {deb
 
 } else {
 
+    gdb_test_no_output "shell sync; sleep 1; ls -l ${binfile} > /dev/null" "ensure that GDB sees the recompiled executable"
     gdb_run_cmd
 
     set test "running with invalidated bpt condition after executable changes"
