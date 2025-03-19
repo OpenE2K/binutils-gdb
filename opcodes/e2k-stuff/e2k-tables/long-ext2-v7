@@ -1,0 +1,71 @@
+| 00 | FMAs     | FMAs     | FMAs     |  | 40 | 	 |	    |	       |
+| 01 | FMAd     | FMAd     | FMAd     |  | 41 | 	 |	    |	       |
+| 02 | FMSs     | FMSs     | FMSs     |  | 42 | 	 |	    |	       |
+| 03 | FMSd     | FMSd     | FMSd     |  | 43 | 	 |	    |	       |
+| 04 | FNMAs    | FNMAs    | FNMAs    |  | 44 | 	 |	    |	       |
+| 05 | FNMAd    | FNMAd    | FNMAd    |  | 45 | 	 |	    |	       |
+| 06 | FNMSs    | FNMSs    | FNMSs    |  | 46 | 	 |	    |	       |
+| 07 | FNMSd    | FNMSd    | FNMSd    |  | 47 | 	 |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 08 | QPFMAs   | QPFMAs   | QPFMAs   |  | 48 |          |          |          |
+| 09 | QPFMAd   | QPFMAd   | QPFMAd   |  | 49 |          |          |          |
+| 0a | QPFMSs   | QPFMSs   | QPFMSs   |  | 4a |          |          |          |
+| 0b | QPFMSd   | QPFMSd   | QPFMSd   |  | 4b |          |          |          |
+| 0c | QPFNMAs  | QPFNMAs  | QPFNMAs  |  | 4c |          |          |          |
+| 0d | QPFNMAd  | QPFNMAd  | QPFNMAd  |  | 4d |          |          |          |
+| 0e | QPFNMSs  | QPFNMSs  | QPFNMSs  |  | 4e |          |          |          |
+| 0f | QPFNMSd  | QPFNMSd  | QPFNMSd  |  | 4f |          |          |          |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 10 | QPFMASs  | QPFMASs  | QPFMASs  |  | 50 |          |          |          |
+| 11 | QPFMASd  | QPFMASd  | QPFMASd  |  | 51 |          |          |          |
+| 12 | QPFMSAs  | QPFMSAs  | QPFMSAs  |  | 52 |          |          |          |
+| 13 | QPFMSAd  | QPFMSAd  | QPFMSAd  |  | 53 |          |          |          |
+| 14 | CLMULL   | CLMULL   |	      |  | 54 | 	 |	    |	       |
+| 15 | CLMULH   | CLMULH   |	      |  | 55 | 	 |	    |	       |
+| 16 | QPACK    | QPACK    |          |  | 56 |          |          |          |
+| 17 | QPTOQP2  | QPTOQP2  |          |  | 57 |          |          |          |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 18 | QPIDOTSBWSS | QPIDOTSBWSS |    |  | 58 | 	 |	    |	       |
+| 19 | QPIDOTSBWUS | QPIDOTSBWUS |    |  | 59 | 	 |	    |	       |
+| 1a | QPIDOTSBWUU | QPIDOTSBWUU |    |  | 5a | 	 |	    |	       |
+| 1b |  	|	   |	      |  | 5b | 	 |	    |	       |
+| 1c | QPIDOTSHWSS | QPIDOTSHWSS |    |  | 5c | 	 |	    |	       |
+| 1d |  	|	   |	      |  | 5d | 	 |	    |	       |
+| 1e |  	|	   |	      |  | 5e | 	 |	    |	       |
+| 1f |  	|	   |	      |  | 5f | 	 |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 20 | QPBFDOTS | QPBFDOTS |	      |  | 60 | 	 |	    |	       |
+| 21 |  	|	   |	      |  | 61 | 	 |	    |	       |
+| 22 |  	|	   |	      |  | 62 | 	 |	    |	       |
+| 23 |  	|	   |	      |  | 63 | 	 |	    |	       |
+| 24 | QPIDOTSHDSS | QPIDOTSHDSS |    |  | 64 | 	 |	    |	       |
+| 25 |  	|	   |	      |  | 65 | 	 |	    |	       |
+| 26 | QPIDOTSHDUU | QPIDOTSHDUU |    |  | 66 | 	 |	    |	       |
+| 27 |  	|	   |	      |  | 67 | 	 |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 28 | QPTBL_0  | QPTBL_0  |	      |  | 68 | 	 |	    |	       |
+| 29 | QPTBL_1  | QPTBL_1  |	      |  | 69 | 	 |	    |	       |
+| 2a | QPTBL_2  | QPTBL_2  |	      |  | 6a | 	 |	    |	       |
+| 2b | QPTBL_3  | QPTBL_3  |	      |  | 6b | 	 |	    |	       |
+| 2c | QPTBL_4  | QPTBL_4  |	      |  | 6c | 	 |	    |	       |
+| 2d | QPTBL_5  | QPTBL_5  |	      |  | 6d | 	 |	    |	       |
+| 2e | QPTBL_6  | QPTBL_6  |	      |  | 6e | 	 |	    |	       |
+| 2f | QPTBL_7  | QPTBL_7  |	      |  | 6f | 	 |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 30 |  	|	   |	      |  | 70 | 	 |	    |	       |
+| 31 |  	|	   |	      |  | 71 | 	 |	    |	       |
+| 32 |  	|	   |	      |  | 72 | 	 |	    |	       |
+| 33 |  	|	   |	      |  | 73 | 	 |	    |	       |
+| 34 |  	|	   |	      |  | 74 | 	 |	    |	       |
+| 35 |  	|	   |	      |  | 75 | 	 |	    |	       |
+| 36 |  	|	   |	      |  | 76 | 	 |	    |	       |
+| 37 |  	|	   |	      |  | 77 | 	 |	    |	       |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 38 |  	|	   |	      |  | 78 | 	 |	    |	       |
+| 39 |  	|	   |	      |  | 79 | 	 |	    |	       |
+| 3a |  	|	   |	      |  | 7a | 	 |	    |	       |
+| 3b |  	|	   |	      |  | 7b | 	 |	    |	       |
+| 3c |  	|	   |	      |  | 7c | 	 |	    |	       |
+| 3d |  	|	   |	      |  | 7d | 	 |	    |	       |
+| 3e |  	|	   |	      |  | 7e | 	 |	    |	       |
+| 3f |  	|	   |	      |  | 7f | 	 |	    |	       |

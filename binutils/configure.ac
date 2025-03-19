@@ -541,6 +541,13 @@ AC_SUBST(OBJDUMP_PRIVATE_OFILES)
 
 AC_DEFINE_UNQUOTED(TARGET, "${target}", [Configured target name.])
 
+case "$target" in
+    e2k*)
+        AC_DEFINE(INHIBIT_RAW_INSN, 1, [Inhibit --show-raw-insn option.])
+	AC_DEFINE(E2K_QUIRKS, 1, [Enable e2k-specific quirks.])
+        ;;
+esac
+
 targ=$target
 . $srcdir/../bfd/config.bfd
 if test "x$targ_underscore" = "xyes"; then

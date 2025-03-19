@@ -142,6 +142,10 @@ read_sleb128 (bfd_byte **iter, bfd_byte *end, bfd_signed_vma *value)
 static
 int get_DW_EH_PE_width (int encoding, int ptr_size)
 {
+  /* For the sake of E2K Protected Mode.  */
+  if (encoding == DW_EH_PE_aligned)
+    return 16;
+
   /* DW_EH_PE_ values of 0x60 and 0x70 weren't defined at the time .eh_frame
      was added to bfd.  */
   if ((encoding & 0x60) == 0x60)
@@ -999,6 +1003,15 @@ _bfd_elf_parse_eh_frame (bfd *abfd, struct bfd_link_info *info,
 	     CIE instructions.  */
 	  || (set_loc_count && this_inf->cie))
 	goto free_no_table;
+
+      /* Prevent e2k-linux-ld from adjusting the size of entries (are only CIEs
+	 adjusted this way?) and thus ensure that the 16 byte alignment of all
+	 subsequent CIEs and FDEs is preserved in such a primitive way . . .  */
+      if (((elf_elfheader (abfd)->e_flags & 32 /* EF_E2K_PM  */)
+	   == 32 /* EF_E2K_PM  */)
+	  && strstr (abfd->xvec->name, "e2k-pm") != NULL)
+	insns_end = end;
+
       this_inf->size -= end - insns_end;
       if (insns_end != end && this_inf->cie)
 	{
@@ -2123,7 +2136,19 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
 	  value = read_value (abfd, buf, width,
 			      get_DW_EH_PE_signed (ent->fde_encoding));
 	  address = value;
-	  if (value)
+	  if (value
+#ifdef HAVE_e2k_elf64_vec
+	      /* With packed PM ELFs DW_EH_PE_pcrel may turn out to be zero
+		 both before .eh_frame relaxation (as it takes place in Bug
+		 #139772 in which the above test alone inhibits the evaluation
+		 of the final "relaxed" value, see Comment #5) and after it
+		 (the final zero DW_EH_PE_pcrel evaluated in the next switch
+		 controlled by this `if (...)' should be treated as valid at
+		 runtime by PM libgcc_{eh.a,s.so}, see Bug #137546,
+		 Comment #2).  */
+	      || (ent->fde_encoding & 0x70) == DW_EH_PE_pcrel
+#endif
+	      )
 	    {
 	      switch (ent->fde_encoding & 0x70)
 		{
@@ -2162,9 +2187,28 @@ _bfd_elf_write_section_eh_frame (bfd *abfd,
 		  break;
 		case DW_EH_PE_pcrel:
 		  value += (bfd_vma) ent->offset - ent->new_offset;
-		  address += (sec->output_section->vma
-			      + sec->output_offset
-			      + ent->offset + 8);
+		  address +=
+#ifdef HAVE_e2k_elf64_vec
+		    /* Note "This is called with the relocated contents" above
+		       meaning that "pc-relative deltas" read from the section
+		       contain the differencies of PACKED addresses in e2k PM
+		       written out by my backend. Therefore, evaluate the
+		       absolute PACKED address and ... */
+		    adjust_offset_in_cud_gd (info,
+#endif
+					     (sec->output_section->vma
+					      + sec->output_offset
+					      + ent->offset + 8)
+#ifdef HAVE_e2k_elf64_vec
+					     )
+#endif
+		    ;
+#ifdef HAVE_e2k_elf64_vec
+		  /* ... use it to restore the original absolute one. Later it
+		     will be used to calculate another PACKED "pc-relative
+		     delta" from another location.  */
+		  address = orig_offset_in_cud (info, address);
+#endif
 		  break;
 		}
 	      if (ent->make_relative)
@@ -2468,19 +2512,83 @@ write_dwarf_eh_frame_hdr (bfd *abfd, struct bfd_link_info *info)
 	{
 	  bfd_vma val;
 
-	  val = hdr_info->u.dwarf.array[i].initial_loc
-	    - sec->output_section->vma;
+	  val =
+	    (
+#ifdef HAVE_e2k_elf64_vec
+	     adjust_offset_in_cud_gd (info,
+#endif
+				      hdr_info->u.dwarf.array[i].initial_loc
+#ifdef HAVE_e2k_elf64_vec
+				      )
+#endif
+	     -
+#ifdef HAVE_e2k_elf64_vec
+	     adjust_offset_in_cud_gd (info,
+#endif
+				      sec->output_section->vma
+#ifdef HAVE_e2k_elf64_vec
+				      )
+#endif
+	     );
+
 	  val = ((val & 0xffffffff) ^ 0x80000000) - 0x80000000;
 	  if (elf_elfheader (abfd)->e_ident[EI_CLASS] == ELFCLASS64
-	      && (hdr_info->u.dwarf.array[i].initial_loc
-		  != sec->output_section->vma + val))
+	      && (
+#ifdef HAVE_e2k_elf64_vec
+		  adjust_offset_in_cud_gd (info,
+#endif
+					   hdr_info->u.dwarf.array[i].initial_loc
+#ifdef HAVE_e2k_elf64_vec
+					   )
+#endif
+		  !=
+#ifdef HAVE_e2k_elf64_vec
+		  adjust_offset_in_cud_gd (info,
+#endif
+					   sec->output_section->vma
+#ifdef HAVE_e2k_elf64_vec
+					   )
+#endif
+		  + val))
 	    overflow = true;
 	  bfd_put_32 (abfd, val, contents + EH_FRAME_HDR_SIZE + i * 8 + 4);
-	  val = hdr_info->u.dwarf.array[i].fde - sec->output_section->vma;
+	  val = (
+#ifdef HAVE_e2k_elf64_vec
+		 adjust_offset_in_cud_gd (info,
+#endif
+					  hdr_info->u.dwarf.array[i].fde
+#ifdef HAVE_e2k_elf64_vec
+					  )
+#endif
+		 -
+#ifdef HAVE_e2k_elf64_vec
+		 adjust_offset_in_cud_gd (info,
+#endif
+					  sec->output_section->vma
+#ifdef HAVE_e2k_elf64_vec
+					  )
+#endif
+		 );
 	  val = ((val & 0xffffffff) ^ 0x80000000) - 0x80000000;
 	  if (elf_elfheader (abfd)->e_ident[EI_CLASS] == ELFCLASS64
-	      && (hdr_info->u.dwarf.array[i].fde
-		  != sec->output_section->vma + val))
+	      && (
+#ifdef HAVE_e2k_elf64_vec
+		  adjust_offset_in_cud_gd (info,
+#endif
+
+					   hdr_info->u.dwarf.array[i].fde
+#ifdef HAVE_e2k_elf64_vec
+					   )
+#endif
+		  !=
+#ifdef HAVE_e2k_elf64_vec
+		  adjust_offset_in_cud_gd (info,
+#endif
+					   sec->output_section->vma
+#ifdef HAVE_e2k_elf64_vec
+					   )
+#endif
+					   + val))
 	    overflow = true;
 	  bfd_put_32 (abfd, val, contents + EH_FRAME_HDR_SIZE + i * 8 + 8);
 	  if (i != 0

@@ -78,8 +78,9 @@ class Target_selector
   // structure.  The size and endianness are known.
   Target*
   recognize(Input_file* input_file, off_t offset,
-	    int machine, int osabi, int abiversion)
-  { return this->do_recognize(input_file, offset, machine, osabi, abiversion); }
+	    int machine, int osabi, int abiversion, int flags)
+  { return this->do_recognize(input_file, offset, machine, osabi, abiversion,
+			      flags); }
 
   // If NAME matches the target, return a pointer to a target
   // structure.
@@ -162,7 +163,7 @@ class Target_selector
   // checks, or to check for multiple machine codes if the machine_
   // field is EM_NONE.
   virtual Target*
-  do_recognize(Input_file*, off_t, int, int, int)
+  do_recognize(Input_file*, off_t, int, int, int, int)
   { return this->instantiate_target(); }
 
   // Recognize a target by name.  When this is called we already know
@@ -245,7 +246,7 @@ class Target_selector
 extern Target*
 select_target(Input_file*, off_t,
 	      int machine, int size, bool big_endian, int osabi,
-	      int abiversion);
+	      int abiversion, int flags);
 
 // Select a target using a BFD name.
 

@@ -3547,17 +3547,6 @@ copy_object (bfd *ibfd, bfd *obfd, const bfd_arch_info_type *input_arch)
       gaps = NULL;
     }
 
-  /* Allow the BFD backend to copy any private data it understands
-     from the input BFD to the output BFD.  This is done last to
-     permit the routine to look at the filtered symbol table, which is
-     important for the ECOFF code at least.  */
-  if (! bfd_copy_private_bfd_data (ibfd, obfd))
-    {
-      bfd_nonfatal_message (NULL, obfd, NULL,
-			    _("error copying private BFD data"));
-      return false;
-    }
-
   /* Switch to the alternate machine code.  We have to do this at the
      very end, because we only initialize the header when we create
      the first section.  */
@@ -3575,6 +3564,17 @@ copy_object (bfd *ibfd, bfd *obfd, const bfd_arch_info_type *input_arch)
 	  else
 	    non_fatal (_("ignoring the alternative value"));
 	}
+    }
+
+  /* Allow the BFD backend to copy any private data it understands
+     from the input BFD to the output BFD.  This is done last to
+     permit the routine to look at the filtered symbol table, which is
+     important for the ECOFF code at least.  */
+  if (! bfd_copy_private_bfd_data (ibfd, obfd))
+    {
+      bfd_nonfatal_message (NULL, obfd, NULL,
+			    _("error copying private BFD data"));
+      return false;
     }
 
   return true;

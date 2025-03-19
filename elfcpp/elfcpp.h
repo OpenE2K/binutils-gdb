@@ -269,6 +269,7 @@ enum EM
   EM_ALTERA_NIOS2 = 113,
   EM_CRX = 114,
   EM_TI_PRU = 144,
+  EM_MCST_ELBRUS = 175,
   EM_AARCH64 = 183,
   EM_TILEGX = 191,
   // The Morph MT.
@@ -886,6 +887,15 @@ enum DT
   DT_MIPS_RWPLT = 0x70000034,
   // Relative offset of run time loader map, used for debugging.
   DT_MIPS_RLD_MAP_REL = 0x70000035,
+
+  // The latest implementation of PLT not requiring the modification
+  // of the TEXT segment at runtime: the contents of .got.plt is
+  // modified instead.
+  DT_E2K_LAZY_GOT = 0x70000003,
+  DT_E2K_PLTGOTSZ = DT_LOPROC + 0x101b,
+  DT_E2K_INIT_GOT = DT_LOPROC + 0x101c,
+  DT_E2K_REAL_PLTGOT = DT_LOPROC + 0x101f,
+  DT_E2K_NO_SELFINIT = DT_LOPROC + 0x1020,
 
   DT_AUXILIARY = 0x7ffffffd,
   DT_USED = 0x7ffffffe,

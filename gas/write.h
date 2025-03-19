@@ -190,4 +190,7 @@ extern fixS *fix_new_exp (fragS *, unsigned long, unsigned long,
 extern void write_print_statistics (FILE *);
 extern void as_bad_subtract (fixS *);
 
+
+extern relax_addressT relax_align (relax_addressT address, int alignment);
+
 #endif /* __write_h__ */

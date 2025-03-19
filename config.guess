@@ -1025,7 +1025,7 @@ EOF
 	GUESS=$UNAME_MACHINE-axis-linux-$LIBC
 	;;
     e2k:Linux:*:*)
-	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC
+	GUESS=$UNAME_MACHINE-mcst-linux-$LIBC
 	;;
     frv:Linux:*:*)
 	GUESS=$UNAME_MACHINE-unknown-linux-$LIBC

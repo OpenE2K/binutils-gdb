@@ -5372,7 +5372,7 @@ declare_register_set (const char *prefix,
 		      unsigned int num_regs,
 		      unsigned int base_regnum)
 {
-  char name[8];
+  char name[128];
   unsigned int i;
 
   for (i = 0; i < num_regs; ++i)

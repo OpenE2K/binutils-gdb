@@ -181,6 +181,13 @@ s390x-*-*)
  targ_big_endian=true
  targ_extra_big_endian=false
  ;;
+e2k-*)
+  targ_obj=e2k
+  targ_machine=EM_MCST_ELBRUS
+  targ_size=64
+  targ_extra_size=32
+  targ_big_endian=false
+  ;;
 *)
   targ_obj=UNKNOWN
   ;;

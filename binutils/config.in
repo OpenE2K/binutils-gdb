@@ -22,6 +22,9 @@
 /* Should strings use -a behavior by default? */
 #undef DEFAULT_STRINGS_ALL
 
+/* Enable e2k-specific quirks. */
+#undef E2K_QUIRKS
+
 /* Define if you want run-time sanity checks. */
 #undef ENABLE_CHECKING
 
@@ -171,6 +174,9 @@
 
 /* Define as const if the declaration of iconv() needs const. */
 #undef ICONV_CONST
+
+/* Inhibit --show-raw-insn option. */
+#undef INHIBIT_RAW_INSN
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

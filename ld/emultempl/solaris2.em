@@ -1,5 +1,8 @@
 # This shell script emits a C file. -*- C -*-
 # It does some substitutions.
+
+source_em ${srcdir}/emultempl/sparcelf.em
+
 if [ -z "$MACHINE" ]; then
   OUTPUT_ARCH=${ARCH}
 else

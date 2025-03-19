@@ -1526,7 +1526,8 @@ class Output_data_reloc_generic : public Output_section_data_build
   // relocation applies to the data at offset ADDRESS within OD.
   virtual void
   add_global_generic(Symbol* gsym, unsigned int type, Output_data* od,
-		     uint64_t address, uint64_t addend) = 0;
+		     uint64_t address, uint64_t addend, bool is_relative = false,
+		     bool is_symbolless = false) = 0;
 
   // Add a reloc of type TYPE against the global symbol GSYM.  The
   // relocation applies to data at offset ADDRESS within section SHNDX
@@ -1733,12 +1734,13 @@ class Output_data_reloc<elfcpp::SHT_REL, dynamic, size, big_endian>
 
   void
   add_global_generic(Symbol* gsym, unsigned int type, Output_data* od,
-		     uint64_t address, uint64_t addend)
+		     uint64_t address, uint64_t addend, bool is_relative = false,
+		     bool is_symbolless = false)
   {
     gold_assert(addend == 0);
     this->add(od, Output_reloc_type(gsym, type, od,
 				    convert_types<Address, uint64_t>(address),
-				    false, false, false));
+				    is_relative, is_symbolless, false));
   }
 
   void
@@ -2050,12 +2052,13 @@ class Output_data_reloc<elfcpp::SHT_RELA, dynamic, size, big_endian>
 
   void
   add_global_generic(Symbol* gsym, unsigned int type, Output_data* od,
-		     uint64_t address, uint64_t addend)
+		     uint64_t address, uint64_t addend, bool is_relative = false,
+		     bool is_symbolless = false)
   {
     this->add(od, Output_reloc_type(gsym, type, od,
 				    convert_types<Address, uint64_t>(address),
 				    convert_types<Addend, uint64_t>(addend),
-				    false, false, false));
+				    is_relative, is_symbolless, false));
   }
 
   void
@@ -2441,7 +2444,7 @@ template<int got_size, bool big_endian>
 class Output_data_got : public Output_data_got_base
 {
  public:
-  typedef typename elfcpp::Elf_types<got_size>::Elf_Addr Valtype;
+  typedef typename elfcpp::Elf_types<got_size == 128 ? 64 : got_size>::Elf_Addr Valtype;
 
   Output_data_got()
     : Output_data_got_base(Output_data::default_alignment_for_size(got_size)),
@@ -2481,7 +2484,24 @@ class Output_data_got : public Output_data_got_base
   void
   add_global_with_rel(Symbol* gsym, unsigned int got_type,
 		      Output_data_reloc_generic* rel_dyn, unsigned int r_type,
-		      uint64_t addend = 0);
+		      uint64_t addend = 0, bool is_relative = false,
+		      bool is_symbolless = false);
+
+  void
+  add_global_with_rel_and_cst(Symbol* gsym, unsigned int got_type,
+			      Output_data_reloc_generic* rel_dyn, unsigned int r_type,
+			      uint64_t addend = 0, bool is_relative = false,
+			      bool is_symbolless = false,
+			      // The default value is not actually needed here,
+			      // but is dictated by the preceding parameters
+			      // with default values.
+			      Valtype cst = 0,
+			      // This default value could be a reasonable choice
+			      // for ordinary 32 and 64-bit modes if the
+			      // opportunity to set a GOT entry to a particular
+			      // value along with the creation of a dynamic
+			      // relocation against it was needed for them.
+			      Valtype cst_hi = 0);
 
   // Add a pair of entries for a global symbol GSYM plus ADDEND to the
   // GOT, and add dynamic relocations of type R_TYPE_1 and R_TYPE_2,
@@ -2627,9 +2647,16 @@ class Output_data_got : public Output_data_got_base
 
     // Create a constant entry.  The constant is a host value--it will
     // be swapped, if necessary, when it is written out.
-    explicit Got_entry(Valtype constant)
+    explicit Got_entry(Valtype constant, Valtype constant_hi = 0)
       : local_sym_index_(CONSTANT_CODE), use_plt_or_tls_offset_(false)
-    { this->u_.constant = constant; }
+    {
+      this->u_.constant = constant;
+
+      if (got_size != 128)
+	gold_assert(constant_hi == 0);
+
+      this->constant_hi_ = constant_hi;
+    }
 
     // Write the GOT entry to an output view.
     void
@@ -2653,6 +2680,10 @@ class Output_data_got : public Output_data_got_base
       // For a constant, the constant.
       Valtype constant;
     } u_;
+
+    // For a 128-bit Got_entry the hi part of a constant.
+    Valtype constant_hi_;
+
     // For a local symbol, the local symbol index.  This is GSYM_CODE
     // for a global symbol, or CONSTANT_CODE for a constant.
     unsigned int local_sym_index_ : 31;

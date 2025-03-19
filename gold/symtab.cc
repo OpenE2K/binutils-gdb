@@ -443,13 +443,36 @@ Symbol::should_add_dynsym_entry(Symbol_table* symtab) const
 bool
 Symbol::final_value_is_known() const
 {
+  /* FIXME(?): this rude hack is required to let undefined WEAK symbols' values
+     in -static-pie executables (linked with `-pie -static') be treated as
+     known (to prevent creation of pointless dynamic relocations). Without
+     it the further sequence of checks would result in FALSE because `-pie
+     -static' combination isn't officially supported in GOLD.
+
+     TODO: find out the difference between is_static () and
+     doing_static_link ().  */
+  if (parameters->options().is_static()
+      && this->is_weak_undefined ())
+    return true;
+
   // If we are not generating an executable, then no final values are
   // known, since they will change at runtime, with the exception of
   // TLS symbols in a position-independent executable.
   if ((parameters->options().output_is_position_independent()
        || parameters->options().relocatable())
-      && !(this->type() == elfcpp::STT_TLS
-           && parameters->options().pie()))
+      && !((this->type() == elfcpp::STT_TLS
+	    && parameters->options().pie())
+#if 0
+	   || (/* TODO: find out the difference between this and
+		  parameters->doing_static_link ().  */
+	       parameters->options().is_static()
+	       && this->binding() == elfcpp::STB_WEAK
+	       /* If I don't misunderstand, this should mean that undef
+		  weak has NOT eventually been resolved by anything less
+		  defective ...  */
+	       && ! this->is_undef_binding_weak())
+#endif /* 0  */
+	   ))
     return false;
 
   // If the symbol is not from an object file, and is not undefined,

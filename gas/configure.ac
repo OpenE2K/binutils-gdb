@@ -157,6 +157,31 @@ esac])dnl
 
 using_cgen=no
 
+AC_ARG_ENABLE(e2k-opcodes,
+[  --enable-e2k-opcodes    enable opcodes for E2K],
+[case "${enableval}" in
+  yes | no)	enable_e2k_opcodes=$enableval ;;
+  *)	AC_MSG_ERROR([enable-e2k-opcodes option must specify either 'yes' or 'no'])
+	;;
+esac],
+[enable_e2k_opcodes=yes])dnl
+
+AC_ARG_ENABLE(fix-lcc-bug142105,
+	      AS_HELP_STRING([--enable-fix-lcc-bug142105],
+	      [enable fix for LCC Bug 142105]),
+[case "${enableval}" in
+  yes | no)	enable_fix_lcc_bug142105=$enableval ;;
+  *)	AC_MSG_ERROR([enable-fix-lcc-bug142105 option must specify either 'yes' or 'no'])
+	;;
+esac],
+[enable_fix_lcc_bug142105=yes])dnl
+
+if test "x${enable_fix_lcc_bug142105}" = xyes; then
+  AC_DEFINE([ENABLE_FIX_LCC_BUG_142105], 1,
+	    [Is the fix for LCC Bug 142105 enabled?])
+fi
+
+
 AM_BINUTILS_WARNINGS
 
 # Generate a header file

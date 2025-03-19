@@ -103,6 +103,13 @@ AC_SUBST(use_sysroot)
 AC_SUBST(TARGET_SYSTEM_ROOT)
 AC_SUBST(TARGET_SYSTEM_ROOT_DEFINE)
 
+AC_ARG_WITH(cross-host, [  --with-cross-host make native ld behave as if it were cross])
+
+if test -n "$with_cross_host" && test x"$with_cross_host" != x"no"; then
+   AC_DEFINE([WITH_CROSS_HOST], 1,
+	      [Define to inhibit searching native /etc/ld.so.conf])
+fi
+
 dnl Use --enable-gold to decide if this linker should be the default.
 dnl "install_as_default" is set to false if gold is the default linker.
 dnl "installed_linker" is the installed BFD linker name.
@@ -376,6 +383,24 @@ AC_CHECK_DECLS([asprintf, environ])
 AC_FUNC_MMAP
 
 AC_SEARCH_LIBS([dlopen], [dl])
+
+AC_ARG_ENABLE(debian-multiarch,
+[  --enable-debian-multiarch use debian multiarch library search paths],
+[case "${enableval}" in
+ yes|no) ;;
+ *) AC_MSG_ERROR([invalid --enable-debian-multiarch argument]) ;;
+ esac], [enable_debian_multiarch=no])
+AC_SUBST(enable_debian_multiarch)
+
+AC_ARG_ENABLE([fix-lcc-bug142105],
+	      AC_HELP_STRING([--enable-fix-lcc-bug142105],
+			     [enable fix for LCC Bug 142105]),
+[case "${enableval}" in
+ yes|no) ;;
+ *) AC_MSG_ERROR([invalid --enable-debian-multiarch argument]) ;;
+esac], [enable_fix_lcc_bug142105=yes])
+AC_SUBST(enable_fix_lcc_bug142105)
+
 
 AC_MSG_CHECKING(for a known getopt prototype in unistd.h)
 AC_CACHE_VAL(ld_cv_decl_getopt_unistd_h,

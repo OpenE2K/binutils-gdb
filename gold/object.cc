@@ -1775,7 +1775,10 @@ Sized_relobj_file<size, big_endian>::do_layout(Symbol_table* symtab,
 	    }
 	}
 
-      if (is_pass_two && parameters->options().gc_sections())
+      // Inhibit the effect of --gc-sections untill the issue under
+      // consideration when linking libstdc++.so for e2k32 with GOLD
+      // is resolved.
+      if (is_pass_two && false /* parameters->options().gc_sections() */)
 	{
 	  // This is executed during the second pass of garbage
 	  // collection. do_layout has been called before and some
@@ -1787,6 +1790,10 @@ Sized_relobj_file<size, big_endian>::do_layout(Symbol_table* symtab,
 	      continue;
 	    }
 	  if (((shdr.get_sh_flags() & elfcpp::SHF_ALLOC) != 0)
+	      // Track the garbage-collected section in question by means of the
+	      // containing input ELF's filename and its index within it (the
+	      // tests are swapped for the sake of efficiency).
+	      /*(i == 135 && this[0].name_  && (int) strcmp (this[0].name_, ".libs/compatibility-c++0x.o") == 0)  */
 	      && symtab->gc()->is_section_garbage(this, i))
 	      {
 		if (parameters->options().print_gc_sections())
@@ -2336,6 +2343,7 @@ Sized_relobj_file<size, big_endian>::do_count_local_symbols(Stringpool* pool,
       unsigned int shndx = this->adjust_sym_shndx(i, sym.get_st_shndx(),
 						  &is_ordinary);
       lv.set_input_shndx(shndx, is_ordinary);
+      lv.set_input_size(sym.get_st_size());
 
       if (sym.get_st_type() == elfcpp::STT_SECTION)
 	lv.set_is_section_symbol();
@@ -3388,7 +3396,11 @@ make_elf_sized_object(const std::string& name, Input_file* input_file,
   Target* target = select_target(input_file, offset,
 				 ehdr.get_e_machine(), size, big_endian,
 				 ehdr.get_ei_osabi(),
-				 ehdr.get_ei_abiversion());
+				 ehdr.get_ei_abiversion()
+#if 1
+				 , ehdr.get_e_flags()
+#endif /* 0  */
+				 );
   if (target == NULL)
     gold_fatal(_("%s: unsupported ELF machine number %d"),
 	       name.c_str(), ehdr.get_e_machine());

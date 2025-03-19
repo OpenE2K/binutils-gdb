@@ -52,6 +52,13 @@ struct frchain			/* control building of a frag chain */
   struct obstack frch_obstack;	/* for objects in this frag chain */
   fragS *frch_frag_now;		/* frag_now for this subsegment */
   struct frch_cfi_data *frch_cfi_data;
+
+#ifdef TC_E2K
+  /* The current FRAG and cumulative OFFSET reached in e2k-specific
+     `check_current_insn_or_label_alignment ()' so far.  */
+  fragS *frch_current_frag;
+  addressT frch_current_offset;
+#endif /* TC_E2K  */
 };
 
 typedef struct frchain frchainS;

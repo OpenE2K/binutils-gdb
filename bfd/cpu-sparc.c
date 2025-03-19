@@ -62,7 +62,13 @@ static const bfd_arch_info_type arch_info_struct[] =
   N (32, bfd_mach_sparc_v8plusm,      "sparc:v8plusm",      false, arch_info_struct + 18),
   N (64, bfd_mach_sparc_v9m,          "sparc:v9m",          false, arch_info_struct + 19),
   N (32, bfd_mach_sparc_v8plusm8,     "sparc:v8plusm8",     false, arch_info_struct + 20),
-  N (64, bfd_mach_sparc_v9m8,         "sparc:v9m8",         false, NULL)
+  N (64, bfd_mach_sparc_v9m8,         "sparc:v9m8",         false, arch_info_struct + 21),
+  N (32, bfd_mach_sparc_v8plus_r1000, "sparc:v8plus_r1000", false, arch_info_struct + 22),
+  N (64, bfd_mach_sparc_v9_r1000,     "sparc:r1000",        false, arch_info_struct + 23),
+  N (32, bfd_mach_sparc_v8plus_r2000, "sparc:v8plus_r2000", false, arch_info_struct + 24),
+  N (64, bfd_mach_sparc_v9_r2000,     "sparc:r2000",        false, arch_info_struct + 25),
+  N (32, bfd_mach_sparc_v8plus_r2000_plus, "sparc:v8plus_r2000_plus", false, arch_info_struct + 26),
+  N (64, bfd_mach_sparc_v9_r2000_plus,     "sparc:r2000_plus",        false, NULL),
 };
 
 const bfd_arch_info_type bfd_sparc_arch =

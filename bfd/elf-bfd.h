@@ -570,6 +570,7 @@ enum elf_target_id
   TILEGX_ELF_DATA,
   TILEPRO_ELF_DATA,
   RISCV_ELF_DATA,
+  E2K_ELF_DATA,
   GENERIC_ELF_DATA
 };
 
@@ -820,6 +821,7 @@ struct elf_size_info {
 
   unsigned char arch_size, log_file_align;
   unsigned char elfclass, ev_current;
+  unsigned char ptr_size;
   int (*write_out_phdrs)
     (bfd *, const Elf_Internal_Phdr *, unsigned int);
   bool (*write_shdrs_and_ehdr) (bfd *);
@@ -1757,6 +1759,8 @@ struct elf_backend_data
   /* True if the 64-bit Linux PRPSINFO structure's `pr_uid' and `pr_gid'
      members use a 16-bit data type.  */
   unsigned linux_prpsinfo64_ugid16 : 1;
+
+  bfd_vma r_none_info;
 };
 
 /* Information about reloc sections associated with a bfd_elf_section_data
@@ -3063,6 +3067,12 @@ extern bool _bfd_elf_allocate_ifunc_dyn_relocs
    struct elf_dyn_relocs **, unsigned int, unsigned int,
    unsigned int, bool);
 
+/* Leave it in place since E2K needs it.  */
+extern long _bfd_elf_ifunc_get_synthetic_symtab
+  (bfd *, long, asymbol **, long, asymbol **, asymbol **, asection *,
+   int, void *,
+   bfd_vma *(*) (bfd *, asymbol **, asection *, asection *, int, void *));
+
 extern void elf_append_rela (bfd *, asection *, Elf_Internal_Rela *);
 extern void elf_append_rel (bfd *, asection *, Elf_Internal_Rela *);
 
@@ -3092,6 +3102,15 @@ extern bool _bfd_elf_maybe_set_textrel
 
 extern bool _bfd_elf_add_dynamic_tags
   (bfd *, struct bfd_link_info *, bool);
+
+/* Stupidly ensure that this is NOT compiled for non-e2k targets.  */
+#ifdef HAVE_e2k_elf64_vec
+extern bfd_vma adjust_offset_in_cud_gd
+  (struct bfd_link_info *, bfd_vma);
+
+extern bfd_vma orig_offset_in_cud
+  (struct bfd_link_info *, bfd_vma);
+#endif /* HAVE_e2k_elf64_vec  */
 
 /* Large common section.  */
 extern asection _bfd_elf_large_com_section;

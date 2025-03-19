@@ -1204,6 +1204,14 @@ class General_options
 	      N_("Relax branches on certain targets"),
 	      N_("Do not relax branches"));
 
+  DEFINE_bool(relaxed_e2k_machine_check, options::TWO_DASHES, '\0', false,
+	      N_("Relax e2k machine check"),
+	      N_("? ? ?"));
+
+  DEFINE_bool(no_dynamic_linker, options::TWO_DASHES, '\0', false,
+	      N_("No path to a dynamic linker should be linked into the output"),
+	      N_("? ? ?"));
+
   DEFINE_string(retain_symbols_file, options::TWO_DASHES, '\0', NULL,
 		N_("keep only symbols listed in this file"), N_("FILE"));
 

@@ -169,6 +169,11 @@ encoding_size (unsigned char encoding)
 {
   if (encoding == DW_EH_PE_omit)
     return 0;
+
+  /* Try to use these ones for properly aligned PM PLs and APs for now.  */
+  if (encoding == DW_EH_PE_funcrel || encoding == DW_EH_PE_aligned)
+    return 16;
+
   switch (encoding & 0x7)
     {
     case 0:
@@ -196,15 +201,27 @@ emit_expr_encoded (expressionS *exp, int encoding, bool emit_encoding)
   if (encoding == DW_EH_PE_omit)
     return;
 
+  /* DW_EH_PE_funcrel is processed in some weird way in libgcc. I'm reluctant
+     to change that. Therefore, I use it internally within GAS to obtain the
+     proper relocation, which was already done one line above. As for
+     DW_EH_PE_aligned, libgcc should be capable of extracting both AP and PL
+     with its help.  */
   if (emit_encoding)
-    out_one (encoding);
+    out_one (encoding != DW_EH_PE_funcrel ? encoding : DW_EH_PE_aligned);
+
+  /* Stupidly ensure sufficient alignment for PM-specific encodings.  */
+  if (encoding == DW_EH_PE_funcrel || encoding == DW_EH_PE_aligned)
+    frag_align (4, 0, 0);
 
   code = tc_cfi_reloc_for_encoding (encoding);
   if (code != BFD_RELOC_NONE)
     {
       reloc_howto_type *howto = bfd_reloc_type_lookup (stdoutput, code);
       char *p = frag_more (size);
-      gas_assert (size == (unsigned) howto->bitsize / 8);
+      gas_assert (size == (unsigned) howto->bitsize / 8
+		  /* Take into account that `bitsize == 128' can't be encoded
+		     now that HOWTOs have been packed.  */
+		  || (size == 16 && howto->bitsize == 0));
       md_number_to_chars (p, 0, size);
       fix_new (frag_now, p - frag_now->fr_literal, size, exp->X_add_symbol,
 	       exp->X_add_number, howto->pc_relative, code);
@@ -614,9 +631,29 @@ cfi_add_CFA_def_cfa (unsigned regno, offsetT offset)
 
 /* Add a DW_CFA_register record to the CFI data.  */
 
+#if 0
+
+extern void my_sleep (void);
+
+void
+my_sleep (void)
+{
+  int cont = 1;
+  while (cont)
+    sleep (1);
+  
+}
+
+#endif /* 0  */
+
 void
 cfi_add_CFA_register (unsigned reg1, unsigned reg2)
 {
+#if 0
+  if (reg1 != 15 || reg2 != 31)
+    my_sleep ();
+#endif /* 0  */
+
   cfi_add_CFA_insn_reg_reg (DW_CFA_register, reg1, reg2);
 }
 
@@ -625,6 +662,11 @@ cfi_add_CFA_register (unsigned reg1, unsigned reg2)
 void
 cfi_add_CFA_def_cfa_register (unsigned regno)
 {
+#if 0
+  if (regno != 30)
+    my_sleep ();
+#endif /* 0  */
+
   cfi_add_CFA_insn_reg (DW_CFA_def_cfa_register, regno);
 }
 
@@ -1845,9 +1887,9 @@ static void
 output_cie (struct cie_entry *cie, bool eh_frame, int align)
 {
   symbolS *after_size_address, *end_address;
+  symbolS *aug_start_address, *aug_end_address = NULL;
   expressionS exp;
   struct cfi_insn_data *i;
-  offsetT augmentation_size;
   int enc;
   enum dwarf2_format fmt = DWARF2_FORMAT (now_seg);
 
@@ -1914,10 +1956,31 @@ output_cie (struct cie_entry *cie, bool eh_frame, int align)
     out_uleb128 (cie->return_column);
   if (eh_frame)
     {
-      augmentation_size = 1 + (cie->lsda_encoding != DW_EH_PE_omit);
-      if (cie->per_encoding != DW_EH_PE_omit)
-	augmentation_size += 1 + encoding_size (cie->per_encoding);
-      out_uleb128 (augmentation_size);		/* Augmentation size.  */
+      if (cie->per_encoding != DW_EH_PE_funcrel)
+	{
+	  offsetT augmentation_size;
+	  /* As far as I can see 1 is unconditionally reserved here for FDE
+	     encoding output at the very end of the augmentation just before CFI
+	     insns. Another byte may be required to output LSDA encoding.  */
+	  augmentation_size = 1 + (cie->lsda_encoding != DW_EH_PE_omit);
+	  /* We may require one byte for personality encoding itself and other
+	     ones for the encoded pointer to personality routine.  */
+	  if (cie->per_encoding != DW_EH_PE_omit)
+	    augmentation_size += 1 + encoding_size (cie->per_encoding);
+	  out_uleb128 (augmentation_size);		/* Augmentation size.  */
+	}
+      else
+	{
+	  aug_start_address = symbol_temp_make ();
+	  aug_end_address = symbol_temp_make ();
+	  exp.X_op = O_subtract;
+	  exp.X_add_symbol = aug_end_address;
+	  exp.X_op_symbol = aug_start_address;
+	  exp.X_add_number = 0;
+
+	  emit_leb128_expr (&exp, 0);
+	  symbol_set_value_now (aug_start_address);
+	}
 
       emit_expr_encoded (&cie->personality, cie->per_encoding, true);
 
@@ -1948,7 +2011,12 @@ output_cie (struct cie_entry *cie, bool eh_frame, int align)
 #endif
   cie->fde_encoding = enc;
   if (eh_frame)
-    out_one (enc);
+    {
+      out_one (enc);
+
+      if (cie->per_encoding == DW_EH_PE_funcrel)
+	symbol_set_value_now (aug_end_address);
+    }
 
   if (cie->first)
     {
@@ -1970,6 +2038,7 @@ output_fde (struct fde_entry *fde, struct cie_entry *cie,
 	    int align)
 {
   symbolS *after_size_address, *end_address;
+  symbolS *aug_start_address, *aug_end_address = NULL;
   expressionS exp;
   offsetT augmentation_size;
   enum dwarf2_format fmt = DWARF2_FORMAT (now_seg);
@@ -2056,11 +2125,29 @@ output_fde (struct fde_entry *fde, struct cie_entry *cie,
   exp.X_add_number = 0;
   emit_expr (&exp, addr_size);
 
-  augmentation_size = encoding_size (fde->lsda_encoding);
-  if (eh_frame)
-    out_uleb128 (augmentation_size);		/* Augmentation size.  */
+  if (fde->lsda_encoding != DW_EH_PE_aligned)
+    {
+      augmentation_size = encoding_size (fde->lsda_encoding);
+      if (eh_frame)
+	out_uleb128 (augmentation_size);		/* Augmentation size.  */
+    }
+  else
+    {
+      	  aug_start_address = symbol_temp_make ();
+	  aug_end_address = symbol_temp_make ();
+	  exp.X_op = O_subtract;
+	  exp.X_add_symbol = aug_end_address;
+	  exp.X_op_symbol = aug_start_address;
+	  exp.X_add_number = 0;
+
+	  emit_leb128_expr (&exp, 0);
+	  symbol_set_value_now (aug_start_address);
+    }
 
   emit_expr_encoded (&fde->lsda, cie->lsda_encoding, false);
+
+  if (fde->lsda_encoding == DW_EH_PE_aligned)
+    symbol_set_value_now (aug_end_address);
 
   for (; first; first = first->next)
     if (CUR_SEG (first) == CUR_SEG (fde))
@@ -2400,10 +2487,31 @@ cfi_finish (void)
 		  fde->end_address = fde->start_address;
 		}
 
-	      cie = select_cie_for_fde (fde, true, &first, 2);
+	      cie = select_cie_for_fde (fde, true, &first,
+#ifdef TC_E2K
+					/* Treat PM case specially.  */
+					(EH_FRAME_ALIGNMENT == 4
+					 ? EH_FRAME_ALIGNMENT
+					 :
+#endif /* defined TC_E2K  */
+					 2
+#ifdef TC_E2K
+					 )
+#endif /* defined TC_E2K  */
+					);
 	      fde->eh_loc = symbol_temp_new_now ();
 	      output_fde (fde, cie, true, first,
-			  fde->next == NULL ? EH_FRAME_ALIGNMENT : 2);
+#ifdef TC_E2K
+			  /* Treat PM case specially.  */
+			  (EH_FRAME_ALIGNMENT == 4
+			   ? EH_FRAME_ALIGNMENT
+			   :
+#endif /* defined TC_E2K  */
+			   (fde->next == NULL ? EH_FRAME_ALIGNMENT : 2)
+#ifdef TC_E2K
+			   )
+#endif /* defined TC_E2K  */
+			  );
 	    }
 	}
       while (EH_FRAME_LINKONCE && seek_next_seg == 2);

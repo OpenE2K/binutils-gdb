@@ -79,7 +79,7 @@ BFD32_LIBS = \
 	coff-bfd.lo compress.lo corefile.lo elf-properties.lo format.lo \
 	hash.lo libbfd.lo linker.lo merge.lo opncls.lo reloc.lo \
 	section.lo simple.lo stab-syms.lo stabs.lo syms.lo targets.lo \
-	binary.lo ihex.lo srec.lo tekhex.lo verilog.lo
+	binary.lo ihex.lo srec.lo tekhex.lo verilog.lo eir.lo
 
 BFD64_LIBS = archive64.lo
 
@@ -88,7 +88,7 @@ BFD32_LIBS_CFILES = \
 	compress.c corefile.c elf-properties.c format.c hash.c \
 	libbfd.c linker.c merge.c opncls.c reloc.c \
 	section.c simple.c stab-syms.c stabs.c syms.c targets.c \
-	binary.c ihex.c srec.c tekhex.c verilog.c
+	binary.c ihex.c srec.c tekhex.c verilog.c eir.c
 
 BFD64_LIBS_CFILES = archive64.c
 
@@ -110,6 +110,7 @@ ALL_MACHINES = \
 	cpu-d10v.lo \
 	cpu-d30v.lo \
 	cpu-dlx.lo \
+	cpu-e2k.lo \
 	cpu-epiphany.lo \
 	cpu-fr30.lo \
 	cpu-frv.lo \
@@ -193,6 +194,7 @@ ALL_MACHINES_CFILES = \
 	cpu-d10v.c \
 	cpu-d30v.c \
 	cpu-dlx.c \
+	cpu-e2k.c \
 	cpu-epiphany.c \
 	cpu-fr30.c \
 	cpu-frv.c \
@@ -306,6 +308,8 @@ BFD32_BACKENDS = \
 	elf32-d10v.lo \
 	elf32-d30v.lo \
 	elf32-dlx.lo \
+	elf32-e2k.lo \
+	elf32-e2k-pm.lo \
 	elf32-epiphany.lo \
 	elf32-fr30.lo \
 	elf32-frv.lo \
@@ -357,6 +361,8 @@ BFD32_BACKENDS = \
 	elf32-z80.lo \
 	elf32.lo \
 	elflink.lo \
+	elfxx-e2k.lo \
+	elfxx-e2k-pm.lo \
 	elfxx-sparc.lo \
 	elfxx-tilegx.lo \
 	i386aout.lo \
@@ -441,6 +447,8 @@ BFD32_BACKENDS_CFILES = \
 	elf32-d10v.c \
 	elf32-d30v.c \
 	elf32-dlx.c \
+	elf32-e2k.c \
+	elf32-e2k-pm.c \
 	elf32-epiphany.c \
 	elf32-fr30.c \
 	elf32-frv.c \
@@ -492,6 +500,8 @@ BFD32_BACKENDS_CFILES = \
 	elf32-z80.c \
 	elf32.c \
 	elflink.c \
+	elfxx-e2k.c \
+	elfxx-e2k-pm.c \
 	elfxx-sparc.c \
 	elfxx-tilegx.c \
 	i386aout.c \
@@ -551,6 +561,9 @@ BFD64_BACKENDS = \
 	elf32-score7.lo \
 	elf64-alpha.lo \
 	elf64-amdgcn.lo \
+	elf64-e2k.lo \
+	elf64-e2k-kpda.lo \
+	elf64-e2k-pm.lo \
 	elf64-gen.lo \
 	elf64-hppa.lo \
 	elf64-ia64.lo \
@@ -601,6 +614,9 @@ BFD64_BACKENDS_CFILES = \
 	elf32-score7.c \
 	elf64-alpha.c \
 	elf64-amdgcn.c \
+	elf64-e2k.c \
+	elf64-e2k-kpda.c \
+	elf64-e2k-pm.c \
 	elf64-gen.c \
 	elf64-hppa.c \
 	elf64-ia64-vms.c \
@@ -966,7 +982,7 @@ DISTCLEANFILES += $(BUILD_CFILES) $(BUILD_HFILES) libtool-soversion
 bfdver.h: $(srcdir)/version.h $(srcdir)/development.sh $(srcdir)/Makefile.in
 	$(AM_V_GEN)\
 	bfd_version=`echo "$(VERSION)" | $(SED) -e 's/\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\).*/\1.00\2.00\3.00\4.00\5/' -e 's/\([^\.]*\)\..*\(..\)\..*\(..\)\..*\(..\)\..*\(..\)$$/\1\2\3\4\5/'` ;\
-	bfd_version_string="\"$(VERSION)\"" ;\
+	bfd_version_string="\"$(VERSION)-29.008\"" ;\
 	bfd_soversion="$(VERSION)" ;\
 	bfd_version_package="\"$(PKGVERSION)\"" ;\
 	report_bugs_to="\"$(REPORT_BUGS_TO)\"" ;\

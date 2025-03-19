@@ -134,6 +134,11 @@ subseg_set_rest (segT seg, subsegT subseg)
 
       newP->frch_root = newP->frch_last = newP->frch_frag_now;
 
+#ifdef TC_E2K
+      newP->frch_current_frag = NULL;
+      newP->frch_current_offset = 0;
+#endif /* TC_E2K  */
+
       *lastPP = newP;
       newP->frch_next = frcP;
       frcP = newP;

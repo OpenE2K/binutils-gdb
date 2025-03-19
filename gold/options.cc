@@ -1360,8 +1360,11 @@ General_options::finalize()
     gold_fatal(_("-shared and -static are incompatible"));
   if (this->shared() && this->pie())
     gold_fatal(_("-shared and -pie are incompatible"));
+
+#if 0
   if (this->pie() && this->is_static())
     gold_fatal(_("-pie and -static are incompatible"));
+#endif /* 0  */
 
   if (this->shared() && this->relocatable())
     gold_fatal(_("-shared and -r are incompatible"));

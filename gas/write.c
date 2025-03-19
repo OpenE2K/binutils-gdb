@@ -2651,7 +2651,7 @@ relax_frag (segT segment, fragS *fragP, long stretch)
 
 /* Relax_align. Advance location counter to next address that has 'alignment'
    lowest order bits all 0s, return size of adjustment made.  */
-static relax_addressT
+relax_addressT
 relax_align (relax_addressT address,	/* Address now.  */
 	     int alignment	/* Alignment (binary).  */)
 {

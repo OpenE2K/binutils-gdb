@@ -48,7 +48,7 @@ class Target_selector_freebsd : public Target_selector
   // If we see a FreeBSD input file, mark the output file as using
   // FreeBSD.
   virtual Target*
-  do_recognize(Input_file*, off_t, int, int osabi, int)
+  do_recognize(Input_file*, off_t, int, int osabi, int, int)
   {
     Target* ret = this->instantiate_target();
     if (osabi == elfcpp::ELFOSABI_FREEBSD)

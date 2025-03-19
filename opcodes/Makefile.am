@@ -63,6 +63,7 @@ HFILES = \
 	cris-desc.h cris-opc.h \
 	epiphany-desc.h epiphany-opc.h \
 	fr30-desc.h fr30-opc.h \
+	e2k-opc.h \
 	frv-desc.h frv-opc.h \
 	i386-opc.h \
 	ia64-asmtab.h \
@@ -140,6 +141,8 @@ TARGET32_LIBOPCODES_CFILES = \
 	d30v-dis.c \
 	d30v-opc.c \
 	dlx-dis.c \
+	e2k-dis.c \
+	e2k-opc.c \
 	epiphany-asm.c \
 	epiphany-desc.c \
 	epiphany-dis.c \

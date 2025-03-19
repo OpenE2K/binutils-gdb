@@ -182,6 +182,8 @@ Output_data::default_alignment_for_size(int size)
     return 4;
   else if (size == 64)
     return 8;
+  else if (size == 128)
+    return 16;
   else
     gold_unreachable();
 }
@@ -1460,6 +1462,15 @@ Output_data_got<got_size, big_endian>::Got_entry::write(
     }
 
   elfcpp::Swap<got_size, big_endian>::writeval(pov, val);
+  if (this->local_sym_index_ == CONSTANT_CODE)
+    {
+      if (got_size == 128)
+	// FIXME: in BIG_ENDIAN case, which I'm not currently interested in
+	// it's the preceding WRITEVAL that should probably go to (POV + 8),
+	// not this one.
+	elfcpp::Swap<got_size, big_endian>::writeval(pov + 8,
+						     this->constant_hi_);
+    }
 }
 
 // Output_data_got methods.
@@ -1508,15 +1519,41 @@ Output_data_got<got_size, big_endian>::add_global_with_rel(
     unsigned int got_type,
     Output_data_reloc_generic* rel_dyn,
     unsigned int r_type,
-    uint64_t addend)
+    uint64_t addend,
+    bool is_relative,
+    bool is_symbolless)
 {
   if (gsym->has_got_offset(got_type, addend))
     return;
 
   unsigned int got_offset = this->add_got_entry(Got_entry());
   gsym->set_got_offset(got_type, got_offset, addend);
-  rel_dyn->add_global_generic(gsym, r_type, this, got_offset, addend);
+  rel_dyn->add_global_generic(gsym, r_type, this, got_offset, addend,
+			      is_relative, is_symbolless);
 }
+
+template<int got_size, bool big_endian>
+void
+Output_data_got<got_size, big_endian>::add_global_with_rel_and_cst(
+    Symbol* gsym,
+    unsigned int got_type,
+    Output_data_reloc_generic* rel_dyn,
+    unsigned int r_type,
+    uint64_t addend,
+    bool is_relative,
+    bool is_symbolless,
+    Valtype cst,
+    Valtype cst_hi)
+{
+  if (gsym->has_got_offset(got_type, addend))
+    return;
+
+  unsigned int got_offset = this->add_got_entry(Got_entry(cst, cst_hi));
+  gsym->set_got_offset(got_type, got_offset, addend);
+  rel_dyn->add_global_generic(gsym, r_type, this, got_offset, addend,
+			      is_relative, is_symbolless);
+}
+
 
 // Add a pair of entries for a global symbol to the GOT, and add
 // dynamic relocations of type R_TYPE_1 and R_TYPE_2, respectively.
@@ -4730,8 +4767,8 @@ Output_segment::set_offset(unsigned int increase)
 	  segment_end = align_address(segment_end, page_align);
 	  this->memsz_ = segment_end - this->vaddr_;
 	}
-      else
-	gold_assert(segment_end == align_address(segment_end, page_align));
+      //      else
+      // gold_assert(segment_end == align_address(segment_end, page_align));
     }
 
   // If this is a TLS segment, align the memory size.  The code in
@@ -5570,5 +5607,8 @@ class Output_data_got<64, false>;
 
 template
 class Output_data_got<64, true>;
+
+template
+class Output_data_got<128, false>;
 
 } // End namespace gold.

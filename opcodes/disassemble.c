@@ -48,6 +48,7 @@
 #define ARCH_d10v
 #define ARCH_d30v
 #define ARCH_dlx
+#define ARCH_e2k
 #define ARCH_epiphany
 #define ARCH_fr30
 #define ARCH_frv
@@ -205,6 +206,11 @@ disassembler (enum bfd_architecture a,
     case bfd_arch_dlx:
       /* As far as I know we only handle big-endian DLX objects.  */
       disassemble = print_insn_dlx;
+      break;
+#endif
+#ifdef ARCH_e2k
+    case bfd_arch_e2k:
+      disassemble = print_insn_e2k;
       break;
 #endif
 #ifdef ARCH_h8300
@@ -645,6 +651,19 @@ disassemble_init_for_target (struct disassemble_info * info)
 #ifdef ARCH_ia64
     case bfd_arch_ia64:
       info->skip_zeroes = 16;
+      break;
+#endif
+#ifdef ARCH_e2k
+    case bfd_arch_e2k:
+      /* Let a sequence of `N < 8' "classical" zero DWORD NOPs be output "this
+	 way". 8 NOPs and above will be interpreted as a "block of zeroes".
+	 See the proposal in Bug #140113, Comments #2 and #5.  */
+      info->skip_zeroes = 64;
+
+      /* Don't even attempt to disassemble trailing bytes at the end of a
+	 section if there are less than the minimal e2k instruction length
+	 (8) of them.  */
+      info->skip_zeroes_at_end = 8;
       break;
 #endif
 #ifdef ARCH_loongarch

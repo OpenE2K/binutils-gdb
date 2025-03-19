@@ -119,6 +119,11 @@ extern void ldemul_new_dynsym_for_ctf
 extern bool ldemul_print_symbol
   (struct bfd_link_hash_entry *hash_entry, void *ptr);
 
+extern bool ldemul_allow_dynamic_entries_in_relocatable_link
+  (void);
+extern bool ldemul_disable_standard_compatibility_tests
+  (void);
+
 typedef struct ld_emulation_xfer_struct {
   /* Run before parsing the command line and script file.
      Set the architecture, maybe other things.  */
@@ -259,6 +264,20 @@ typedef struct ld_emulation_xfer_struct {
   bool (*print_symbol)
     (struct bfd_link_hash_entry *hash_entry, void *ptr);
 
+  bool (*allow_dynamic_entries_in_relocatable_link)
+    (void);
+
+  /* For E2K we have got our own compatibility tests in "merge_private_bfd_data
+     ()" handler capable of recognizing EF_E2K_INCOMPAT in addition to `bfd_arch
+     _info'. Therefore, inhibit the standard compatibility tests in e2k-linux-ld
+     making use of `abfd->arch_info->compatible (bfd_arch_info_1, bfd_arch_info
+     _2)' that may result in a false success. On the other hand, if they
+     resulted in a true failure, their error messages would be output instead
+     of e2k-specific ones which would look rather inconsistent.  TODO: if
+     EF_E2K_INCOMPAT was encoded in `bfd_arch_info.mach' the standard
+     compatibility tests could be revived presumably along with the removal of
+     the analogous ones from E2K-specific "merge_private_bfd_data ()".  */
+  bool disable_standard_compatibility_tests;
 } ld_emulation_xfer_type;
 
 typedef enum {

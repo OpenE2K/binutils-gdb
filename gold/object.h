@@ -1705,6 +1705,7 @@ class Symbol_value
 {
  public:
   typedef typename elfcpp::Elf_types<size>::Elf_Addr Value;
+  typedef typename elfcpp::Elf_types<size>::Elf_WXword Size;
 
   Symbol_value()
     : output_symtab_index_(0), output_dynsym_index_(-1U), input_shndx_(0),
@@ -1910,6 +1911,21 @@ class Symbol_value
     return this->input_shndx_;
   }
 
+  // Set the symbol's size in the input file.
+  void
+  set_input_size(Size s)
+  {
+    this->input_size_ = s;
+  }
+
+  // Return the symbol's size in the input file.
+  Size
+  input_size() const
+  {
+    return this->input_size_;
+  }
+
+
   // Whether this is a section symbol.
   bool
   is_section_symbol() const
@@ -1949,6 +1965,7 @@ class Symbol_value
   { return this->has_output_value_; }
 
  private:
+  Size input_size_;
   // The index of this local symbol in the output symbol table.  This
   // will be 0 if no value has been assigned yet, and the symbol may
   // be omitted.  This will be -1U if the symbol should not go into

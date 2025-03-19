@@ -165,7 +165,19 @@ fragment <<EOF
 static void
 gld${EMULATION_NAME}_before_allocation (void)
 {
-  ldelf_before_allocation (audit, depaudit, ${ELF_INTERPRETER_NAME});
+  ldelf_before_allocation (audit, depaudit, ${ELF_INTERPRETER_NAME},
+EOF
+if [ -n "$SUPPORT_EIR" ]; then
+fragment <<EOF
+			   link_mixed_eir
+EOF
+else
+fragment <<EOF
+			   0
+EOF
+fi
+fragment <<EOF
+);
 }
 
 EOF

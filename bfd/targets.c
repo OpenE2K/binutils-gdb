@@ -725,6 +725,11 @@ extern const bfd_target csky_elf32_le_vec;
 extern const bfd_target d10v_elf32_vec;
 extern const bfd_target d30v_elf32_vec;
 extern const bfd_target dlx_elf32_be_vec;
+extern const bfd_target e2k_elf32_vec;
+extern const bfd_target e2k_pm_elf32_vec;
+extern const bfd_target e2k_elf64_vec;
+extern const bfd_target e2k_kpda_elf64_vec;
+extern const bfd_target e2k_pm_elf64_vec;
 extern const bfd_target elf32_be_vec;
 extern const bfd_target elf32_le_vec;
 extern const bfd_target elf64_be_vec;
@@ -955,6 +960,7 @@ extern const bfd_target verilog_vec;
 extern const bfd_target tekhex_vec;
 extern const bfd_target binary_vec;
 extern const bfd_target ihex_vec;
+extern const bfd_target eir_vec;
 
 /* All of the xvecs for core files.  */
 extern const bfd_target core_cisco_be_vec;
@@ -1058,6 +1064,10 @@ static const bfd_target * const _bfd_target_vector[] =
 	&d30v_elf32_vec,
 
 	&dlx_elf32_be_vec,
+
+	&e2k_elf32_vec,
+	&e2k_elf64_vec,
+	&e2k_pm_elf32_vec,
 
 	/* This, and other vectors, may not be used in any *.mt configuration.
 	   But that does not mean they are unnecessary.  If configured with
@@ -1382,6 +1392,8 @@ static const bfd_target * const _bfd_target_vector[] =
 	&binary_vec,
 /* Likewise for ihex.  */
 	&ihex_vec,
+/* Likewise for EIR.  */
+	&eir_vec,
 
 #if BFD_SUPPORTS_PLUGINS
 	&plugin_vec,

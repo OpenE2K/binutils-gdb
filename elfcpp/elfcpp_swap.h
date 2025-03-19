@@ -212,7 +212,7 @@ struct Convert_endian<64, false>
 template<int size, bool big_endian>
 struct Convert
 {
-  typedef typename Valtype_base<size>::Valtype Valtype;
+  typedef typename Valtype_base<size == 128 ? 64 : size>::Valtype Valtype;
 
   static inline Valtype
   convert_host(Valtype v)
@@ -232,7 +232,7 @@ struct Convert
 template<int size, bool big_endian>
 struct Swap
 {
-  typedef typename Valtype_base<size>::Valtype Valtype;
+  typedef typename Valtype_base<size == 128 ? 64 : size>::Valtype Valtype;
 
   static inline Valtype
   readval(const Valtype* wv)
@@ -240,7 +240,7 @@ struct Swap
 
   static inline void
   writeval(Valtype* wv, Valtype v)
-  { *wv = Convert<size, big_endian>::convert_host(v); }
+  { *wv = Convert<size == 128 ? 64 : size, big_endian>::convert_host(v); }
 
   static inline Valtype
   readval(const unsigned char* wv)

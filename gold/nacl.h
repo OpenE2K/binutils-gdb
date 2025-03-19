@@ -111,13 +111,13 @@ class Target_selector_nacl : public base_selector
 
   virtual Target*
   do_recognize(Input_file* file, off_t offset,
-               int machine, int osabi, int abiversion)
+               int machine, int osabi, int abiversion, int flags)
   {
     this->is_nacl_ = file != NULL && this->recognize_nacl_file(file, offset);
     if (this->is_nacl_)
       return this->instantiate_target();
     return this->base_selector::do_recognize(file, offset,
-                                             machine, osabi, abiversion);
+                                             machine, osabi, abiversion, flags);
   }
 
   virtual Target*

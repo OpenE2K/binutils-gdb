@@ -7107,7 +7107,7 @@ lang_end (void)
 	    einfo (_("%F%P: can't set start address\n"));
 	}
       /* BZ 2004952: Only use the start of the entry section for executables.  */
-      else if bfd_link_executable (&link_info)
+      else /* if bfd_link_executable (&link_info)  */
 	{
 	  asection *ts;
 
@@ -7133,6 +7133,7 @@ lang_end (void)
 		       entry_symbol.name);
 	    }
 	}
+#if 0
       else
 	{
 	  if (warn)
@@ -7140,6 +7141,7 @@ lang_end (void)
 		     " not setting start address\n"),
 		   entry_symbol.name);
 	}
+#endif /* 0  */
     }
 }
 
@@ -7187,7 +7189,11 @@ lang_check (void)
       if (!file->flags.just_syms
 	  && (bfd_link_relocatable (&link_info)
 	      || link_info.emitrelocations)
-	  && (compatible == NULL
+	  && (/* For E2K we may have more appropriate compatibility tests in
+		 "merge_private_bfd_data ()" along with more meaningful error
+		 messages.  */
+	      (! ldemul_disable_standard_compatibility_tests ()
+	       && compatible == NULL)
 	      || (bfd_get_flavour (input_bfd)
 		  != bfd_get_flavour (link_info.output_bfd)))
 	  && (bfd_get_file_flags (input_bfd) & HAS_RELOC) != 0)
@@ -7199,7 +7205,11 @@ lang_check (void)
 	  /* einfo with %F exits.  */
 	}
 
-      if (compatible == NULL)
+      /* For E2K we have got more appropriate compatibility tests in
+	 "merge_private_bfd_data ()" along with more meaningful error
+	 messages.  */
+      if (! ldemul_disable_standard_compatibility_tests ()
+	  && compatible == NULL)
 	{
 	  if (command_line.warn_mismatch)
 	    einfo (_("%X%P: %s architecture of input file `%pB'"

@@ -60,7 +60,7 @@ extern void cfi_add_CFA_restore_state (void);
 #define SUPPORT_FRAME_LINKONCE 0
 #endif
 
-#ifdef tc_cfi_reloc_for_encoding
+#if defined (tc_cfi_reloc_for_encoding) && ! defined (TC_E2K)
 #define SUPPORT_COMPACT_EH 1
 #else
 #define SUPPORT_COMPACT_EH 0

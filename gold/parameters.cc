@@ -366,6 +366,8 @@ parameters_force_valid_target()
 				 GOLD_DEFAULT_SIZE,
 				 is_big_endian,
 				 elfcpp::GOLD_DEFAULT_OSABI,
+				 0,
+				 // What could be taken for e_flags here?
 				 0);
 
   if (target == NULL)

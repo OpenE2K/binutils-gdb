@@ -3027,6 +3027,7 @@ Layout::finalize(const Input_objects* input_objects, Symbol_table* symtab,
       // if we saw a .interp section in an input file.
       if ((!parameters->options().shared()
 	   || parameters->options().dynamic_linker() != NULL)
+	  && ! parameters->options().no_dynamic_linker ()
 	  && this->interp_segment_ == NULL)
 	this->create_interp(target);
 

@@ -100,7 +100,7 @@ Target_selector::do_target_bfd_name(const Target* target)
 Target*
 select_target(Input_file* input_file, off_t offset,
 	      int machine, int size, bool is_big_endian,
-	      int osabi, int abiversion)
+	      int osabi, int abiversion, int flags)
 {
   for (Target_selector* p = target_selectors; p != NULL; p = p->next())
     {
@@ -110,7 +110,7 @@ select_target(Input_file* input_file, off_t offset,
 	  && (p->is_big_endian() ? is_big_endian : !is_big_endian))
 	{
 	  Target* ret = p->recognize(input_file, offset,
-				     machine, osabi, abiversion);
+				     machine, osabi, abiversion, flags);
 	  if (ret != NULL)
 	    return ret;
 	}

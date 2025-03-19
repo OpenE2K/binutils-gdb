@@ -102,7 +102,14 @@ static int no_addresses;		/* --no-addresses */
 static int prefix_addresses;		/* --prefix-addresses */
 static int with_line_numbers;		/* -l */
 static bool with_source_code;		/* -S */
+
+#ifndef INHIBIT_RAW_INSN
 static int show_raw_insn;		/* --show-raw-insn */
+#else
+static int show_raw_insn = -1;
+static int show_raw_insn_fake;
+#endif
+
 static int dump_dwarf_section_info;	/* --dwarf */
 static int dump_stab_section_info;	/* --stabs */
 static int dump_ctf_section_info;       /* --ctf */
@@ -526,7 +533,13 @@ static struct option long_options[]=
   {"no-addresses", no_argument, &no_addresses, 1},
   {"no-recurse-limit", no_argument, NULL, OPTION_NO_RECURSE_LIMIT},
   {"no-recursion-limit", no_argument, NULL, OPTION_NO_RECURSE_LIMIT},
-  {"no-show-raw-insn", no_argument, &show_raw_insn, -1},
+  {"no-show-raw-insn", no_argument,
+#ifndef INHIBIT_RAW_INSN
+   &show_raw_insn,
+#else
+   &show_raw_insn_fake,
+#endif
+   -1},
   {"prefix", required_argument, NULL, OPTION_PREFIX},
   {"prefix-addresses", no_argument, &prefix_addresses, 1},
   {"prefix-strip", required_argument, NULL, OPTION_PREFIX_STRIP},
@@ -540,7 +553,13 @@ static struct option long_options[]=
   {"section-headers", no_argument, NULL, 'h'},
   {"sframe", optional_argument, NULL, OPTION_SFRAME},
   {"show-all-symbols", no_argument, &show_all_symbols, 1},
-  {"show-raw-insn", no_argument, &show_raw_insn, 1},
+  {"show-raw-insn", no_argument,
+#ifndef INHIBIT_RAW_INSN
+   &show_raw_insn,
+#else
+   &show_raw_insn_fake,
+#endif
+   1},
   {"source", no_argument, NULL, 'S'},
   {"source-comment", optional_argument, NULL, OPTION_SOURCE_COMMENT},
   {"special-syms", no_argument, &dump_special_syms, 1},
@@ -3298,7 +3317,18 @@ disassemble_bytes (struct disassemble_info *inf,
 	     the start of an instruction which happens to start with
 	     zero.  */
 	  if (addr_offset * opb + octets != stop_offset * opb)
-	    octets &= ~3;
+	    octets &=
+#if ! defined E2K_QUIRKS
+	      ~3
+#else /* defined E2K_QUIRKS  */
+	      /* On e2k we should skip zeroes in multiples of 8 to avoid
+		 skipping zero HS (i.e. the starting 4 zero bytes) of an
+		 8-byte NOP with LTS0 != 0. The latter would mistakenly be
+		 disassembled as the start of the next insn in such a
+		 case.  */
+	      ~7
+#endif /* defined E2K_QUIRKS  */
+	      ;
 
 	  /* If we are going to display more data, and we are displaying
 	     file offsets, then tell the user how many zeroes we skip

@@ -940,10 +940,17 @@ ldelf_check_ld_so_conf (const struct bfd_link_needed_list *l, int force,
 			(const char *) NULL);
       if (!ldelf_parse_ld_so_conf (&info, tmppath))
 	{
+	  /* FIXME: the original stupid logic makes the host's /etc/ld.so.conf
+	     be parsed even when cross LD is used! I need the means to prevent
+	     this for the sake of my isolated native e2k-linux-gcc based
+	     distribution. This is achieved via --with-cross-host configure
+	     option for now.  */
+#ifndef WITH_CROSS_HOST
 	  free (tmppath);
 	  tmppath = concat (ld_sysroot, "/etc/ld.so.conf",
 			    (const char *) NULL);
 	  ldelf_parse_ld_so_conf (&info, tmppath);
+#endif /* WITH_CROSS_HOST  */
 	}
       free (tmppath);
 
@@ -1744,7 +1751,8 @@ ldelf_append_to_separated_string (char **to, char *op_arg)
 
 void
 ldelf_before_allocation (char *audit, char *depaudit,
-			 const char *default_interpreter_name)
+			 const char *default_interpreter_name,
+			 int link_mixed_eir)
 {
   const char *rpath;
   asection *sinterp;
@@ -1757,7 +1765,8 @@ ldelf_before_allocation (char *audit, char *depaudit,
   if (is_elf_hash_table (link_info.hash))
     {
       _bfd_elf_tls_setup (link_info.output_bfd, &link_info);
-
+      if (link_mixed_eir == 0)
+        {
       /* Make __ehdr_start hidden if it has been referenced, to
 	 prevent the symbol from being dynamic.  */
       if (!bfd_link_relocatable (&link_info))
@@ -1796,6 +1805,7 @@ ldelf_before_allocation (char *audit, char *depaudit,
 	 referred to by dynamic objects.  */
       lang_for_each_statement (ldelf_find_statement_assignment);
     }
+        }
 
   /* Let the ELF backend work out the sizes of any sections required
      by dynamic linking.  */
@@ -2326,6 +2336,20 @@ ldelf_place_orphan (asection *s, const char *secname, int constraint)
     place = &hold[orphan_sdata];
   else if ((flags & SEC_THREAD_LOCAL) != 0)
     place = &hold[orphan_tdata];
+  /* In PM orphan eXecutable sections should be placed after (in the same
+     segment as) `.text' even if they are not READONLY (see the next test).
+     Whereas it's acceptable for them to reside after `.data' (and thus in RW
+     part of the data segment and thus make all this part RWX (!!!) no matter
+     how small their contribution is in size!) in "ordinary"  modes, this won't
+     obviously do in PM. TODO: ensure that RO and RW eXecutable sections are
+     placed into different segments by analogy with how RO and RW data sections
+     are separated (see "Adjust the address for the data segment. We want to
+     adjust up to the same address within the page on the next page up." in
+     `ld/elf.sc') so as to prevent the whole text segment from becoming RWX
+     because of its tiny Writable part.  */
+  else if (strstr (link_info.output_bfd->xvec->name, "e2k-pm") != NULL
+	   && (flags & SEC_CODE) != 0)
+    place = &hold[orphan_text];
   else if ((flags & SEC_READONLY) == 0)
     place = &hold[orphan_data];
   else if ((flags & SEC_LOAD) != 0
