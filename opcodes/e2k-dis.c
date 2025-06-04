@@ -1751,11 +1751,12 @@ print_ss (disassemble_info *info)
   /* CT deserves its own output function due to the complexity of CTCOND.  */
   print_ct (info, ctop, ctcond);
 
-  if (ipd)
-    {
-      indentate ();
-      my_printf ("ipd %d", ipd);
-    }
+  /* It's important that the explicit SS.ipd is dumped no matter whether it is
+     zero or not as the implied `ipd = ctpipdd' value (the one used in the
+     absence of SS) is different from 0 (see 5.7.3 and C.15.{1,2,3,4,5,6} in
+     iset-vX.single and MCSTBug #163454).  */
+  indentate ();
+  my_printf ("ipd %d", ipd);
 
   if (type == 0)
     {

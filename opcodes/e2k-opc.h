@@ -1371,22 +1371,22 @@
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurw", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"aaurw", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurws", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"aaurws", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurwd", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x1f, {0, 0, 1, 0, 0, 1}, ARGS_D};
+		{"aaurwd", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x1f, {0, 0, 1, 0, 0, 1}, ARGS_D};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurwq", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
+		{"aaurwq", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -1416,17 +1416,17 @@
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"aaurr", 0xff, parse_alf_args, NULL, AAURR, NO_MAS, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"aaurr", 0xff, parse_alf_args, NULL, AAURR, NO_MAS | LOAD, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"aaurrd", 0xff, parse_alf_args, NULL, AAURR, NO_MAS, 0x5f, {0, 0, 1, 0, 0, 1}, ARGS_D};
+		{"aaurrd", 0xff, parse_alf_args, NULL, AAURR, NO_MAS | LOAD, 0x5f, {0, 0, 1, 0, 0, 1}, ARGS_D};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"aaurrq", 0xff, parse_alf_args, NULL, AAURR, NO_MAS, 0x7f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
+		{"aaurrq", 0xff, parse_alf_args, NULL, AAURR, NO_MAS | LOAD, 0x7f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {

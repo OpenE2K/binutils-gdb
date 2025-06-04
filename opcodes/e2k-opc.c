@@ -528,15 +528,15 @@ init_opcode_templs ()
 
   {
     static const e2k_alf3_opcode_templ mmurr =
-      {"mmurr", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURR, NO_MAS,
-       0x67, {0, 0, 1, 0, 0, 1}, ARGS_DDD};
+      {"mmurr", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURR,
+       LOAD | NO_MAS, 0x67, {0, 0, 1, 0, 0, 1}, ARGS_DDD};
 
     /* FIXME: I've intentionally specified NO_MAS here so that `parse_alf_args
        ()' doesn't attempt to parse it. We set it manually in parse_mmurw_args
        instead.  */
     static const e2k_alf3_opcode_templ mmurw =
-      {"mmurw", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURW, NO_MAS,
-       0x27, {0, 0, 1, 0, 0, 0}, ARGS_DDD};
+      {"mmurw", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURW,
+       STORE | NO_MAS, 0x27, {0, 0, 1, 0, 0, 0}, ARGS_DDD};
 
     add_to_insn_table ((e2k_opcode_templ *) &mmurr);
     add_to_insn_table ((e2k_opcode_templ *) &mmurw);

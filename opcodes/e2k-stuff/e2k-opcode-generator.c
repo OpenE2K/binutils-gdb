@@ -1261,9 +1261,15 @@ gen_alopf10 ()
                                  : ins_name[i]),
                                 &cop_chn))
         continue;
-      
+
       print_common_part ("e2k_alf10_opcode_templ", ins_name[i],
                          "parse_alf_args");
+
+      /* Let `print_alf_part ()' know that we are dealing with a STORE
+	 in fact.  */
+      if (real_name[i] != NULL)
+	strcpy (current_insn_name, real_name[i]);
+
       print_alf_part (instr_fmt, real_name[i] == NULL ? "MAS" : "NO_MAS",
 		      cop_chn.cop, cop_chn.channels, fmt[i]);
 
@@ -1303,6 +1309,12 @@ gen_alopf19 ()
       
       print_common_part ("e2k_alf9_opcode_templ", ins_name[i],
                          "parse_alf_args");
+
+      /* Let `print_alf_part ()' know that we are dealing with a LOAD
+	 in fact.  */
+      if (real_name[i] != NULL)
+	strcpy (current_insn_name, real_name[i]);
+
       print_alf_part (instr_fmt, real_name[i] == NULL ? "MAS" : "NO_MAS",
 		      cop_chn.cop, cop_chn.channels, fmt[i]);
 

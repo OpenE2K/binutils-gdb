@@ -133,7 +133,7 @@
     ENTRY(6, "%bu_pcsp.lo", 0x75, 0, 0)
 
     ENTRY(6, "%sh_wd", 0x76, 0, 0)
-    
+    ENTRY(7, "%sh_osr1", 0x77, 0, 0)
     ENTRY(2, "%cu_hw0", 0x78, 0, 0)
     ENTRY(5, "%cu_hw1", 0x79, 0, 0)
 

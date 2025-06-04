@@ -73,8 +73,20 @@ canonicalize_arch_name (const char *name, int *pmode)
     name = "elbrus-v5";
   else if (STRNCMP (name, "elbrus-v6", len) == 0)
     name = "elbrus-v6";
+  else if (STRNCMP (name, "elbrus-12c", len) == 0)
+    name = "elbrus-12c";
+  else if (STRNCMP (name, "elbrus-16c", len) == 0)
+    name = "elbrus-16c";
+  else if (STRNCMP (name, "elbrus-2c3", len) == 0)
+    name = "elbrus-2c3";
   else if (STRNCMP (name, "elbrus-v7", len) == 0)
     name = "elbrus-v7";
+  else if (STRNCMP (name, "elbrus-48c", len) == 0)
+    name = "elbrus-48c";
+  else if (STRNCMP (name, "elbrus-8v7", len) == 0)
+    name = "elbrus-8v7";
+  else if (STRNCMP (name, "elbrus-maket32c", len) == 0)
+    name = "elbrus-maket32c";
   else
     return NULL;
 
