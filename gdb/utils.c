@@ -490,8 +490,8 @@ internal_vproblem (struct internal_problem *problem,
 }
 
 static struct internal_problem internal_error_problem = {
-  "internal-error", true, internal_problem_ask, true, internal_problem_ask,
-  true, GDB_PRINT_INTERNAL_BACKTRACE_INIT_ON
+  "internal-error", true, internal_problem_no, true, internal_problem_no,
+  true, /* GDB_PRINT_INTERNAL_BACKTRACE_INIT_ON  */ false
 };
 
 void

@@ -1738,6 +1738,9 @@ extern void disable_watchpoints_before_interactive_call_start (void);
 
 extern void enable_watchpoints_after_interactive_call_stop (void);
 
+extern void disable_breakpoints_before_preparation_to_call (void);
+extern void enable_breakpoints_after_preparation_to_call (void);
+
 /* These functions disable and re-enable all breakpoints during
    inferior startup.  They are intended to be called from solib
    code where necessary.  This is needed on platforms where the
@@ -1863,7 +1866,7 @@ extern int insert_single_step_breakpoints (struct gdbarch *);
 /* Check whether any hardware watchpoints have triggered or not,
    according to the target, and record it in each watchpoint's
    'watchpoint_triggered' field.  */
-int watchpoints_triggered (const target_waitstatus &);
+int watchpoints_triggered (struct gdbarch *, const target_waitstatus &);
 
 /* Helper for transparent breakpoint hiding for memory read and write
    routines.

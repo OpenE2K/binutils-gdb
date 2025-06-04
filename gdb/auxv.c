@@ -256,12 +256,21 @@ generic_auxv_parse (struct gdbarch *gdbarch, const gdb_byte **readptr,
 		    int sizeof_auxv_type)
 {
   struct type *ptr_type = builtin_type (gdbarch)->builtin_data_ptr;
-  const int sizeof_auxv_val = ptr_type->length ();
+#ifndef ENABLE_E2K_QUIRKS
+  const
+#endif
+  int sizeof_auxv_val = ptr_type->length ();
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   const gdb_byte *ptr = *readptr;
 
   if (endptr == ptr)
     return 0;
+
+#ifdef ENABLE_E2K_QUIRKS
+  /* In PM 32-bit auxv[] entries are currently used.  */
+  if (sizeof_auxv_val == 16)
+    sizeof_auxv_val = 4;
+#endif
 
   if (endptr - ptr < 2 * sizeof_auxv_val)
     return -1;

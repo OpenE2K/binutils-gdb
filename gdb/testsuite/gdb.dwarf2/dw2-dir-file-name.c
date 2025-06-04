@@ -63,13 +63,52 @@ FUNC (compdir_absolute_ldir_absolute_file_relative_different)	\
 FUNC (compdir_absolute_ldir_absolute_file_absolute_same)	\
 FUNC (compdir_absolute_ldir_absolute_file_absolute_different)
 
+<<<<<<< HEAD
+#ifdef __mips__
+#define START_INSNS asm (".insn\n");
+#else
+#define START_INSNS
+#endif
+
+/* Notes: (1) The '*_start' label below is needed because 'name' may
+   point to a function descriptor instead of to the actual code.  (2)
+   The '.balign' should specify the highest possible function
+   alignment across all supported architectures, such that the label
+   never points into the alignment gap.  */
+
+#ifndef __LCC__
+
+=======
+>>>>>>> 99d679e7b30ea9a0b6ffcd64e9ba35e43166151b
 #define FUNC(name)					\
   static void						\
   name (void)						\
   {							\
     asm (#name "_label: .globl " #name "_label\n");	\
     v++;						\
+<<<<<<< HEAD
+  }							\
+  asm (#name "_end: .globl " #name "_end\n");
+
+#else /* __LCC__  */
+#define FUNC(name)					\
+  START_INSNS						\
+  static void						\
+  name (void)						\
+  {							\
+    v++;						\
+  }							\
+  asm (".text\n");                                      \
+  asm (#name "_start = " #name"\n");                    \
+  asm (".globl " #name "_start\n");                     \
+  asm (#name "_end = " #name" + 0x20\n");               \
+  asm (".globl " #name "_end\n");
+
+
+#endif /* __LCC__  */
+=======
   }
+>>>>>>> 99d679e7b30ea9a0b6ffcd64e9ba35e43166151b
 FUNCBLOCK
 #undef FUNC
 

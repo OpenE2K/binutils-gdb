@@ -350,6 +350,10 @@ thread_info::thread_info (struct inferior *inf_, ptid_t ptid_)
 
   /* Nothing to follow yet.  */
   this->pending_follow.set_spurious ();
+
+#if defined __LCC__
+  this->btrace = {0};
+#endif
 }
 
 /* See gdbthread.h.  */

@@ -447,7 +447,128 @@ proc_with_prefix test_tbreak {} {
 	"Temporary breakpoint info"
 }
 
+<<<<<<< HEAD
+# FIXME: The rest of this test doesn't work with anything that can't
+# handle arguments.
+# Huh? There doesn't *appear* to be anything that passes arguments
+# below.
+
+#
+# run until the breakpoint at main is hit. For non-stubs-using targets.
+#
+gdb_run_cmd
+gdb_test "" \
+    "Breakpoint \[0-9\]+,.*main .*argc.*argv.* at .*$srcfile:$bp_location6.*$bp_location6\[\t \]+if .argc.* \{.*" \
+    "run until function breakpoint"
+
+# Test the 'list' commands sets current file for the 'break LINENO' command.
+set bp_marker1 [gdb_get_line_number "set breakpoint 15 here" ${srcfile1}]
+gdb_test "list marker1" ".*"
+gdb_test "break $bp_marker1" "Breakpoint \[0-9\]+ at 0x\[0-9a-f\]+: file .*${srcfile1}, line ${bp_marker1}\\." \
+         "break lineno"
+gdb_test_no_output {delete $bpnum}
+
+#
+# run until the breakpoint at a line number
+#
+gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location1.*$bp_location1\[\t \]+printf.*factorial.*" \
+			"run until breakpoint set at a line number"
+
+#
+# Run until the breakpoint set in a function in a file
+#
+for {set i 6} {$i >= 1} {incr i -1} {
+	gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, factorial \\(value=$i\\) at .*$srcfile:$bp_location7.*$bp_location7\[\t \]+.*if .value > 1. \{.*" \
+			"run until file:function($i) breakpoint"
+}
+
+#
+# Run until the breakpoint set at a quoted function
+#
+gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, (0x\[0-9a-f\]+ in )?marker2 \\(a=43\\) at .*$srcfile1:$bp_location8.*" \
+		"run until quoted breakpoint"
+#
+# run until the file:function breakpoint at a line number in a file
+#
+gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location2.*$bp_location2\[\t \]+argc = \\(argc == 12345\\);.*" \
+		"run until file:linenum breakpoint"
+
+# Test break at offset +1
+set bp_location10 [gdb_get_line_number "set breakpoint 10 here"]
+
+gdb_test "break +1" \
+    "Breakpoint.*at.* file .*$srcfile, line $bp_location10\\." \
+    "breakpoint offset +1"
+
+# Check to see if breakpoint is hit when stepped onto
+
+gdb_test "step" \
+    ".*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location10.*$bp_location10\[\t \]+.*return argc;.*breakpoint 10 here.*" \
+    "step onto breakpoint"
+
+# Check to see if breakpoint can be set on ending brace of function
+set bp_location10a [gdb_get_line_number "set breakpoint 10a here"]
+
+gdb_test "break $bp_location10a" \
+    "Breakpoint.*at.* file .*$srcfile, line $bp_location10a\\." \
+    "setting breakpoint at }"
+
+gdb_test "continue" \
+    ".*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location10a.*$bp_location10a\[\t \]+}.*breakpoint 10a here.*" \
+    "continue to breakpoint at }"
+
+#
+# delete all breakpoints so we can start over, course this can be a test too
+#
+delete_breakpoints
+
+#
+# test temporary breakpoint at function
+#
+
+gdb_test "tbreak -q main" "Temporary breakpoint.*at.* file .*$srcfile, line.*" "temporary breakpoint function"
+
+#
+# test break at function in file
+#
+
+gdb_test "tbreak $srcfile:factorial" "Temporary breakpoint.*at.* file .*$srcfile, line.*" \
+	"Temporary breakpoint function in file"
+
+#
+# test break at line number
+#
+gdb_test "tbreak $bp_location1" \
+    "Temporary breakpoint.*at.* file .*$srcfile, line $bp_location1.*" \
+    "temporary breakpoint line number #1"
+
+gdb_test "tbreak $bp_location6" "Temporary breakpoint.*at.* file .*$srcfile, line $bp_location6.*" "temporary breakpoint line number #2"
+
+#
+# test break at line number in file
+#
+gdb_test "tbreak $srcfile:$bp_location2" \
+    "Temporary breakpoint.*at.* file .*$srcfile, line $bp_location2.*" \
+    "temporary breakpoint line number in file #1"
+
+set bp_location11 [gdb_get_line_number "set breakpoint 11 here"]
+gdb_test  "tbreak $srcfile:$bp_location11" "Temporary breakpoint.*at.* file .*$srcfile, line $bp_location11.*" "Temporary breakpoint line number in file #2"
+
+#
+# check to see what breakpoints are set (temporary this time)
+#
+gdb_test "info break" "Num     Type.*Disp Enb Address.*What.*\[\r\n\]
+\[0-9\]+\[\t \]+breakpoint     del.*y.*in [func main] at .*$srcfile:$main_line.*\[\r\n\]
+\[0-9\]+\[\t \]+breakpoint     del.*y.*in [func factorial] at .*$srcfile:$bp_location7.*\[\r\n\]
+\[0-9\]+\[\t \]+breakpoint     del.*y.*in [func main] at .*$srcfile:$bp_location1.*\[\r\n\]
+\[0-9\]+\[\t \]+breakpoint     del.*y.*in [func main] at .*$srcfile:$bp_location6.*\[\r\n\]
+\[0-9\]+\[\t \]+breakpoint     del.*y.*in [func main] at .*$srcfile:$bp_location2.*\[\r\n\]
+\[0-9\]+\[\t \]+breakpoint     del.*y.*in [func main] at .*$srcfile:$bp_location11.*" \
+    "Temporary breakpoint info"
+
+=======
 test_tbreak
+>>>>>>> 4c35c4c6a779c79e456b7a5311f74aafc9026bd5
 
 #***********
 

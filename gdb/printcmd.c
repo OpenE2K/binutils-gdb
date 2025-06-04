@@ -123,6 +123,54 @@ show_print_symbol_filename (struct ui_file *file, int from_tty,
 	      value);
 }
 
+unsigned symbolic_offset_radix = 10;
+
+static void
+show_symbolic_offset_radix (struct ui_file *file, int from_tty,
+                            struct cmd_list_element *c, const char *value)
+{
+  gdb_printf (file,
+	      _("Output radix for printing of symbolic offsets is %s.\n"),
+	      value);
+}
+
+static unsigned symbolic_offset_radix_1 = 10;
+
+static void
+set_symbolic_offset_radix (const char *args,
+			   int from_tty,
+			   struct cmd_list_element *c)
+{
+  /* Validate the radix and disallow ones that we aren't prepared to
+     handle correctly, leaving the radix unchanged.  */
+  switch (symbolic_offset_radix_1)
+    {
+    case 10:
+    case 16:
+      break;
+    default:
+      {
+        unsigned wrng_radix = symbolic_offset_radix_1;
+        symbolic_offset_radix_1 = symbolic_offset_radix;
+        error (_("Unsupported symbolic offset radix ``decimal %u''; "
+                 "symbolic offset radix unchanged."),
+               wrng_radix);
+      }
+    }
+
+  symbolic_offset_radix = symbolic_offset_radix_1;
+
+  if (from_tty)
+    {
+      gdb_printf (_("Symbolic offset radix now set to "
+		    "decimal %u, hex %x, octal %o.\n"),
+		  symbolic_offset_radix, symbolic_offset_radix,
+		  symbolic_offset_radix);
+    }
+}
+
+
+
 /* Number of auto-display expression currently being displayed.
    So that we can disable it if we get a signal within it.
    -1 when not doing one.  */
@@ -286,6 +334,20 @@ decode_format (const char **string_ptr, int oformat, int osize)
   return val;
 }
 
+
+#ifdef ENABLE_E2K_QUIRKS
+void
+default_next_address (struct gdbarch *gdbarch,
+                      struct value *val, CORE_ADDR *addr)
+{
+  struct type *type = check_typedef (val->type ());
+  int len = type->length ();
+
+  if (val->lval () == lval_memory)
+    *addr = val->address () + len;
+}
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Print value VAL on stream according to OPTIONS.
    Do not end with a newline.
    SIZE is the letter for the size of datum being printed.
@@ -300,8 +362,20 @@ print_formatted (struct value *val, int size,
   struct type *type = check_typedef (val->type ());
   int len = type->length ();
 
+#ifndef ENABLE_E2K_QUIRKS
   if (val->lval () == lval_memory)
     next_address = val->address () + len;
+#else /* ENABLE_E2K_QUIRKS  */
+  /* Probably new properties of `struct type' should
+     be added (like `length_in_memory' for working
+     with tagged types instead of implementing a new
+     gdbarch-specific function for calculating the next
+     address value. */
+  if (next_gdbarch )
+    gdbarch_next_address (next_gdbarch, val, &next_address);
+  else
+    default_next_address (NULL, val, &next_address);
+#endif /* ENABLE_E2K_QUIRKS  */
 
   if (size)
     {
@@ -574,7 +648,13 @@ print_address_symbolic (struct gdbarch *gdbarch, CORE_ADDR addr,
     gdb_puts ("<", stream);
   fputs_styled (name.c_str (), function_name_style.style (), stream);
   if (offset != 0)
-    gdb_printf (stream, "%+d", offset);
+    {
+      /* Let user choose the radix of symbolic offset (Bug #80496).  */
+      if (symbolic_offset_radix == 10)
+	gdb_printf (stream, "%+d", offset);
+      else
+	gdb_printf (stream, "+0x%x", (unsigned int) offset);
+    }
 
   /* Append source filename and line number if desired.  Give specific
      line # of this addr, if we have it; else line # of the nearest symbol.  */
@@ -785,6 +865,23 @@ print_address_demangle (const struct value_print_options *opts,
   return 1;
 }
 
+
+#ifdef ENABLE_E2K_QUIRKS
+void
+default_override_examine_val_type (struct gdbarch *gdbarch,
+                                   CORE_ADDR addr,
+                                   char size, struct type **type)
+{
+  /* Do nothing by default. */
+}
+
+struct value *
+default_examine_value (struct gdbarch *gdbarch, char format,
+                       struct type *type, CORE_ADDR addr)
+{
+  return value_at_lazy (type, addr);
+}
+#endif /* ENABLE_E2K_QUIRKS  */
 
 /* Find the address of the instruction that is INST_COUNT instructions before
    the instruction at ADDR.
@@ -1067,6 +1164,9 @@ do_examine (struct format_data fmt, struct gdbarch *gdbarch, CORE_ADDR addr)
 	  val_type = builtin_type (next_gdbarch)->builtin_int8;
 	}
     }
+#ifdef ENABLE_E2K_QUIRKS
+  gdbarch_override_examine_val_type (next_gdbarch, addr, size, &val_type);
+#endif /* ENABLE_E2K_QUIRKS  */
 
   maxelts = 8;
   if (size == 'w')
@@ -1177,7 +1277,14 @@ do_examine (struct format_data fmt, struct gdbarch *gdbarch, CORE_ADDR addr)
 	     is left with the byte sequence from the last complete
 	     instruction fetched from memory?  */
 	  last_examine_value
-	    = release_value (value_at_lazy (val_type, next_address));
+	    = release_value (
+#ifndef ENABLE_E2K_QUIRKS
+			     value_at_lazy (val_type, next_address)
+#else /* ENABLE_E2K_QUIRKS  */
+			     gdbarch_examine_value
+			     (next_gdbarch, format, val_type, next_address)
+#endif /* ENABLE_E2K_QUIRKS  */
+			     );
 
 	  print_formatted (last_examine_value.get (), size, &opts, gdb_stdout);
 
@@ -3441,4 +3548,13 @@ Fetch the logical and allocation tags for POINTER and compare them\n\
 for equality.  If the tags do not match, print additional information about\n\
 the tag mismatch."),
 	   &memory_tag_list);
+
+  add_setshow_zuinteger_cmd ("symbolic-offset-radix", class_support,
+                             &symbolic_offset_radix_1,
+			     _("\
+Set default output radix for printing of symbolic offsets."), _("\
+Show default output radix for printing of symbolic offsets."), NULL,
+			     set_symbolic_offset_radix,
+			     show_symbolic_offset_radix,
+			     &setprintlist, &showprintlist);
 }

@@ -2223,6 +2223,17 @@ GDB_AC_SELFTEST([
   CONFIG_SRCS="$CONFIG_SRCS \$(SELFTESTS_SRCS)"
 ])
 
+if test x"${enable_e2k_quirks}" != x ; then
+    AC_DEFINE_UNQUOTED(ENABLE_E2K_QUIRKS, 1,
+		       [Define to enable e2k quirks in arch-independent code.])
+fi
+
+if test x"${enable_e2k_golang_quirks}" != x ; then
+    AC_DEFINE_UNQUOTED(ENABLE_E2K_GOLANG_QUIRKS, 1,
+		       [Define to enable e2k-golang quirks in arch-independent code.])
+fi
+
+
 GDB_AC_TRANSFORM([gdb], [GDB_TRANSFORM_NAME])
 GDB_AC_TRANSFORM([gcore], [GCORE_TRANSFORM_NAME])
 AC_CONFIG_FILES([gcore], [chmod +x gcore])

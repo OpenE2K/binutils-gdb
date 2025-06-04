@@ -2063,6 +2063,7 @@ const struct elf_size_info NAME(_bfd_elf,size_info) = {
   1,
   ARCH_SIZE, LOG_FILE_ALIGN,
   ELFCLASS, EV_CURRENT,
+  ARCH_SIZE,
   elf_write_out_phdrs,
   elf_write_shdrs_and_ehdr,
   elf_checksum_contents,

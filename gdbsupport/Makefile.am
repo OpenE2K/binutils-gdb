@@ -52,6 +52,10 @@ if HAVE_PIPE_OR_PIPE2
 eventpipe = event-pipe.cc
 endif
 
+if E2K_QUIRKS
+arch_specific = e2k-linux-regs.cc
+endif
+
 libgdbsupport_a_SOURCES = \
     agent.cc \
     btrace-common.cc \
@@ -92,7 +96,8 @@ libgdbsupport_a_SOURCES = \
     thread-pool.cc \
     xml-utils.cc \
     ${eventpipe} \
-    $(selftest)
+    $(selftest) \
+    $(arch_specific)
 
 # Double-check that no defines are missing from our configury.
 check-defines:

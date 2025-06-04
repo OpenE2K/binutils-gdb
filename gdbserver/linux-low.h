@@ -322,6 +322,14 @@ public:
 
   bool supports_catch_syscall () override;
 
+#ifdef __e2k__
+  int qxfer_tags (unsigned char *readbuf, unsigned const char *writebuf,
+		  CORE_ADDR offset, int len);// override;
+
+  int qxfer_packed_tags (unsigned char *readbuf, unsigned const char *writebuf,
+			 CORE_ADDR offset, int len);// override;
+#endif /* __e2k__  */
+
   /* Return the information to access registers.  This has public
      visibility because proc-service uses it.  */
   virtual const regs_info *get_regs_info () = 0;
@@ -908,6 +916,10 @@ struct lwp_info
   /* The pthread_t handle.  */
   thread_t thread_handle {};
 #endif
+
+#if 0
+  int syscall_state;
+#endif /* 0  */
 
   /* Arch-specific additions.  */
   struct arch_lwp_info *arch_private = nullptr;

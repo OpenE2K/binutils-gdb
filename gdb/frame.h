@@ -493,6 +493,12 @@ extern frame_info_ptr get_prev_frame_always (const frame_info_ptr &);
    is not found.  */
 extern frame_info_ptr frame_find_by_id (frame_id id);
 
+#ifdef ENABLE_E2K_QUIRKS
+extern void frame_stash_remove (frame_info_ptr fi);
+extern void compute_frame_id (const frame_info_ptr &fi);
+extern void reset_prev_frame_raw (frame_info_ptr fi, int success);
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Base attributes of a frame: */
 
 /* The frame's `resume' address.  Where the program will resume in
@@ -684,6 +690,10 @@ const char *unwind_stop_reason_to_string (enum unwind_stop_reason);
 
 const char *frame_stop_reason_string (const frame_info_ptr &);
 
+#ifdef ENABLE_E2K_QUIRKS
+struct lval_funcs;
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Unwind the stack frame so that the value of REGNUM, in the previous
    (up, older) frame is returned.  If VALUEP is NULL, don't
    fetch/compute the value.  Instead just return the location of the
@@ -691,7 +701,12 @@ const char *frame_stop_reason_string (const frame_info_ptr &);
 extern void frame_register_unwind (const frame_info_ptr &frame, int regnum,
 				   int *optimizedp, int *unavailablep,
 				   enum lval_type *lvalp,
-				   CORE_ADDR *addrp, int *realnump,
+				   CORE_ADDR *addrp,
+#ifdef ENABLE_E2K_QUIRKS
+                                   struct lval_funcs **funcs,
+                                   void **closure,
+#endif /* ENABLE_E2K_QUIRKS  */
+                                   int *realnump,
 				   gdb_byte *valuep);
 
 /* Fetch a register from this, or unwind a register from the next

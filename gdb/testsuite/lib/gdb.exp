@@ -2118,9 +2118,9 @@ proc gdb_assert { condition {message ""} } {
 proc gdb_reinitialize_dir { subdir } {
     global gdb_prompt
 
-    if [is_remote host] {
-	return ""
-    }
+#    if [is_remote host] {
+#	return ""
+#    }
     send_gdb "dir\n"
     gdb_expect 60 {
 	-re "Reinitialize source path to empty.*y or n. " {
@@ -6509,6 +6509,25 @@ proc spawn_id_get_pid { spawn_id } {
 proc spawn_wait_for_attach_1 { executable_list } {
     set spawn_id_list {}
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 520a6a7e3a4fd4815de824157d53f9c615fe6e0d
+    if ![can_spawn_for_attach] {
+	# The caller should have checked can_spawn_for_attach itself
+	# before getting here.
+	error "can't spawn for attach with this target/board"
+    }
+
+<<<<<<< HEAD
+    global host_board
+=======
+>>>>>>> 7a1550fcecb8db0fc6db0d59b18d3ca5ac6f4d39
+=======
+>>>>>>> 520a6a7e3a4fd4815de824157d53f9c615fe6e0d
+=======
+>>>>>>> 14b1358663da4d79976e2ec3a1f4856e70287337
     foreach {executable} $executable_list {
 	# Note we use Expect's spawn, not Tcl's exec, because with
 	# spawn we control when to wait for/reap the process.  That
@@ -7244,7 +7263,7 @@ proc standard_temp_file {basename} {
     # Since a particular runtest invocation is only executing a single test
     # file at any given time, we can use the runtest pid to build the
     # path of the temp directory.
-    set dir [make_gdb_parallel_path temp [pid]]
+    set dir [make_gdb_parallel_path /auto/malakhov/tmp [pid]]
     file mkdir $dir
     return [file join $dir $basename]
 }
@@ -8178,7 +8197,7 @@ proc gdb_gnu_strip_debug { dest args } {
     # run cannot be broken by some stale file searched with higher precedence.
     set debug_file "${dest}.debug"
 
-    set strip_to_file_program [transform strip]
+    set strip_to_file_program [gdb_find_strip]
     set objcopy_program [gdb_find_objcopy]
 
     set debug_link [file tail $debug_file]

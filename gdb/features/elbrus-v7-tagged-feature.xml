@@ -1,0 +1,51 @@
+<feature name="org.mcst.gdb.e2k-tagged.linux">
+  <!-- All sorts of tagged types.  -->
+
+  <struct id="mem_etags32" size="1">
+    <field name="tag0" start="0" end="1"/>
+    <field name="color" start="2" end="4"/>
+  </struct>
+
+  <struct id="mem_etags64" size="1">
+    <field name="tag0" start="0" end="1"/>
+    <field name="tag1" start="2" end="3"/>
+    <field name="color" start="4" end="6"/>
+  </struct>
+
+  <struct id="mem_tagged32">
+    <field name="word" type="uint32"/>
+    <field name="" type="mem_etags32"/>
+  </struct>
+
+
+  <struct id="mem_tagged64">
+    <field name="dword" type="uint64"/>
+    <field name="" type="mem_etags64"/>
+  </struct>
+
+  <!-- FIXME: here I probably need a special `etags32' type: `etags' contains
+       too many tags for a 32-bit value . . .  -->
+  <struct id="mem_signed_tagged32">
+    <field name="word" type="int32"/>
+    <field name="" type="mem_etags32"/>
+  </struct>
+
+
+  <struct id="mem_signed_tagged64">
+    <field name="dword" type="int64"/>
+    <field name="" type="mem_etags64"/>
+  </struct>
+
+  <!-- 818  -->
+  <reg name="_mem_tagged32" bitsize="64" type="mem_tagged32"/>
+
+  <!-- 824 - 825: refresh, on what grounds BITSIZE value is selected. Should
+       it take tags into account? May I set it to 32 for `_signed_tagged32'?
+       Why is it set to 64 for `_r0, . . ., _r63'?   -->
+  <reg name="_mem_signed_tagged32" bitsize="64" type="mem_signed_tagged32"/>
+  <reg name="_mem_signed_tagged64" bitsize="64" type="mem_signed_tagged64"/>
+
+  <!-- The number is yet to be assigned to this newly added fake raw register! -->
+  <reg name="_mem_tagged64" bitsize="64" type="mem_tagged64"/>
+
+</feature>

@@ -75,6 +75,7 @@
 #define ELFOSABI_FENIXOS     16 /* FenixOS */
 #define ELFOSABI_CLOUDABI    17 /* Nuxi CloudABI */
 #define ELFOSABI_OPENVOS     18 /* Stratus Technologies OpenVOS */
+#define ELFOSABI_KPDA        30 /* KPDA ABI */
 
 #define ELFOSABI_C6000_ELFABI 64 /* Bare-metal TMS320C6000 */
 #define ELFOSABI_AMDGPU_HSA  64 /* AMD HSA Runtime */
@@ -160,6 +161,7 @@
 #define EM_H8_300H	 47	/* Renesas (formerly Hitachi) H8/300H */
 #define EM_H8S		 48	/* Renesas (formerly Hitachi) H8S */
 #define EM_H8_500	 49	/* Renesas (formerly Hitachi) H8/500 */
+#define EM_E2K_OLD       49     /* Old E2K arch code (rather confusing) */
 #define EM_IA_64	 50	/* Intel IA-64 Processor */
 #define EM_MIPS_X	 51	/* Stanford MIPS-X */
 #define EM_COLDFIRE	 52	/* Motorola Coldfire */
@@ -817,6 +819,10 @@
    must start with "SPU/".  */
 
 #define NT_SPU		1
+
+/* Values of note segment descriptor types for object files on
+   MCST systems. Note name is "MCST".  */
+#define NT_MAGIC		1
 
 /* Values of note segment descriptor types for object files.  */
 

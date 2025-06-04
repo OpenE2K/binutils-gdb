@@ -625,7 +625,8 @@ generate_c_for_variable_locations (compile_instance *compiler,
   if (static_block == NULL || block == static_block)
     return {};
 
-  std::vector<bool> registers_used (gdbarch_num_regs (gdbarch));
+  std::vector<bool> registers_used (gdbarch_num_regs (gdbarch)
+				    + gdbarch_num_pseudo_regs (gdbarch));
 
   /* Ensure that a given name is only entered once.  This reflects the
      reality of shadowing.  */

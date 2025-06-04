@@ -3651,7 +3651,21 @@ proceed (CORE_ADDR addr, enum gdb_signal siggnal)
 	   Note, we don't do this in reverse, because we won't
 	   actually be executing the breakpoint insn anyway.
 	   We'll be (un-)executing the previous instruction.  */
-	cur_thr->stepping_over_breakpoint = 1;
+	{
+#ifdef ENABLE_E2K_QUIRKS
+          /* All this is true when we haven't hit a syscall catchpoint.
+             In the latter case we may very well wish to hit a breakpoint
+             at the next instruction after syscall. */
+
+          ptid_t wait_ptid;
+          struct target_waitstatus wait_status;
+
+          get_last_target_status (nullptr, &wait_ptid, &wait_status);
+          if (wait_status.kind () != TARGET_WAITKIND_SYSCALL_ENTRY
+              && wait_status.kind () != TARGET_WAITKIND_SYSCALL_RETURN)
+#endif /* ENABLE_E2K_QUIRKS  */
+	    cur_thr->stepping_over_breakpoint = 1;
+	}
       else if (gdbarch_single_step_through_delay_p (gdbarch)
 	       && gdbarch_single_step_through_delay (gdbarch,
 						     get_current_frame ()))
@@ -6135,6 +6149,16 @@ handle_inferior_event (struct execution_control_state *ecs)
      non-executable stack.  This happens for call dummy breakpoints
      for architectures like SPARC that place call dummies on the
      stack.  */
+
+  /* I believe that on E2K no signal different from SIGTRAP can be obtained for
+     a breakpoint. The last statement that SIGSEGV can be generated when hitting
+     a breakpoint on a non-executable stack isn't relevant to E2K as well, since
+     I no longer use CALL trampolines on stack. At the same time on E2K one may
+     very well get SIGSEGV related to the preceding instruction simultaneously
+     with hitting a breakpoint, in which case the underlying activity will make
+     GDB ignore it (see Bug #81627 for an example). Therefore, it's probably
+     safe and makes sense to skip this on E2K.  */
+#ifndef ENABLE_E2K_QUIRKS
   if (ecs->ws.kind () == TARGET_WAITKIND_STOPPED
       && (ecs->ws.sig () == GDB_SIGNAL_ILL
 	  || ecs->ws.sig () == GDB_SIGNAL_SEGV
@@ -6149,6 +6173,7 @@ handle_inferior_event (struct execution_control_state *ecs)
 	  ecs->ws.set_stopped (GDB_SIGNAL_TRAP);
 	}
     }
+#endif /* ENABLE_E2K_QUIRKS  */
 
   mark_non_executing_threads (ecs->target, ecs->ptid, ecs->ws);
 
@@ -6973,7 +6998,7 @@ handle_signal_stop (struct execution_control_state *ecs)
       && ecs->event_thread->stepping_over_watchpoint)
     stopped_by_watchpoint = 0;
   else
-    stopped_by_watchpoint = watchpoints_triggered (ecs->ws);
+    stopped_by_watchpoint = watchpoints_triggered (gdbarch, ecs->ws);
 
   /* If necessary, step over this watchpoint.  We'll be back to display
      it in a moment.  */
@@ -9256,6 +9281,12 @@ print_signal_received_reason (struct ui_out *uiout, enum gdb_signal siggnal)
 	gdbarch_report_signal_info (gdbarch, uiout, siggnal);
 
       annotate_signal_string_end ();
+
+#ifdef ENABLE_E2K_QUIRKS
+      /* The underlying ".\n" looks irrelevant after E2K-specific `report_
+         signal_info ()' has produced its output.  */
+      return;
+#endif /* ENABLE_E2K_QUIRKS  */
     }
   uiout->text (".\n");
 }

@@ -4337,7 +4337,8 @@ add_matching_symbols_to_info (const char *name,
 	    { return info->add_symbol (bsym); });
 	  search_minsyms_for_name (info, lookup_name, pspace, NULL);
 	}
-      else if (pspace == NULL || pspace == elt->compunit ()->objfile ()->pspace)
+      else if ((pspace == NULL || pspace == elt->compunit ()->objfile ()->pspace)
+	       && !elt->compunit ()->objfile ()->pspace->executing_startup)
 	{
 	  int prev_len = info->result.symbols->size ();
 

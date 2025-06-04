@@ -108,6 +108,11 @@ struct dwarf2_per_cu_data
       mark (false),
       files_read (false),
       scanned (false)
+#if defined __LCC__
+    , m_unit_type ((dwarf_unit_type) 0),
+      m_lang (language_unknown),
+      m_dw_lang ((dwarf_source_language) 0)
+#endif /* defined __LCC__  */
   {
   }
 
@@ -177,10 +182,18 @@ public:
 
 private:
   /* The unit type of this CU.  */
-  std::atomic<packed<dwarf_unit_type, 1>> m_unit_type {(dwarf_unit_type)0};
+  std::atomic<packed<dwarf_unit_type, 1>> m_unit_type
+#if ! defined __LCC__
+  {(dwarf_unit_type)0}
+#endif /* ! defined __LCC__  */
+  ;
 
   /* The language of this CU.  */
-  std::atomic<packed<language, LANGUAGE_BYTES>> m_lang {language_unknown};
+  std::atomic<packed<language, LANGUAGE_BYTES>> m_lang
+#if ! defined __LCC__
+  {language_unknown}
+#endif /* ! defined __LCC__  */
+  ;
 
   /* The original DW_LANG_* value of the CU, as provided to us by
      DW_AT_language.  It is interesting to keep this value around in cases where

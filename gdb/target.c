@@ -516,23 +516,23 @@ target_can_do_single_step ()
 /* See target.h.  */
 
 int
-target_insert_watchpoint (CORE_ADDR addr, int len, target_hw_bp_type type,
-			  expression *cond)
+target_insert_watchpoint (gdbarch *gdbarch, CORE_ADDR addr, int len,
+			  target_hw_bp_type type, expression *cond)
 {
   target_ops *target = current_inferior ()->top_target ();
 
-  return target->insert_watchpoint (addr, len, type, cond);
+  return target->insert_watchpoint (gdbarch, addr, len, type, cond);
 }
 
 /* See target.h.  */
 
 int
-target_remove_watchpoint (CORE_ADDR addr, int len, target_hw_bp_type type,
-			  expression *cond)
+target_remove_watchpoint (gdbarch *gdbarch,CORE_ADDR addr, int len,
+			  target_hw_bp_type type, expression *cond)
 {
   target_ops *target = current_inferior ()->top_target ();
 
-  return target->remove_watchpoint (addr, len, type, cond);
+  return target->remove_watchpoint (gdbarch, addr, len, type, cond);
 }
 
 /* See target.h.  */
@@ -3661,6 +3661,11 @@ dummy_make_corefile_notes (struct target_ops *self,
 {
   error (_("Command not implemented for this target."));
   return NULL;
+}
+
+static void
+dummy_make_corefile_sections (struct target_ops *self, bfd *abfd)
+{
 }
 
 #include "target-delegates.c"

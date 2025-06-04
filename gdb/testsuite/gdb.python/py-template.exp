@@ -16,7 +16,13 @@
 # This file is part of the GDB testsuite.  It tests the mechanism
 # exposing values to Python.
 
+<<<<<<< HEAD
+set USE_GCC 1
+
+if { [skip_cplus_tests] } { continue }
+=======
 require allow_cplus_tests allow_python_tests
+>>>>>>> dd19001ff621dbdaddadf71d3b4984ea016fd153
 
 standard_testfile .cc
 if { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}" executable \

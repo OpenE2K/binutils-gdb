@@ -33,6 +33,8 @@
 # test running programs
 #
 
+set USE_GCC 1
+
 # Use the same test program constvars.c.
 
 if { [prepare_for_testing "failed to prepare" volatile constvars.c] } {

@@ -174,7 +174,15 @@ value_allocate_space_in_inferior (int len)
   struct gdbarch *gdbarch = objf->arch ();
   struct value *blocklen;
 
+#ifndef ENABLE_E2K_QUIRKS
   blocklen = value_from_longest (builtin_type (gdbarch)->builtin_int, len);
+#else /* ENABLE_E2K_QUIRKS */
+  /* I don't know whether the original code (see above) works on 64-bit
+     platforms. On e2k we end up with rubbish in the high 64-bit register
+     half, whereas malloc () expects a 64-bit size_t argument . . . */
+  blocklen = value_from_longest (builtin_type (gdbarch)->builtin_long_long, len);
+#endif /* ENABLE_E2K_QUIRKS */
+
   val = call_function_by_hand (val, NULL, blocklen);
   if (value_logical_not (val))
     {
@@ -424,6 +432,16 @@ value_cast (struct type *type, struct value *arg2)
 	}
       return arg2;
     }
+
+#ifdef ENABLE_E2K_QUIRKS
+  {
+    struct gdbarch *gdbarch;
+
+    gdbarch = arg2->type ()->arch ();
+    if (gdbarch)
+      gdbarch_adjust_binop_arg (gdbarch, &arg2);
+  }
+#endif /* ENABLE_E2K_QUIRKS */
 
   if (is_fixed_point_type (type))
     return value_cast_to_fixed_point (type, arg2);
@@ -1114,7 +1132,21 @@ value_assign (struct value *toval, struct value *fromval)
   /* Since modifying a register can trash the frame chain, and
      modifying memory can trash the frame cache, we save the old frame
      and then restore the new frame afterwards.  */
-  old_frame = get_frame_id (deprecated_safe_get_selected_frame ());
+
+  /* In the original GDB sources from master OLD_FRAME is obtained
+     unconditionally. However, at E2K I employ a temporary `struct value' when
+     calculating a frame id in order to modify bit fields of some stack
+     registers (details should be revisited). As a result I used to get a
+     deadlock because this function was called at each modification of that
+     temporary value. Avoid calculating OLD_FRAME when it's not actually
+     required (I believe that the modification of a temporary cannot have any
+     impact on the frame chain and so on).  */
+#ifdef ENABLE_E2K_QUIRKS
+  if (toval->lval () == lval_memory
+      || toval->lval () == lval_register
+      || toval->lval () == lval_computed)
+#endif /* ENABLE_E2K_QUIRKS  */
+    old_frame = get_frame_id (deprecated_safe_get_selected_frame ());
 
   switch (toval->lval ())
     {
@@ -1274,6 +1306,11 @@ value_assign (struct value *toval, struct value *fromval)
 	  }
       }
       [[fallthrough]];
+
+    /* Nothing to do here. `memcpy ()' below will do everything
+       we need. */
+    case lval_temp:
+      break;
 
     default:
       error (_("Left operand of assignment is not an lvalue."));

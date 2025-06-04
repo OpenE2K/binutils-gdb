@@ -961,6 +961,10 @@ EOF
 		cpu=x86_64
 		vendor=pc
 		;;
+	e2k | e2k64 | e2k32 | e2k128)
+		cpu=$basic_machine
+		vendor=mcst
+		;;
 	# Recognize the basic CPU types without company name.
 	*)
 		cpu=$basic_machine
@@ -1198,7 +1202,7 @@ case $cpu-$vendor in
 			| c[123]* | c30 | [cjt]90 | c4x \
 			| c8051 | clipper | craynv | csky | cydra \
 			| d10v | d30v | dlx | dsp16xx \
-			| e2k | elxsi | epiphany \
+			| e2k | e2k64 | e2k32 | e2k128 | elxsi | epiphany \
 			| f30[01] | f700 | fido | fr30 | frv | ft32 | fx80 \
 			| javascript \
 			| h8300 | h8500 \
@@ -1740,7 +1744,7 @@ case $os in
 	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
 	     | sym* |  plan9* | psp* | sim* | xray* | os68k* | v88r* \
 	     | hiux* | abug | nacl* | netware* | windows* \
-	     | os9* | macos* | osx* | ios* | tvos* | watchos* \
+	     | os9* | macos* | osx* | ios* | tvos* | watchos* | kpda* \
 	     | mpw* | magic* | mmixware* | mon960* | lnews* \
 	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
 	     | aos* | aros* | cloudabi* | sortix* | twizzler* \

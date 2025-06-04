@@ -1,0 +1,162 @@
+<feature name="org.mcst.gdb.e2k-rwap.linux">
+
+  <!-- USD_RWAP_LO -->
+  <struct id="usd_rwap_lo_bits" size="8">
+    <field name="base" start="0" end="47"/>
+    <field name="p" start="58" end="58"/>
+    <field name="rw" start="59" end="60"/>
+  </struct>
+
+  <union id="usd_rwap_lo">
+    <field name="dword" type="uint64"/>
+    <field name="" type="usd_rwap_lo_bits"/>
+  </union>
+
+  <!-- USD_RWAP_HI  -->
+  <struct id="usd_rwap_hi_bits" size="8">
+    <!-- What did I mean by saying "Should be 0" here???  -->
+    <field name="curptr" start="0" end="31"/>
+    <field name="size" start="32" end="63"/>
+  </struct>
+
+  <union id="usd_rwap_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="usd_rwap_hi_bits"/>
+  </union>
+
+  <!-- 269: The format of %(P)USD depends on  whether the protected mode is
+       on or off. What am I going to do with this?  -->
+  <reg name="usd_lo" bitsize="64" type="usd_rwap_lo"/>
+
+  <!-- 270  -->
+  <reg name="usd_hi" bitsize="64" type="usd_rwap_hi"/>
+
+  <!-- PSP_RWAP_LO  -->
+  <struct id="psp_rwap_lo_bits" size="8">
+    <field name="base" start="0" end="47"/>
+    <!-- Should be "rw"  -->
+    <field name="rw" start="59" end="60"/>
+  </struct>
+
+  <union id="psp_rwap_lo">
+    <field name="dword" type="uint64"/>
+    <field name="" type="psp_rwap_lo_bits"/>
+  </union>
+
+  <!-- PSP_RWAP_HI  -->
+  <struct id="psp_rwap_hi_bits" size="8">
+    <field name="ind" start="0" end="31"/>
+    <field name="size" start="32" end="63"/>
+  </struct>
+
+  <union id="psp_rwap_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="psp_rwap_hi_bits"/>
+  </union>
+
+  <!-- 271  -->
+  <reg name="_psp_lo" bitsize="64" type="psp_rwap_lo"/>
+
+  <!-- 272  -->
+  <reg name="_psp_hi" bitsize="64" type="psp_rwap_hi"/>
+
+  <!-- PCSP_RWAP_LO  -->
+  <struct id="pcsp_rwap_lo_bits" size="8">
+    <field name="base" start="0" end="47"/>
+    <!-- This should contain "rw".  -->
+    <field name="rw" start="59" end="60"/>
+  </struct>
+
+  <union id="pcsp_rwap_lo">
+    <field name="dword" type="uint64"/>
+    <field name="" type="pcsp_rwap_lo_bits"/>
+  </union>
+
+  <!-- PCSP_RWAP_HI  -->
+  <struct id="pcsp_rwap_hi_bits" size="8">
+    <field name="ind" start="0" end="31"/>
+    <field name="size" start="32" end="63"/>
+  </struct>
+
+  <union id="pcsp_rwap_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="pcsp_rwap_hi_bits"/>
+  </union>
+
+  <!-- 279  -->
+  <reg name="_pcsp_lo" bitsize="64" type="pcsp_rwap_lo"/>
+
+  <!-- 280  -->
+  <reg name="_pcsp_hi" bitsize="64" type="pcsp_rwap_hi"/>
+
+  <!-- RWAP_LO  -->
+  <struct id="rwap_lo_bits" size="8">
+    <field name="base" start="0" end="47"/>
+    <field name="stub3" start="56" end="56"/>
+    <field name="stub2" start="57" end="57"/>
+    <field name="stub1" start="58" end="58"/>
+    <field name="rw" start="59" end="60"/>
+  </struct>
+
+  <union id="rwap_lo">
+    <field name="dword" type="uint64"/>
+    <field name="" type="rwap_lo_bits"/>
+  </union>
+
+  <!-- RWAP_HI  -->
+  <struct id="rwap_hi_bits" size="8">
+    <field name="curptr" start="0" end="31"/>
+    <field name="size" start="32" end="63"/>
+  </struct>
+
+  <union id="rwap_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="rwap_hi_bits"/>
+  </union>
+
+  <!-- 282  -->
+  <reg name="cud_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 283  -->
+  <reg name="cud_hi" bitsize="64" type="rwap_hi"/>
+
+  <!-- 284  -->
+  <reg name="gd_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 285  -->
+  <reg name="gd_hi" bitsize="64" type="rwap_hi"/>
+
+  <!-- PUSD_RWSAP_LO  -->
+  <struct id="pusd_rwsap_lo_bits" size="8">
+    <field name="base" start="0" end="31"/>
+    <field name="psl" start="32" end="47"/>
+    <!-- RWSAP.stub1 = PUSD.p  -->
+    <field name="p" start="58" end="58"/>
+    <!-- Should be  "rw"  -->
+    <field name="rw" start="59" end="60"/>
+  </struct>
+
+  <union id="pusd_rwsap_lo">
+    <field name="dword" type="uint64"/>
+    <field name="" type="pusd_rwsap_lo_bits"/>
+  </union>
+
+  <!-- PUSD_RWSAP_HI  -->
+  <struct id="pusd_rwsap_hi_bits" size="8">
+    <!-- Should be zero  -->
+    <field name="zero_0" start="0" end="31"/>
+    <field name="size" start="32" end="63"/>
+  </struct>
+
+  <union id="pusd_rwsap_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="pusd_rwsap_hi_bits"/>
+  </union>
+
+  <!-- 822  -->
+  <reg name="pusd_lo" bitsize="64" type="pusd_rwsap_lo"/>
+
+  <!-- 823  -->
+  <reg name="pusd_hi" bitsize="64" type="pusd_rwsap_hi"/>
+
+</feature>

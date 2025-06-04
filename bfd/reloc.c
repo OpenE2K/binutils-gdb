@@ -365,6 +365,15 @@ CODE_FRAGMENT
 .
 .  {* The textual name of the relocation type.  *}
 .  const char *name;
+.
+.  {* Override address space bitness provided by BFD unless zero.
+.     The rationale is e2k-specific DISP instruction (employing
+      R_E2K_DISP) operating with negative displacements in 32-bit
+.     mode as if it was 64-bit. This makes it impossible to reach
+.     labels located at the top of 32-bit address space from the ones
+.     at its bottom moving through zero: the ones at the top of 64-bit
+.     address space will be reached instead.  *}
+.  unsigned int bits_per_address;
 .};
 .
 */
@@ -379,11 +388,16 @@ DESCRIPTION
 
 .#define HOWTO_INSTALL_ADDEND 0
 .#define HOWTO_RSIZE(sz) ((sz) < 0 ? -(sz) : (sz))
-.#define HOWTO(type, right, size, bits, pcrel, left, ovf, func, name,	\
-.              inplace, src_mask, dst_mask, pcrel_off)			\
+.#define HOWTO_EX(type, right, size, bits, pcrel, left, ovf, func, name,	\
+.		  inplace, src_mask, dst_mask, pcrel_off, bpa)			\
 .  { (unsigned) type, HOWTO_RSIZE (size), bits, right, left, ovf,	\
 .    size < 0, pcrel, inplace, pcrel_off, HOWTO_INSTALL_ADDEND,		\
-.    src_mask, dst_mask, func, name }
+.    src_mask, dst_mask, func, name, bpa }
+
+.#define HOWTO(type, right, size, bits, pcrel, left, ovf, func, name,	\
+.              inplace, src_mask, dst_mask, pcrel_off)			\
+.  HOWTO_EX (type, right, size, bits, pcrel, left, ovf, func, name,	\
+.              inplace, src_mask, dst_mask, pcrel_off, 0)
 
 DESCRIPTION
 	This is used to fill in an empty howto entry in an array.
@@ -1227,7 +1241,9 @@ _bfd_relocate_contents (reloc_howto_type *howto,
 	 See also bfd_check_overflow.  */
       fieldmask = N_ONES (howto->bitsize);
       signmask = ~fieldmask;
-      addrmask = (N_ONES (bfd_arch_bits_per_address (input_bfd))
+      addrmask = ((howto->bits_per_address == 0
+		   ? N_ONES (bfd_arch_bits_per_address (input_bfd))
+		   : N_ONES (howto->bits_per_address))
 		  | (fieldmask << rightshift));
       a = (relocation & addrmask) >> rightshift;
       b = (x & howto->src_mask & addrmask) >> bitpos;
@@ -8366,6 +8382,111 @@ ENUMX
 
 ENUMDOC
   LARCH relocations.
+
+ENUM
+  BFD_RELOC_E2K_64_ABS_LIT
+ENUMDOC
+  This one corresponds to R_E2K_64_ABS_LIT.
+ENUM
+  BFD_RELOC_E2K_DISP
+ENUMDOC
+  This one corresponds to R_E2K_DISP.
+ENUM
+  BFD_RELOC_E2K_GOT
+ENUMDOC
+  This one corresponds to R_E2K_GOT.
+ENUM
+  BFD_RELOC_E2K_TLS_GDMOD
+ENUMDOC
+  This one corresponds to R_E2K_TLS_GDMOD.
+ENUM
+  BFD_RELOC_E2K_TLS_GDREL
+ENUMDOC
+  This one corresponds to R_E2K_TLS_GDREL.
+ENUM
+  BFD_RELOC_E2K_TLS_IE
+ENUMDOC
+  This one corresponds to R_E2K_TLS_IE.
+ENUM
+  BFD_RELOC_E2K_32_TLS_LE
+ENUMDOC
+  This one corresponds to R_E2K_32_TLS_LE.
+ENUM
+  BFD_RELOC_E2K_64_TLS_LE
+ENUMDOC
+  This one corresponds to R_E2K_64_TLS_LE.
+ENUM
+  BFD_RELOC_E2K_32_DTPREL
+ENUMDOC
+  This one corresponds to R_E2K_TLS_32_DTPREL.
+ENUM
+  BFD_RELOC_E2K_64_DTPREL
+ENUMDOC
+  This one corresponds to R_E2K_TLS_64_DTPREL.
+ENUM
+  BFD_RELOC_E2K_PLT
+ENUMDOC
+  This one corresponds to R_E2K_PLT.
+ENUM
+  BFD_RELOC_E2K_GOTPLT
+ENUMDOC
+  This one corresponds to R_E2K_GOTPLT.
+ENUM
+  BFD_RELOC_E2K_ISLOCAL
+ENUMDOC
+  This one corresponds to R_E2K_ISLOCAL.
+ENUM
+  BFD_RELOC_E2K_AP_GOT
+ENUMDOC
+  This one corresponds to R_E2K_AP_GOT.
+ENUM
+  BFD_RELOC_E2K_PL_GOT
+ENUMDOC
+  This one corresponds to R_E2K_PL_GOT.
+ENUM
+  BFD_RELOC_E2K_PREF
+ENUMDOC
+  This one corresponds to R_E2K_PREF.
+ENUM
+  BFD_RELOC_E2K_ISLOCAL32
+ENUMDOC
+  This one corresponds to R_E2K_ISLOCAL32.
+ENUM
+  BFD_RELOC_E2K_GOTOFF64
+ENUMDOC
+  This one corresponds to R_E2K_GOTOFF64.
+ENUM
+  BFD_RELOC_E2K_GOTOFF64_LIT
+ENUMDOC
+  This one corresponds to R_E2K_GOTOFF64_LIT.
+ENUM
+  BFD_RELOC_E2K_AP
+ENUMDOC
+  This one corresponds to R_E2K_AP.
+ENUM
+  BFD_RELOC_E2K_PL
+ENUMDOC
+  This one corresponds to R_E2K_PL.
+ENUM
+  BFD_RELOC_E2K_DYNOPT32
+ENUMDOC
+  This one corresponds to R_E2K_32_DYNOPT.
+ENUM
+  BFD_RELOC_E2K_DYNOPT64
+ENUMDOC
+  This one corresponds to R_E2K_64_DYNOPT.
+ENUM
+  BFD_RELOC_E2K_ALIGN_RELAX
+ENUMDOC
+  This one corresponds to R_E2K_ALIGN_RELAX.
+ENUM
+  BFD_RELOC_E2K_HWBUG_140436_RELAX
+ENUMDOC
+  This one corresponds to R_E2K_HWBUG_140436_RELAX.
+ENUM
+  BFD_RELOC_E2K_64_PCREL_LIT
+ENUMDOC
+  This one corresponds to R_E2K_64_PC_LIT.
 
 ENDSENUM
   BFD_RELOC_UNUSED

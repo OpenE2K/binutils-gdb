@@ -174,4 +174,8 @@ extern std::string cplus_compute_program (compile_instance *inst,
 
 extern gdb::unique_xmalloc_ptr<char> c_canonicalize_name (const char *name);
 
+#ifdef ENABLE_E2K_QUIRKS
+extern const char *c_extensions[];
+#endif /* ENABLE_E2K_QUIRKS  */
+
 #endif /* !defined (C_LANG_H) */

@@ -177,6 +177,16 @@ proc gdb_find_readelf {} {
     return $readelf
 }
 
+<<<<<<< HEAD
+proc gdb_find_strip {} {
+    global STRIP_FOR_TARGET
+    if [info exists STRIP_FOR_TARGET] {
+	set strip $STRIP_FOR_TARGET
+    } else {
+	set strip [transform strip]
+    }
+    return $strip
+=======
 proc gdb_find_eu-unstrip {} {
     global EU_UNSTRIP_FOR_TARGET
     if [info exists EU_UNSTRIP_FOR_TARGET] {
@@ -185,6 +195,7 @@ proc gdb_find_eu-unstrip {} {
 	set eu_unstrip [transform eu-unstrip]
     }
     return $eu_unstrip
+>>>>>>> a45328b93bdd5399da8a9e56817e445cc2068edd
 }
 
 # Local version of default_target_compile, to be used for languages that
@@ -732,6 +743,14 @@ if {[info procs find_rustc] == ""} {
     rename gdb_find_rustc ""
 }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+set use_gdb_compile 0
+
+if {$use_gdb_compile} {
+    catch {rename default_target_compile {}}
+=======
+=======
 if {[info procs find_hipcc] == ""} {
     rename gdb_find_hipcc find_hipcc
     set use_gdb_compile(hip) 1
@@ -740,10 +759,12 @@ if {[info procs find_hipcc] == ""} {
     rename gdb_find_hipcc ""
 }
 
+>>>>>>> 69790173961f316fd1f999ed468e44e3d6a66eab
 # If dejagnu's default_target_compile is missing support for any language,
 # override it.
 if { [array size use_gdb_compile] != 0 } {
     catch {rename default_target_compile dejagnu_default_target_compile}
+>>>>>>> 17fc27167f678285d2f64040837b8cc41b6a664a
     rename gdb_default_target_compile default_target_compile
 } else {
     rename gdb_default_target_compile ""

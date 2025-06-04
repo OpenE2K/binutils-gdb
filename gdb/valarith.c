@@ -302,9 +302,23 @@ binop_types_user_defined_p (enum exp_opcode op,
 
 int
 binop_user_defined_p (enum exp_opcode op,
-		      struct value *arg1, struct value *arg2)
+		      struct value **arg1, struct value **arg2)
 {
-  return binop_types_user_defined_p (op, arg1->type (), arg2->type ());
+#ifdef ENABLE_E2K_QUIRKS
+
+  struct gdbarch *gdbarch;
+
+  gdbarch = (*arg1)->type ()->arch ();
+  if (gdbarch)
+    gdbarch_adjust_binop_arg (gdbarch, arg1);
+
+  gdbarch = (*arg2)->type ()->arch ();
+  if (gdbarch)
+    gdbarch_adjust_binop_arg (gdbarch, arg2);
+
+#endif /* ENABLE_E2K_QUIRKS  */
+
+  return binop_types_user_defined_p (op, (*arg1)->type (), (*arg2)->type ());
 }
 
 /* Check to see if argument is a structure.  This is called so
@@ -314,13 +328,24 @@ binop_user_defined_p (enum exp_opcode op,
    For now, we do not overload the `&' operator.  */
 
 int
-unop_user_defined_p (enum exp_opcode op, struct value *arg1)
+unop_user_defined_p (enum exp_opcode op, struct value **arg1)
 {
   struct type *type1;
 
+#ifdef ENABLE_E2K_QUIRKS
+  struct gdbarch *gdbarch;
+#endif /* ENABLE_E2K_QUIRKS  */
+
   if (op == UNOP_ADDR)
     return 0;
-  type1 = check_typedef (arg1->type ());
+
+#ifdef ENABLE_E2K_QUIRKS
+  gdbarch = (*arg1)->type ()->arch ();
+  if (gdbarch)
+    gdbarch_adjust_binop_arg (gdbarch, arg1);
+#endif /* ENABLE_E2K_QUIRKS  */
+
+  type1 = check_typedef ((*arg1)->type ());
   if (TYPE_IS_REFERENCE (type1))
     type1 = check_typedef (type1->target_type ());
   return type1->code () == TYPE_CODE_STRUCT;
@@ -1145,6 +1170,20 @@ scalar_binop (struct value *arg1, struct value *arg2, enum exp_opcode op)
 
   arg1 = coerce_ref (arg1);
   arg2 = coerce_ref (arg2);
+
+#ifdef ENABLE_E2K_QUIRKS
+  {
+    struct gdbarch *gdbarch;
+
+    gdbarch = arg1->type ()->arch ();
+    if (gdbarch)
+      gdbarch_adjust_binop_arg (gdbarch, &arg1);
+
+    gdbarch = arg2->type ()->arch ();
+    if (gdbarch)
+      gdbarch_adjust_binop_arg (gdbarch, &arg2);
+  }
+#endif /* ENABLE_E2K_QUIRKS */
 
   type1 = check_typedef (arg1->type ());
   type2 = check_typedef (arg2->type ());

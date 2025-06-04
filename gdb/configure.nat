@@ -52,8 +52,15 @@
 # This first case is useful for filling default values for each
 # gdb_host.
 case ${gdb_host} in
-    *linux*)
-	NAT_FILE='config/nm-linux.h'
+    *linux* | e2k-golang)
+	case ${gdb_host} in
+	    *linux*)
+		NAT_FILE='config/nm-linux.h'
+		;;
+	    e2k-golang)
+		NAT_FILE='config/nm-e2k-golang.h'
+		;;
+	esac
 	NATDEPFILES='inf-ptrace.o fork-child.o nat/fork-inferior.o \
 		proc-service.o \
 		linux-thread-db.o linux-nat.o nat/linux-osdata.o linux-fork.o \
@@ -312,6 +319,17 @@ case ${gdb_host} in
 	    xtensa)
 		# Host: Xtensa, running GNU/Linux.
 		NATDEPFILES="${NATDEPFILES} xtensa-linux-nat.o"
+		;;
+	    e2k)
+		# Host: GNU/Linux E2K
+		NATDEPFILES="${NATDEPFILES} e2k-nat.o e2k-linux-nat.o nat/e2k-dregs.o nat/e2k-linux-dregs.o nat/e2k-linux.o"
+		;;
+	esac
+	;;
+    e2k-golang)
+	case ${gdb_host_cpu} in
+	    e2k)
+		NATDEPFILES="${NATDEPFILES} e2k-golang-nat.o"
 		;;
 	esac
 	;;

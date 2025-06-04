@@ -1,0 +1,71 @@
+| 00 | ANDs     | ANDs     | ANDs     |  | 40 | FXADDss  | FXADDss  | UDIVs    |
+| 01 | ANDd     | ANDd     | ANDd     |  | 41 | FXADDdd  | FXADDdd  | UDIVd    |
+| 02 | ANDNs    | ANDNs    | ANDNs    |  | 42 | FXADDsx  | FXADDsx  | SDIVs    |
+| 03 | ANDNd    | ANDNd    | ANDNd    |  | 43 | FXADDdx  | FXADDdx  | SDIVd    |
+| 04 | ORs      | ORs      | ORs      |  | 44 | FXADDxs  | FXADDxs  | UDIVX    |
+| 05 | ORd      | ORd      | ORd      |  | 45 | FXADDxd  | FXADDxd  | UMODX    |
+| 06 | ORNs     | ORNs     | ORNs     |  | 46 |          |          | SDIVX    |
+| 07 | ORNd     | ORNd     | ORNd     |  | 47 | FXADDxx  | FXADDxx  | SMODX    |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 08 | XORs     | XORs     | XORs     |  | 48 | FXSUBss  | FXSUBss  | FXDIVss  |
+| 09 | XORd     | XORd     | XORd     |  | 49 | FXSUBdd  | FXSUBdd  | FXDIVdd  |
+| 0a | XORNs    | XORNs    | XORNs    |  | 4a | FXSUBsx  | FXSUBsx  | FXDIVsx  |
+| 0b | XORNd    | XORNd    | XORNd    |  | 4b | FXSUBdx  | FXSUBdx  | FXDIVdx  |
+| 0c | SXT      | SXT      | SXT      |  | 4c | FXSUBxs  | FXSUBxs  | FXDIVxs  |
+| 0d |          |          |          |  | 4d | FXSUBxd  | FXSUBxd  | FXDIVxd  |
+| 0e | MERGEs   | MERGEs   | MERGEs   |  | 4e |          |          |          |
+| 0f | MERGEd   | MERGEd   | MERGEd   |  | 4f | FXSUBxx  | FXSUBxx  | FXDIVxx  |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 10 | ADDs     | ADDs     | ADDs     |  | 50 | FXMULss  | FXMULss  |          |
+| 11 | ADDd     | ADDd     | ADDd     |  | 51 | FXMULdd  | FXMULdd  |          |
+| 12 | SUBs     | SUBs     | SUBs     |  | 52 | FXMULsx  | FXMULsx  |FXSQRTIsx |
+| 13 | SUBd     | SUBd     | SUBd     |  | 53 | FXMULdx  | FXMULdx  |FXSQRTIdx |
+| 14 | SCLs     | SCLs     | SCLs     |  | 54 | FXMULxs  | FXMULxs  |          |
+| 15 | SCLd     | SCLd     | SCLd     |  | 55 | FXMULxd  | FXMULxd  |          |
+| 16 | SCRs     | SCRs     | SCRs     |  | 56 |          |          |          |
+| 17 | SCRd     | SCRd     | SCRd     |  | 57 | FXMULxx  | FXMULxx  |FXSQRTIxx |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 18 | SHLs     | SHLs     | SHLs     |  | 58 |FXRSUBss  |FXRSUBss  |          |
+| 19 | SHLd     | SHLd     | SHLd     |  | 59 |FXRSUBdd  |FXRSUBdd  |FXSQRTUxx |
+| 1a | SHRs     | SHRs     | SHRs     |  | 5a |FXRSUBsx  |FXRSUBsx  |FXSQRTUsx |
+| 1b | SHRd     | SHRd     | SHRd     |  | 5b |FXRSUBdx  |FXRSUBdx  |FXSQRTUdx |
+| 1c | SARs     | SARs     | SARs     |  | 5c | MOVFI    | MOVFI    |          |
+| 1d | SARd     | SARd     | SARd     |  | 5d |          |          |FXSQRTTxx |
+| 1e | GETFs    | GETFs    | GETFs    |  | 5e | MOVIF    | MOVIF    |FXSQRTTsx |
+| 1f | GETFd    | GETFd    | GETFd    |  | 5f | MOVX     | MOVX     |FXSQRTTdx |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 20 | CMPsb    | CMPsb    |          |  | 60 | MOVTs    | MOVTs    | FXDIVTss |
+| 21 | CMPdb    | CMPdb    |          |  | 61 | MOVTd    | MOVTd    | FXDIVTdd |
+| 22 | CMPANDsb | CMPANDsb |          |  | 62 | DRTOAP   | DRTOAP   | FXDIVTsx |
+| 23 | CMPANDdb | CMPANDdb |          |  | 63 | GETPL    | VFSI     | FXDIVTdx |
+| 24 | CCTOB    |          | STB      |  | 64 | LDB      | LZCNTs   | LDB      |
+| 25 |          |          | STH      |  | 65 | LDH      | LZCNTd   | LDH      |
+| 26 | BITREVs  | BITREVs  | STW      |  | 66 | LDW      | POPCNTs  | LDW      |
+| 27 | BITREVd  | BITREVd  | STD      |  | 67 | LDD      | POPCNTd  | LDD      |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 28 | FXCMPsb  | FXCMPsb  | STCSB    |  | 68 | LDCSB    | VFBGV    | LDCSB    |
+| 29 | FXCMPdb  | FXCMPdb  | STCSH    |  | 69 | LDCSH    | MODBGV   | LDCSH    |
+| 2a |          |          | STCSW    |  | 6a | LDCSW    | MKFSW    | LDCSW    |
+| 2b | FXCMPxb  | FXCMPxb  | STCSD    |  | 6b | LDCSD    |          | LDCSD    |
+| 2c |          |          | STDSB    |  | 6c | LDDSB    |          | LDDSB    |
+| 2d |          |          | STDSH    |  | 6d | LDDSH    |          | LDDSH    |
+| 2e | FCMPsb   | FCMPsb   | STDSW    |  | 6e | LDDSW    |          | LDDSW    |
+| 2f | FCMPdb   | FCMPdb   | STDSD    |  | 6f | LDDSD    |          | LDDSD    |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 30 | FADDs    | FADDs    | STESB    |  | 70 | LDESB    |          | LDESB    |
+| 31 | FADDd    | FADDd    | STESH    |  | 71 | LDESH    |          | LDESH    |
+| 32 | FSUBs    | FSUBs    | STESW    |  | 72 | LDESW    |          | LDESW    |
+| 33 | FSUBd    | FSUBd    | STESD    |  | 73 | LDESD    |          | LDESD    |
+| 34 | FMINs    | FMINs    | STFSB    |  | 74 | LDFSB    |          | LDFSB    |
+| 35 | FMINd    | FMINd    | STFSH    |  | 75 | LDFSH    |          | LDFSH    |
+| 36 | FMAXs    | FMAXs    | STFSW    |  | 76 | LDFSW    |          | LDFSW    |
+| 37 | FMAXd    | FMAXd    | STFSD    |  | 77 | LDFSD    |          | LDFSD    |
++----+----------+----------+----------+  +----+----------+----------+----------+
+| 38 | FMULs    | FMULs    | STGSB    |  | 78 | LDGSB    |          | LDGSB    |
+| 39 | FMULd    | FMULd    | STGSH    |  | 79 | LDGSH    |          | LDGSH    |
+| 3a |          |          | STGSW    |  | 7a | LDGSW    |          | LDGSW    |
+| 3b |          |          | STGSD    |  | 7b | LDGSD    |          | LDGSD    |
+| 3c | FSTOS    | FSTOS    | STSSB    |  | 7c | LDSSB    |          | LDSSB    |
+| 3d | FDTOD    | FDTOD    | STSSH    |  | 7d | LDSSH    |          | LDSSH    |
+| 3e | FSTOD    | FSTOD    | STSSW    |  | 7e | LDSSW    |          | LDSSW    |
+| 3f | FDTOS    | FDTOS    | STSSD    |  | 7f | LDSSD    |          | LDSSD    |

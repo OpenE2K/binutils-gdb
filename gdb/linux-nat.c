@@ -3896,10 +3896,17 @@ linux_nat_target::xfer_partial (enum target_object object,
 	 by linux_proc_xfer_partial.
 
 	 Compare ADDR_BIT first to avoid a compiler warning on shift overflow.  */
+
+	/* In 32-bit mode we should be probably able to access
+	   addresses beyond 2^32 - 1 since hardware stacks
+	   are likely to be located there. How can I override
+	   this in a normal way? */
+#if 1 /* def ENABLE_E2K_QUIRKS  */
       int addr_bit = gdbarch_addr_bit (current_inferior ()->arch ());
 
       if (addr_bit < (sizeof (ULONGEST) * HOST_CHAR_BIT))
 	offset &= ((ULONGEST) 1 << addr_bit) - 1;
+#endif /* ENABLE_E2K_QUIRKS  */
 
       /* If /proc/pid/mem is writable, don't fallback to ptrace.  If
 	 the write via /proc/pid/mem fails because the inferior execed
@@ -3908,9 +3915,20 @@ linux_nat_target::xfer_partial (enum target_object object,
 	 space, while the core was trying to write to the pre-exec
 	 address space.  */
       if (proc_mem_file_is_writable ())
-	return linux_proc_xfer_memory_partial (inferior_ptid.pid (), readbuf,
-					       writebuf, offset, len,
-					       xfered_len);
+	{
+	  enum target_xfer_status xfer;
+	  xfer = linux_proc_xfer_memory_partial (inferior_ptid.pid (), readbuf,
+						 writebuf, offset, len,
+						 xfered_len);
+#if defined ENABLE_E2K_QUIRKS || defined ENABLE_E2K_GOLANG_QUIRKS
+	  /* Access to E2K-specific procedure and chain stacks via /proc/PID/mem
+	     is likely to be broken: the following error code is returned on an
+	     attempt to read their contents. Give chance to PTRACE_PEEK{TEXT,
+	     DATA} in such a case.  */
+	  if (xfer != TARGET_XFER_E_IO)
+#endif /* defined ENABLE_E2K_QUIRKS || defined ENABLE_E2K_GOLANG_QUIRKS  */
+	    return xfer;
+	}
 
       /* Fallback to ptrace.  This should only really trigger on old
 	 systems.  See "Accessing inferior memory" at the top.

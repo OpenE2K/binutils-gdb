@@ -1,0 +1,65 @@
+<feature name="org.mcst.gdb.e2k-rwap.linux">
+
+  <!-- RWAP_LO  -->
+  <struct id="rwap_lo_bits" size="8">
+    <field name="ptr" start="0" end="47"/>
+  </struct>
+
+  <union id="rwap_lo">
+    <field name="dword" type="uint64"/>
+    <field name="" type="rwap_lo_bits"/>
+  </union>
+
+  <!-- RWAP_HI  -->
+  <struct id="rwap_hi_bits" size="8">
+    <field name="max_ind_code" start="0" end="26"/>
+    <field name="al_mode" start="27" end="27"/>
+    <field name="ind_bsd_code" start="28" end="54"/>
+    <field name="ind_bsd_sign" start="55" end="55"/>
+    <field name="perm" start="60" end="61"/>
+  </struct>
+
+  <union id="rwap_hi">
+    <field name="dword" type="uint64"/>
+    <field name="" type="rwap_hi_bits"/>
+  </union>
+
+
+  <!-- 269: The format of %(P)USD depends on  whether the protected mode is
+       on or off. What am I going to do with this?  -->
+  <reg name="usd_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 270  -->
+  <reg name="usd_hi" bitsize="64" type="rwap_hi"/>
+
+  <!-- 271  -->
+  <reg name="_psp_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 272  -->
+  <reg name="_psp_hi" bitsize="64" type="rwap_hi"/>
+
+  <!-- 279  -->
+  <reg name="_pcsp_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 280  -->
+  <reg name="_pcsp_hi" bitsize="64" type="rwap_hi"/>
+
+  <!-- 282  -->
+  <reg name="cud_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 283  -->
+  <reg name="cud_hi" bitsize="64" type="rwap_hi"/>
+
+  <!-- 284  -->
+  <reg name="gd_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 285  -->
+  <reg name="gd_hi" bitsize="64" type="rwap_hi"/>
+
+  <!-- 822  -->
+  <reg name="pusd_lo" bitsize="64" type="rwap_lo"/>
+
+  <!-- 823  -->
+  <reg name="pusd_hi" bitsize="64" type="rwap_hi"/>
+
+</feature>

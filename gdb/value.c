@@ -982,10 +982,10 @@ value::allocate_register_lazy (const frame_info_ptr &initial_next_frame,
   while (get_frame_type (next_frame) == INLINE_FRAME)
     next_frame = get_next_frame_sentinel_okay (next_frame);
 
-  result->m_location.reg.next_frame_id = get_frame_id (next_frame);
+  result->set_next_frame_id (get_frame_id (next_frame));
 
   /* We should have a next frame with a valid id.  */
-  gdb_assert (frame_id_p (result->m_location.reg.next_frame_id));
+  gdb_assert (frame_id_p (result->/*m_location.reg.*/next_frame_id_));
 
   return result;
 }
@@ -1533,6 +1533,7 @@ value::copy () const
   val->m_offset = m_offset;
   val->m_bitpos = m_bitpos;
   val->m_bitsize = m_bitsize;
+  val->set_next_frame_id ((const_cast<value *> (this))->next_frame_id ());
   val->m_lazy = m_lazy;
   val->m_embedded_offset = embedded_offset ();
   val->m_pointed_to_offset = m_pointed_to_offset;
@@ -1981,6 +1982,21 @@ create_internalvar (const char *name)
   return &pair.first->second;
 }
 
+#ifdef ENABLE_E2K_QUIRKS
+
+struct internalvar *
+create_nameless_internalvar (void)
+{
+  struct internalvar *var;
+
+  var = new struct internalvar (""); // (*) xmalloc (sizeof (struct internalvar));
+  var->name = "";
+  var->kind = INTERNALVAR_VOID;
+  return var;
+}
+
+#endif /* ENABLE_E2K_QUIRKS  */
+
 /* Create an internal variable with name NAME and register FUN as the
    function that value_of_internalvar uses to create a value whenever
    this variable is referenced.  NAME should not normally include a
@@ -2123,6 +2139,22 @@ value_of_internalvar (struct gdbarch *gdbarch, struct internalvar *var)
     }
 
   return val;
+}
+
+
+/* FIXME. I really need this in set_ivar_field when dealing with
+   iternalvars with associated lval_memory values for which
+   synchronization with memory is required. Probably it's
+   better to use `lval_computed'-values rather than
+   `lval_memory' ones  for this purpose? */
+
+struct value *
+value_ref_of_internalvar (struct internalvar *var)
+{
+  if (var->kind == INTERNALVAR_VALUE)
+    return var->u.value;
+
+  return NULL;
 }
 
 int
@@ -2322,6 +2354,15 @@ clear_internalvar (struct internalvar *var)
 
   /* Reset to void kind.  */
   var->kind = INTERNALVAR_VOID;
+}
+
+void
+free_nameless_internalvar (struct internalvar *var)
+{
+  gdb_assert (var->name == "");
+
+  clear_internalvar (var);
+  delete var;
 }
 
 const char *
@@ -3083,6 +3124,7 @@ value::primitive_field (LONGEST offset, int fieldno, struct type *arg_type)
       v->set_offset (this->offset () + offset + embedded_offset ());
     }
   v->set_component_location (this);
+  v->set_next_frame_id (this->next_frame_id ());
   return v;
 }
 
@@ -3719,6 +3761,7 @@ value_from_component (struct value *whole, struct type *type, LONGEST offset)
     }
   v->set_offset (whole->offset () + offset + whole->embedded_offset ());
   v->set_component_location (whole);
+  v->set_next_frame_id (whole->next_frame_id ());
 
   return v;
 }

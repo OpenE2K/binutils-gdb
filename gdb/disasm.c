@@ -426,7 +426,15 @@ gdb_pretty_print_disassembler::pretty_print_insn (const struct disasm_insn *insn
 	   the offset takes the place of the "+" here.  */
 	if (offset >= 0)
 	  m_uiout->text ("+");
-	m_uiout->field_signed ("offset", offset);
+
+	/* This hack lets me select the radix of symbolic offset used by GDB
+	   `disassemble' command (see Bug #80496). Note, that `x/i PC' makes use
+	   of `print_address_symbolic ()' which has been hacked too.  */
+	if (symbolic_offset_radix == 10)
+	  m_uiout->field_signed ("offset", offset);
+	else
+	  m_uiout->field_fmt ("offset", "0x%x", offset);
+
 	m_uiout->text (">:\t");
       }
     else
@@ -1071,6 +1079,11 @@ gdb_disassemble_info::gdb_disassemble_info
   m_di.endian = gdbarch_byte_order (gdbarch);
   m_di.endian_code = gdbarch_byte_order_for_code (gdbarch);
   m_di.application_data = this;
+
+#ifdef ENABLE_E2K_QUIRKS
+  gdbarch_customize_disassemble_info (gdbarch, &m_di);
+#endif /* ENABLE_E2K_QUIRKS */
+
   m_disassembler_options_holder = get_all_disassembler_options (gdbarch);
   if (!m_disassembler_options_holder.empty ())
     m_di.disassembler_options = m_disassembler_options_holder.c_str ();

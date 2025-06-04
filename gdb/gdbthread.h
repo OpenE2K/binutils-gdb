@@ -545,7 +545,11 @@ public:
   private_thread_info_up priv;
 
   /* Branch trace information for this thread.  */
-  struct btrace_thread_info btrace {};
+  struct btrace_thread_info btrace
+#if ! defined __LCC__
+  {}
+#endif
+    ;
 
   /* Flag which indicates that the stack temporaries should be stored while
      evaluating expressions.  */

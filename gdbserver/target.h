@@ -240,6 +240,18 @@ public:
   virtual int get_tls_address (thread_info *thread, CORE_ADDR offset,
 			       CORE_ADDR load_module, CORE_ADDR *address);
 
+#ifdef __e2k__
+  int (*qxfer_tags) (unsigned char *readbuf,
+                     unsigned const char *writebuf,
+                     CORE_ADDR offset,
+                     int len);
+
+  int (*qxfer_packed_tags) (unsigned char *readbuf,
+                            unsigned const char *writebuf,
+                            CORE_ADDR offset,
+                            int len);
+#endif /* __e2k__ */
+
   /* Return true if the qxfer_osdata target op is supported.  */
   virtual bool supports_qxfer_osdata ();
 

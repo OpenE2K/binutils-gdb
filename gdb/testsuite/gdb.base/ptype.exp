@@ -19,6 +19,8 @@
 # test running programs
 #
 
+set USE_GCC 1
+
 standard_testfile .c ptype1.c
 
 if {[prepare_for_testing "failed to prepare" ${testfile} \

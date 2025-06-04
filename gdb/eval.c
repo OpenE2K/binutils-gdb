@@ -876,7 +876,7 @@ structop_base_operation::evaluate_funcall
 	 If the operator has been overloaded replace vals[0] with the
 	 value returned by the custom operator and continue
 	 evaluation.  */
-      while (unop_user_defined_p (op, vals[0]))
+      while (unop_user_defined_p (op, &vals[0]))
 	{
 	  struct value *value = nullptr;
 	  try
@@ -1211,7 +1211,7 @@ eval_op_structop_ptr (struct type *expect_type, struct expression *exp,
 {
   /* Check to see if operator '->' has been overloaded.  If so replace
      arg1 with the value returned by evaluating operator->().  */
-  while (unop_user_defined_p (STRUCTOP_PTR, arg1))
+  while (unop_user_defined_p (STRUCTOP_PTR, &arg1))
     {
       struct value *value = NULL;
       try
@@ -1307,7 +1307,7 @@ eval_op_add (struct type *expect_type, struct expression *exp,
 	     enum noside noside,
 	     struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (BINOP_ADD, arg1, arg2))
+  if (binop_user_defined_p (BINOP_ADD, &arg1, &arg2))
     return value_x_binop (arg1, arg2, BINOP_ADD, OP_NULL, noside);
   else if (ptrmath_type_p (exp->language_defn, arg1->type ())
 	   && is_integral_or_integral_reference (arg2->type ()))
@@ -1329,7 +1329,7 @@ eval_op_sub (struct type *expect_type, struct expression *exp,
 	     enum noside noside,
 	     struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (BINOP_SUB, arg1, arg2))
+  if (binop_user_defined_p (BINOP_SUB, &arg1, &arg2))
     return value_x_binop (arg1, arg2, BINOP_SUB, OP_NULL, noside);
   else if (ptrmath_type_p (exp->language_defn, arg1->type ())
 	   && ptrmath_type_p (exp->language_defn, arg2->type ()))
@@ -1355,7 +1355,7 @@ eval_op_binary (struct type *expect_type, struct expression *exp,
 		enum noside noside, enum exp_opcode op,
 		struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     return value_x_binop (arg1, arg2, op, OP_NULL, noside);
   else
     {
@@ -1400,7 +1400,7 @@ eval_op_subscript (struct type *expect_type, struct expression *exp,
 		   enum noside noside, enum exp_opcode op,
 		   struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     return value_x_binop (arg1, arg2, op, OP_NULL, noside);
   else
     {
@@ -1434,7 +1434,7 @@ eval_op_equal (struct type *expect_type, struct expression *exp,
 	       enum noside noside, enum exp_opcode op,
 	       struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     {
       return value_x_binop (arg1, arg2, op, OP_NULL, noside);
     }
@@ -1455,7 +1455,7 @@ eval_op_notequal (struct type *expect_type, struct expression *exp,
 		  enum noside noside, enum exp_opcode op,
 		  struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     {
       return value_x_binop (arg1, arg2, op, OP_NULL, noside);
     }
@@ -1476,7 +1476,7 @@ eval_op_less (struct type *expect_type, struct expression *exp,
 	      enum noside noside, enum exp_opcode op,
 	      struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     {
       return value_x_binop (arg1, arg2, op, OP_NULL, noside);
     }
@@ -1497,7 +1497,7 @@ eval_op_gtr (struct type *expect_type, struct expression *exp,
 	     enum noside noside, enum exp_opcode op,
 	     struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     {
       return value_x_binop (arg1, arg2, op, OP_NULL, noside);
     }
@@ -1518,7 +1518,7 @@ eval_op_geq (struct type *expect_type, struct expression *exp,
 	     enum noside noside, enum exp_opcode op,
 	     struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     {
       return value_x_binop (arg1, arg2, op, OP_NULL, noside);
     }
@@ -1539,7 +1539,7 @@ eval_op_leq (struct type *expect_type, struct expression *exp,
 	     enum noside noside, enum exp_opcode op,
 	     struct value *arg1, struct value *arg2)
 {
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     {
       return value_x_binop (arg1, arg2, op, OP_NULL, noside);
     }
@@ -1580,7 +1580,7 @@ eval_op_plus (struct type *expect_type, struct expression *exp,
 	      enum noside noside, enum exp_opcode op,
 	      struct value *arg1)
 {
-  if (unop_user_defined_p (op, arg1))
+  if (unop_user_defined_p (op, &arg1))
     return value_x_unop (arg1, op, noside);
   else
     {
@@ -1596,7 +1596,7 @@ eval_op_neg (struct type *expect_type, struct expression *exp,
 	     enum noside noside, enum exp_opcode op,
 	     struct value *arg1)
 {
-  if (unop_user_defined_p (op, arg1))
+  if (unop_user_defined_p (op, &arg1))
     return value_x_unop (arg1, op, noside);
   else
     {
@@ -1612,7 +1612,7 @@ eval_op_complement (struct type *expect_type, struct expression *exp,
 		    enum noside noside, enum exp_opcode op,
 		    struct value *arg1)
 {
-  if (unop_user_defined_p (UNOP_COMPLEMENT, arg1))
+  if (unop_user_defined_p (UNOP_COMPLEMENT, &arg1))
     return value_x_unop (arg1, UNOP_COMPLEMENT, noside);
   else
     {
@@ -1628,7 +1628,7 @@ eval_op_lognot (struct type *expect_type, struct expression *exp,
 		enum noside noside, enum exp_opcode op,
 		struct value *arg1)
 {
-  if (unop_user_defined_p (op, arg1))
+  if (unop_user_defined_p (op, &arg1))
     return value_x_unop (arg1, op, noside);
   else
     {
@@ -1650,7 +1650,7 @@ eval_op_ind (struct type *expect_type, struct expression *exp,
       || type->code () == TYPE_CODE_MEMBERPTR)
     error (_("Attempt to dereference pointer "
 	     "to member without an object"));
-  if (unop_user_defined_p (UNOP_IND, arg1))
+  if (unop_user_defined_p (UNOP_IND, &arg1))
     return value_x_unop (arg1, UNOP_IND, noside);
   else if (noside == EVAL_AVOID_SIDE_EFFECTS)
     {
@@ -1726,7 +1726,7 @@ eval_op_preinc (struct type *expect_type, struct expression *exp,
 {
   if (noside == EVAL_AVOID_SIDE_EFFECTS)
     return arg1;
-  else if (unop_user_defined_p (op, arg1))
+  else if (unop_user_defined_p (op, &arg1))
     {
       return value_x_unop (arg1, op, noside);
     }
@@ -1757,7 +1757,7 @@ eval_op_predec (struct type *expect_type, struct expression *exp,
 {
   if (noside == EVAL_AVOID_SIDE_EFFECTS)
     return arg1;
-  else if (unop_user_defined_p (op, arg1))
+  else if (unop_user_defined_p (op, &arg1))
     {
       return value_x_unop (arg1, op, noside);
     }
@@ -1788,7 +1788,7 @@ eval_op_postinc (struct type *expect_type, struct expression *exp,
 {
   if (noside == EVAL_AVOID_SIDE_EFFECTS)
     return arg1;
-  else if (unop_user_defined_p (op, arg1))
+  else if (unop_user_defined_p (op, &arg1))
     {
       return value_x_unop (arg1, op, noside);
     }
@@ -1822,7 +1822,7 @@ eval_op_postdec (struct type *expect_type, struct expression *exp,
 {
   if (noside == EVAL_AVOID_SIDE_EFFECTS)
     return arg1;
-  else if (unop_user_defined_p (op, arg1))
+  else if (unop_user_defined_p (op, &arg1))
     {
       return value_x_unop (arg1, op, noside);
     }
@@ -1868,7 +1868,7 @@ eval_binop_assign_modify (struct type *expect_type, struct expression *exp,
 {
   if (noside == EVAL_AVOID_SIDE_EFFECTS)
     return arg1;
-  if (binop_user_defined_p (op, arg1, arg2))
+  if (binop_user_defined_p (op, &arg1, &arg2))
     return value_x_binop (arg1, arg2, BINOP_ASSIGN_MODIFY, op, noside);
   else if (op == BINOP_ADD && ptrmath_type_p (exp->language_defn,
 					      arg1->type ())
@@ -2173,7 +2173,7 @@ eval_multi_subscript (struct type *expect_type, struct expression *exp,
 {
   for (value *arg2 : args)
     {
-      if (binop_user_defined_p (MULTI_SUBSCRIPT, arg1, arg2))
+      if (binop_user_defined_p (MULTI_SUBSCRIPT, &arg1, &arg2))
 	{
 	  arg1 = value_x_binop (arg1, arg2, MULTI_SUBSCRIPT, OP_NULL, noside);
 	}
@@ -2262,7 +2262,7 @@ logical_and_operation::evaluate (struct type *expect_type,
   value *arg2 = std::get<1> (m_storage)->evaluate (nullptr, exp,
 						   EVAL_AVOID_SIDE_EFFECTS);
 
-  if (binop_user_defined_p (BINOP_LOGICAL_AND, arg1, arg2))
+  if (binop_user_defined_p (BINOP_LOGICAL_AND, &arg1, &arg2))
     {
       arg2 = std::get<1> (m_storage)->evaluate (nullptr, exp, noside);
       return value_x_binop (arg1, arg2, BINOP_LOGICAL_AND, OP_NULL, noside);
@@ -2291,7 +2291,7 @@ logical_or_operation::evaluate (struct type *expect_type,
   value *arg2 = std::get<1> (m_storage)->evaluate (nullptr, exp,
 						   EVAL_AVOID_SIDE_EFFECTS);
 
-  if (binop_user_defined_p (BINOP_LOGICAL_OR, arg1, arg2))
+  if (binop_user_defined_p (BINOP_LOGICAL_OR, &arg1, &arg2))
     {
       arg2 = std::get<1> (m_storage)->evaluate (nullptr, exp, noside);
       return value_x_binop (arg1, arg2, BINOP_LOGICAL_OR, OP_NULL, noside);
@@ -2604,7 +2604,7 @@ unop_ind_base_operation::evaluate_for_address (struct expression *exp,
   value *x = std::get<0> (m_storage)->evaluate (nullptr, exp, noside);
 
   /* We can't optimize out "&*" if there's a user-defined operator*.  */
-  if (unop_user_defined_p (UNOP_IND, x))
+  if (unop_user_defined_p (UNOP_IND, &x))
     {
       x = value_x_unop (x, UNOP_IND, noside);
       return evaluate_subexp_for_address_base (exp, noside, x);

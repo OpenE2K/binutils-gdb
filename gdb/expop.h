@@ -1904,7 +1904,7 @@ public:
 
     if (noside == EVAL_AVOID_SIDE_EFFECTS)
       return lhs;
-    if (binop_user_defined_p (BINOP_ASSIGN, lhs, rhs))
+    if (binop_user_defined_p (BINOP_ASSIGN, &lhs, &rhs))
       return value_x_binop (lhs, rhs, BINOP_ASSIGN, OP_NULL, noside);
     else
       return value_assign (lhs, rhs);

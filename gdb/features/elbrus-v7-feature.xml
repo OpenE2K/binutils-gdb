@@ -1,0 +1,4 @@
+<feature name="org.mcst.gdb.elbrus-v7.linux">
+  <!-- No elbrus-v7 specific registers yet. This feature just signalizes by its
+       presence (to e2k-tdep.c) that we are elbrus-v7 for now.  -->
+</feature>

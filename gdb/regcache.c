@@ -295,6 +295,11 @@ regcache::restore (readonly_detached_regcache *src)
 {
   struct gdbarch *gdbarch = m_descr->gdbarch;
   int regnum;
+#ifdef ENABLE_E2K_QUIRKS
+  ptid_t dst_ptid = this->m_ptid;
+  struct gdbarch *dst_gdbarch = arch ();
+#endif /* ENABLE_E2K_QUIRKS  */
+
 
   gdb_assert (src != NULL);
   gdb_assert (src->m_has_pseudo);
@@ -310,7 +315,18 @@ regcache::restore (readonly_detached_regcache *src)
       if (gdbarch_register_reggroup_p (gdbarch, regnum, restore_reggroup))
 	{
 	  if (src->m_register_status[regnum] == REG_VALID)
-	    cooked_write (regnum, src->register_buffer (regnum));
+	    {
+	      cooked_write (regnum, src->register_buffer (regnum));
+#ifdef ENABLE_E2K_QUIRKS
+              /* This is required since `regcache_cooked_write (. . . ,
+                 VPCSP_REGNUM, . . .) at E2K may very well invalidate DST.
+		 This hack is TO BE REVISTED.  */
+	      get_thread_arch_regcache
+		(current_inferior (), dst_ptid,
+		 dst_gdbarch);
+#endif /* ENABLE_E2K_QUIRKS  */
+
+	    }
 	}
     }
 }

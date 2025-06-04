@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2010, 2011 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE target SYSTEM "gdb-target.dtd">
+<target>
+  <architecture>elbrus-v2-golang:64</architecture>
+  <osabi>GNU/Linux</osabi>
+
+  <feature name="org.mcst.gdb.e2k.golang">
+    <reg name="r0" bitsize="64" type="uint64"/>
+    <reg name="r1" bitsize="64" type="uint64"/>
+    <reg name="r2" bitsize="64" type="uint64"/>
+    <reg name="r3" bitsize="64" type="uint64"/>
+    <reg name="r4" bitsize="64" type="uint64"/>
+    <reg name="r5" bitsize="64" type="uint64"/>
+    <reg name="r6" bitsize="64" type="uint64"/>
+    <reg name="r7" bitsize="64" type="uint64"/>
+    <reg name="r8" bitsize="64" type="uint64"/>
+    <reg name="r9" bitsize="64" type="uint64"/>
+    <reg name="r10" bitsize="64" type="uint64"/>
+    <reg name="r11" bitsize="64" type="uint64"/>
+
+    <reg name="b0" bitsize="64" type="uint64"/>
+    <reg name="b1" bitsize="64" type="uint64"/>
+    <reg name="b2" bitsize="64" type="uint64"/>
+    <reg name="b3" bitsize="64" type="uint64"/>
+    <reg name="b4" bitsize="64" type="uint64"/>
+    <reg name="b5" bitsize="64" type="uint64"/>
+    <reg name="b6" bitsize="64" type="uint64"/>
+    <reg name="b7" bitsize="64" type="uint64"/>
+
+    <reg name="pc" bitsize="64" type="uint64"/>
+
+  </feature>
+
+</target>

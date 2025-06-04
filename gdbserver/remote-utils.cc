@@ -1258,6 +1258,14 @@ prepare_resume_reply (char *buf, ptid_t ptid, const target_waitstatus &status)
 	  }
       }
       break;
+#if 0
+    case TARGET_WAITKIND_SYSCALL_ENTRY:
+      sprintf (buf, "T%02xsysentry:;", status->value.sig);
+      break;
+    case TARGET_WAITKIND_SYSCALL_RETURN:
+      sprintf (buf, "T%02xsysreturn:;", status->value.sig);
+      break;
+#endif /* 0  */
     case TARGET_WAITKIND_EXITED:
       if (cs.multi_process)
 	sprintf (buf, "W%x;process:%x",

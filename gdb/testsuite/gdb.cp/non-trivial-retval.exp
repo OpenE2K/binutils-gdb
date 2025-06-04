@@ -15,7 +15,11 @@
 
 # This file is part of the gdb testsuite
 
+<<<<<<< HEAD
+set USE_GCC 1
+=======
 set additional_flags ""
+>>>>>>> 15253318be0995200cc59929ca32eedbfd041e45
 
 require allow_cplus_tests
 

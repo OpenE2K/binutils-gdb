@@ -141,6 +141,9 @@ private:
       m_type (type_),
       m_enclosing_type (type_)
   {
+    /* This code is here because of lval_computed (rather than lval_register)
+       E2K specific tagged register values.  */
+    this->next_frame_id_ = null_frame_id;
   }
 
   /* Values can only be destroyed via the reference-counting
@@ -379,10 +382,16 @@ public:
      The value must be of lval == lval_register.  */
   frame_id next_frame_id ()
   {
-    gdb_assert (m_lval == lval_register);
+    // gdb_assert (m_lval == lval_register);
 
-    return m_location.reg.next_frame_id;
+    return /*m_location.reg.*/next_frame_id_;
   }
+
+  void set_next_frame_id (frame_id id)
+  {
+    next_frame_id_ = id;
+  }
+
 
   /* Return this value's register number.
 
@@ -692,10 +701,6 @@ private:
     {
       /* Register number.  */
       int regnum;
-
-      /* Frame ID of the next physical (non-inline) frame to which a register
-	 value is relative.  */
-      frame_id next_frame_id;
     } reg;
 
     /* Pointer to internal variable.  */
@@ -741,6 +746,10 @@ private:
      single read from the target when displaying multiple
      bitfields.  */
   value_ref_ptr m_parent;
+
+  /* Frame ID of the next physical (non-inline) frame to which a register
+     value is relative.  */
+  frame_id next_frame_id_;
 
   /* Type of the value.  */
   struct type *m_type;
@@ -972,6 +981,13 @@ struct lval_funcs
      This may be NULL, in which case no action is taken to free
      VALUE's closure.  */
   void (*free_closure) (struct value *v);
+
+#ifdef ENABLE_E2K_QUIRKS
+  /* This is required to get an address of a tagged register which is a
+     computed value from GDB's point of view. Addresses of such registers
+     are required for `info frame'.  */
+  CORE_ADDR (*get_addr) (struct value *v);
+#endif /* ENABLE_E2K_QUIRKS  */
 };
 
 /* Throw an error complaining that the value has been optimized
@@ -1404,6 +1420,8 @@ extern ULONGEST value_history_count ();
 extern struct value *value_of_internalvar (struct gdbarch *gdbarch,
 					   struct internalvar *var);
 
+extern struct value *value_ref_of_internalvar (struct internalvar *var);
+
 extern int get_internalvar_integer (struct internalvar *var, LONGEST *l);
 
 extern void set_internalvar (struct internalvar *var, struct value *val);
@@ -1415,6 +1433,8 @@ extern void set_internalvar_string (struct internalvar *var,
 
 extern void clear_internalvar (struct internalvar *var);
 
+extern void free_nameless_internalvar (struct internalvar *var);
+
 extern void set_internalvar_component (struct internalvar *var,
 				       LONGEST offset,
 				       LONGEST bitpos, LONGEST bitsize,
@@ -1423,6 +1443,10 @@ extern void set_internalvar_component (struct internalvar *var,
 extern struct internalvar *lookup_only_internalvar (const char *name);
 
 extern struct internalvar *create_internalvar (const char *name);
+
+#ifdef ENABLE_E2K_QUIRKS
+extern struct internalvar *create_nameless_internalvar (void);
+#endif /* ENABLE_E2K_QUIRKS  */
 
 extern void complete_internalvar (completion_tracker &tracker,
 				  const char *name);
@@ -1506,10 +1530,10 @@ extern int binop_types_user_defined_p (enum exp_opcode op,
 				       struct type *type1,
 				       struct type *type2);
 
-extern int binop_user_defined_p (enum exp_opcode op, struct value *arg1,
-				 struct value *arg2);
+extern int binop_user_defined_p (enum exp_opcode op, struct value **arg1,
+				 struct value **arg2);
 
-extern int unop_user_defined_p (enum exp_opcode op, struct value *arg1);
+extern int unop_user_defined_p (enum exp_opcode op, struct value **arg1);
 
 extern int destructor_name_p (const char *name, struct type *type);
 

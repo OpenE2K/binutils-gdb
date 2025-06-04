@@ -83,5 +83,7 @@ esac
 
 AC_SUBST([CONFIG_STATUS_DEPENDENCIES], ['$(srcdir)/../bfd/development.sh'])
 
+AM_CONDITIONAL(E2K_QUIRKS, [test "x$target" = xe2k-mcst-linux-gnu -o "x$target" = xe2k-golang-linux-gnu])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

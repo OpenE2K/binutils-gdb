@@ -296,6 +296,11 @@ if test "${srv_linux_btrace}" = "yes"; then
 	    [Define if the target supports branch tracing.])
 fi
 
+if test x"${enable_e2k_quirks}" != x ; then
+    AC_DEFINE(ENABLE_E2K_QUIRKS, 1,
+              [Define to enable e2k quirks in arch-independent code.])
+fi
+
 dnl Some systems (e.g., Android) have lwpid_t defined in libthread_db.h.
 if test "$bfd_cv_have_sys_procfs_type_lwpid_t" != yes; then
   GDBSERVER_HAVE_THREAD_DB_TYPE(lwpid_t)

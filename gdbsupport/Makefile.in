@@ -153,6 +153,7 @@ libgdbsupport_a_AR = $(AR) $(ARFLAGS)
 libgdbsupport_a_LIBADD =
 @HAVE_PIPE_OR_PIPE2_TRUE@am__objects_1 = event-pipe.$(OBJEXT)
 @SELFTEST_TRUE@am__objects_2 = selftest.$(OBJEXT)
+@E2K_QUIRKS_TRUE@am__objects_3 = e2k-linux-regs.$(OBJEXT)
 am_libgdbsupport_a_OBJECTS = agent.$(OBJEXT) btrace-common.$(OBJEXT) \
 	cleanups.$(OBJEXT) common-debug.$(OBJEXT) \
 	common-exceptions.$(OBJEXT) common-inferior.$(OBJEXT) \
@@ -168,7 +169,8 @@ am_libgdbsupport_a_OBJECTS = agent.$(OBJEXT) btrace-common.$(OBJEXT) \
 	safe-strerror.$(OBJEXT) scoped_mmap.$(OBJEXT) search.$(OBJEXT) \
 	signals.$(OBJEXT) signals-state-save-restore.$(OBJEXT) \
 	task-group.$(OBJEXT) tdesc.$(OBJEXT) thread-pool.$(OBJEXT) \
-	xml-utils.$(OBJEXT) $(am__objects_1) $(am__objects_2)
+	xml-utils.$(OBJEXT) $(am__objects_1) $(am__objects_2) \
+	$(am__objects_3)
 libgdbsupport_a_OBJECTS = $(am_libgdbsupport_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -410,6 +412,7 @@ AM_CXXFLAGS = $(WARN_CFLAGS) $(WERROR_CFLAGS)
 noinst_LIBRARIES = libgdbsupport.a
 @SELFTEST_TRUE@selftest = selftest.cc
 @HAVE_PIPE_OR_PIPE2_TRUE@eventpipe = event-pipe.cc
+@E2K_QUIRKS_TRUE@arch_specific = e2k-linux-regs.cc
 libgdbsupport_a_SOURCES = \
     agent.cc \
     btrace-common.cc \
@@ -450,7 +453,8 @@ libgdbsupport_a_SOURCES = \
     thread-pool.cc \
     xml-utils.cc \
     ${eventpipe} \
-    $(selftest)
+    $(selftest) \
+    $(arch_specific)
 
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -528,6 +532,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common-inferior.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common-regcache.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/common-utils.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/e2k-linux-regs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/environ.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/errors.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/event-loop.Po@am__quote@

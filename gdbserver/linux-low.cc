@@ -133,6 +133,10 @@ typedef struct
 } Elf64_auxv_t;
 #endif
 
+#if defined __e2k__
+#include "nat/e2k-linux.h"
+#endif /* __e2k__  */
+
 /* Does the current host support PTRACE_GETREGSET?  */
 enum tribool have_ptrace_getregset = TRIBOOL_UNKNOWN;
 
@@ -3578,6 +3582,17 @@ linux_process_target::wait_1 (ptid_t ptid, target_waitstatus *ourstatus,
       /* Clear the event lwp's waitstatus since we handled it already.  */
       event_child->waitstatus.set_ignore ();
     }
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+  else if (WSTOPSIG (w) == (SIGTRAP | 0x80))
+    {
+      event_child->syscall_state =
+        (event_child->syscall_state == TARGET_WAITKIND_SYSCALL_ENTRY
+         ? TARGET_WAITKIND_SYSCALL_RETURN
+         : TARGET_WAITKIND_SYSCALL_ENTRY);
+        
+      ourstatus->kind = event_child->syscall_state;
+    }
+#endif /* ENABLE_E2K_QUIRKS  */
   else
     {
       /* The LWP stopped due to a plain signal or a syscall signal.  Either way,
@@ -4798,6 +4813,9 @@ linux_process_target::proceed_one_lwp (thread_info *thread, lwp_info *except)
 {
   struct lwp_info *lwp = get_thread_lwp (thread);
   int step;
+#if 0 /* def ENABLE_E2K_QUIRKS  */
+  int trace_syscall = 0;
+#endif /* ENABLE_E2K_QUIRKS  */
 
   if (lwp == except)
     return;
@@ -5011,7 +5029,9 @@ regsets_fetch_inferior_registers (struct regsets_info *regsets_info,
       else
 	data = buf;
 
-#ifndef __sparc__
+#if defined __e2k__
+      res = e2k_linux_getregs (pid, (greg_t *) data);
+#elif !defined __sparc__
       res = ptrace (regset->get_request, pid,
 		    (PTRACE_TYPE_ARG3) (long) nt_type, data);
 #else
@@ -5095,7 +5115,9 @@ regsets_store_inferior_registers (struct regsets_info *regsets_info,
       else
 	data = buf;
 
-#ifndef __sparc__
+#if defined __e2k__
+      res = e2k_linux_getregs (pid, (greg_t *) data);
+#elif ! defined __sparc__
       res = ptrace (regset->get_request, pid,
 		    (PTRACE_TYPE_ARG3) (long) nt_type, data);
 #else
@@ -5108,7 +5130,9 @@ regsets_store_inferior_registers (struct regsets_info *regsets_info,
 	  regset->fill_function (regcache, buf);
 
 	  /* Only now do we write the register set.  */
-#ifndef __sparc__
+#if defined __e2k__
+	  res = e2k_linux_setregs (pid, (greg_t *) data);
+#elif ! defined __sparc__
 	  res = ptrace (regset->set_request, pid,
 			(PTRACE_TYPE_ARG3) (long) nt_type, data);
 #else
@@ -6039,6 +6063,78 @@ linux_process_target::low_supports_range_stepping ()
 {
   return false;
 }
+
+#ifdef __e2k__
+/* Implements the to_xfer_partial interface for
+   the TARGET_OBJECT_TAG object type.  */
+int
+linux_process_target::qxfer_tags (unsigned char *readbuf,
+				  unsigned const char *writebuf,
+				  CORE_ADDR offset, int len)
+{
+  int i;
+  long pid = lwpid_of (current_thread);
+
+  /* Take into account that these idiots in `handle_qxfer ()' pass us
+     `LEN + 1' in fact . . .  */
+  len -= 1;
+
+  if (offset & 3)
+    /* What should we return in this case? */
+    return -1;
+
+  if (!readbuf && !writebuf)
+    return -1;
+
+  if (readbuf)
+    {
+      ULONGEST xfered;
+      e2k_linux_read_tags (pid, readbuf, offset, len, &xfered);
+      len = (int) xfered;
+    }
+  else
+    {
+      for (i = 0; i < len; i++)
+        ptrace (PTRACE_POKETAG, pid, offset + 4 * i,
+                0 /* Should I have writebuf[i] here? */);
+    }
+
+  return len;
+}
+
+int
+linux_process_target::qxfer_packed_tags (unsigned char *readbuf,
+					 unsigned const char *writebuf,
+					 CORE_ADDR offset, int len)
+{
+  ULONGEST xfered;
+  long pid = lwpid_of (current_thread);
+
+  if (offset & 3)
+    /* What should we return in this case? */
+    return -1;
+
+  if (!readbuf && !writebuf)
+    return -1;
+
+  /* Note that these idiots in `handle_qxfer ()' supply us with `LEN + 1'
+     in fact . . .  */
+  len -= 1;
+
+  /* Writing packed tags back into memory is not supported and makes no sense
+     at present.  */
+  gdb_assert (writebuf == NULL);
+
+  /* Note that we've already been passed LEN divided by four (see `remote_xfer_
+     partial ()' in `gdb/remote.c'). It's equal to the actual number of bytes
+     to be transferred to e2k-linux-gdb. Multiply it back here to make the
+     current implementation of `e2k_linux_read_tags ()' happy.  */
+  e2k_linux_read_tags (pid, readbuf, offset, len << 2, &xfered);
+
+  len = (int) xfered;
+  return len >> 2;
+}
+#endif /* __e2k__ */
 
 bool
 linux_process_target::supports_pid_to_exec_file ()

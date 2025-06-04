@@ -94,6 +94,13 @@ case "${gdbserver_host}" in
 			srv_linux_regsets=yes
 			srv_linux_thread_db=yes
 			;;
+  e2k*-*-linux*)	srv_regobj="reg-e2k.o reg-elbrus-v2.o reg-elbrus-v3.o reg-elbrus-v5.o reg-elbrus-v6.o"
+			srv_tgtobj="$srv_linux_obj linux-e2k-low.o nat/e2k-linux.o nat/e2k-dregs.o nat/e2k-linux-dregs.o"
+			srv_xmlfiles="e2k-dam-feature.xml e2k-feature.xml e2k-linux.xml e2k-rwap-feature.xml e2k-tagged-feature.xml elbrus-v2-dam-feature.xml elbrus-v2-feature.xml elbrus-v2-linux.xml elbrus-v3-dam-feature.xml elbrus-v3-feature.xml elbrus-v3-linux.xml elbrus-v5-feature.xml elbrus-v5-linux.xml elbrus-v6-dam-feature.xml elbrus-v6-feature.xml elbrus-v6-linux.xml elbrus-v7-feature.xml elbrus-v7-linux.xml elbrus-v7-rwap-feature.xml elbrus-v7-tagged-feature.xml"
+			srv_linux_regsets=yes
+			srv_linux_thread_db=yes
+			enable_e2k_quirks=yes
+			;;
   i[34567]86-*-cygwin*)	srv_regobj=""
 			srv_tgtobj="x86-low.o nat/x86-dregs.o win32-low.o"
 			srv_tgtobj="${srv_tgtobj} win32-i386-low.o"
@@ -132,6 +139,10 @@ case "${gdbserver_host}" in
   ia64-*-linux*)	srv_regobj=reg-ia64.o
 			srv_tgtobj="$srv_linux_obj linux-ia64-low.o"
 			srv_linux_usrregs=yes
+			# This setting eventually results in -ldl in the linkage
+			# line of gdbserver which is why it has been inserted
+			# here.
+			srv_linux_thread_db=yes
 			;;
   loongarch*-*-linux*)	srv_tgtobj="arch/loongarch.o linux-loongarch-low.o"
 			srv_tgtobj="${srv_tgtobj} ${srv_linux_obj}"

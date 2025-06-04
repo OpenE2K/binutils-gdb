@@ -39,6 +39,12 @@
 /* Define to BFD's default target vector. */
 #undef DEFAULT_BFD_VEC
 
+/* Define to enable e2k quirks in arch-independent code. */
+#undef ENABLE_E2K_QUIRKS
+
+/* Define to enable e2k-golang quirks in arch-independent code. */
+#undef ENABLE_E2K_GOLANG_QUIRKS
+
 /* Handle .ctf type-info sections */
 #undef ENABLE_LIBCTF
 

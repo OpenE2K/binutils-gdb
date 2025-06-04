@@ -17,6 +17,8 @@
 
 # This file is part of the gdb testsuite.
 
+set USE_GCC 1
+
 proc test_class {class} {
 
     # An array holding the overload types for the methods A::outer::foo

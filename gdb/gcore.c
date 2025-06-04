@@ -829,6 +829,10 @@ gcore_memory_sections (bfd *obfd)
   for (asection *sect : gdb_bfd_sections (obfd))
     make_output_phdrs (obfd, sect);
 
+  /* Create any additional sections needed by the target. For E2k these
+     are sections containing external tags.  */
+  target_make_corefile_sections (obfd);
+
   /* Copy memory region and memory tag contents.  */
   for (asection *sect : gdb_bfd_sections (obfd))
     {

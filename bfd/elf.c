@@ -13646,7 +13646,7 @@ _bfd_elf_section_offset (bfd *abfd,
 	{
 	  /* Reverse the offset.  */
 	  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
-	  bfd_size_type address_size = bed->s->arch_size / 8;
+	  bfd_size_type address_size = bed->s->ptr_size / 8;
 
 	  /* address_size and sec->size are in octets.  Convert
 	     to bytes before subtracting the original offset.  */

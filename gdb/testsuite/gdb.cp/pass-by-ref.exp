@@ -68,7 +68,20 @@
 # The companion test file pass-by-ref-2.exp also contains
 # manually-written cases.
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+set USE_GCC 1
+
+if { [skip_cplus_tests] } { continue }
+=======
+if {[skip_cplus_tests]} {
+    untested "c++ test skipped"
+    return
+}
+>>>>>>> 0ea8adde5ddc530772f075873b7d05d4fa29a724
+=======
 require allow_cplus_tests
+>>>>>>> dd19001ff621dbdaddadf71d3b4984ea016fd153
 
 # The program source is generated in the output directory.
 # We use standard_testfile here to set convenience variables.

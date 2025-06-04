@@ -44,6 +44,9 @@ struct gdb_disassemble_info
   struct gdbarch *arch ()
   { return m_gdbarch; }
 
+  unsigned int octets_per_byte ()
+  { return m_di.octets_per_byte; }
+
   /* Return a pointer to the disassemble_info, this will be needed for
      passing into the libopcodes disassembler.  */
   struct disassemble_info *disasm_info ()

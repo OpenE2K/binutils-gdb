@@ -18,6 +18,13 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+<<<<<<< HEAD
+#include "defs.h"
+#include "gdbarch.h"  /* Inserted for some function declaration the absence
+			 of which breaks the compilation. Which one? To be
+			 revisited.  */
+=======
+>>>>>>> cb3729d378042d5bfc0f69a4b14660dc8b8a8eb5
 #include "inferior.h"
 #include "target.h"
 #include "gdbarch.h"
@@ -73,9 +80,11 @@ public:
   int can_use_hw_breakpoint (enum bptype, int, int) override;
   bool stopped_by_watchpoint () override;
   bool stopped_data_address (CORE_ADDR *) override;
-  int insert_watchpoint (CORE_ADDR, int, enum target_hw_bp_type,
+  int insert_watchpoint (struct gdbarch *,
+			 CORE_ADDR, int, enum target_hw_bp_type,
 			 struct expression *) override;
-  int remove_watchpoint (CORE_ADDR, int, enum target_hw_bp_type,
+  int remove_watchpoint (struct gdbarch *,
+			 CORE_ADDR, int, enum target_hw_bp_type,
 			 struct expression *) override;
   /* Override linux_nat_target low methods.  */
   void low_new_thread (struct lwp_info *lp) override;
@@ -534,7 +543,11 @@ fill_fpregset (const struct regcache *regcache,
 void
 ia64_linux_nat_target::enable_watchpoints_in_psr (ptid_t ptid)
 {
+<<<<<<< HEAD
+  struct regcache *regcache = get_thread_regcache (linux_target, ptid);
+=======
   struct regcache *regcache = get_thread_regcache (this, ptid);
+>>>>>>> 966dc1a27c55ccb298cb8c7c41c9cc2985cc321a
   ULONGEST psr;
 
   regcache_cooked_read_unsigned (regcache, IA64_PSR_REGNUM, &psr);
@@ -584,7 +597,8 @@ is_power_of_2 (int val)
 }
 
 int
-ia64_linux_nat_target::insert_watchpoint (CORE_ADDR addr, int len,
+ia64_linux_nat_target::insert_watchpoint (struct gdbarch *,
+					  CORE_ADDR addr, int len,
 					  enum target_hw_bp_type type,
 					  struct expression *cond)
 {
@@ -639,7 +653,8 @@ ia64_linux_nat_target::insert_watchpoint (CORE_ADDR addr, int len,
 }
 
 int
-ia64_linux_nat_target::remove_watchpoint (CORE_ADDR addr, int len,
+ia64_linux_nat_target::remove_watchpoint (struct gdbarch *,
+					  CORE_ADDR addr, int len,
 					  enum target_hw_bp_type type,
 					  struct expression *cond)
 {
