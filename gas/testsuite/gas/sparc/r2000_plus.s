@@ -1,4 +1,4 @@
-# Instructions borrowed by r2000+ from foreign Sparc CPUs.
+# Instructions stolen by r2000+ from foreign Sparc CPUs.
 
 	fchksm16 %f54, %f56, %f58
 

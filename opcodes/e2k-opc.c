@@ -14,6 +14,9 @@
    License along with this program; if not, see
    <https://www.gnu.org/licenses/>.  */
 
+#include "sysdep.h"
+#include "bfd.h"
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +28,10 @@
    elbrus-v1}' is to be removed from `e2k-linux-as' (see MCSTBug #96498,
    Comment #11).  */
 int mcpu = 2;
+
+/* This has been moved to libopcodes because of the need to recognize
+   elbrus-maket32c in `add_to_insn_table ()' (MCSTBug #162899).  */
+unsigned long output_mach;
 
 #define ISET_ALL_COMPAT_MASK	0x7f
 #define ISET_V2_COMPAT_MASK	0x7e
@@ -43,6 +50,26 @@ add_to_insn_table (e2k_opcode_templ *new)
 {
   if (e2k_num_opcodes == MAX_E2K_NUM_OPCODES)
     abort ();
+
+  /* The following instructions are not supported in ALC{i>=3} on
+     elbrus-maket32c in spite of what instruction tables in iset-v7.single
+     state (MCSTBug #162899).  */
+  if (output_mach == bfd_mach_e2k_maket32c
+      && (strcmp (new->name, "qpkuzltr") == 0
+	  || strcmp (new->name, "qpaesebgn") == 0
+	  || strcmp (new->name, "qpaesltr") == 0
+	  || strcmp (new->name, "qpaesdbgn") == 0
+	  || strcmp (new->name, "qpaesiltr") == 0
+	  || strcmp (new->name, "qpkuzebgn") == 0))
+    {
+      int i;
+      e2k_alf_opcode_templ *alf = (e2k_alf_opcode_templ *) new;
+      for (i = 3; i <= 5; i++)
+	{
+	  if (alf->allowed_channels[i] != 0)
+	    alf->allowed_channels[i] = 0;
+	}
+    }
 
   e2k_opcode_templs[e2k_num_opcodes++] = new;
 }

@@ -129,7 +129,7 @@ _bfd_e2k_elf_64_pc_lit_reloc (bfd *abfd,
      the address space of an inferior (i.e. isn't a debug section or something
      like that) to avoid potential relocation overflows. At the same time what
      should We do if the first section relocated against GOT turns out to be a
-     debug one? Where am I going to take address of GOT from in such a case?
+     debug one? Where am We going to take address of GOT from in such a case?
      Hopefully, this should be almost impossible . . .  */
   gp = _bfd_get_gp_value (abfd);
   if (gp == 0)

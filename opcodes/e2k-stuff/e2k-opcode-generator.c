@@ -22,6 +22,8 @@
 static int mcpu;
 static int forward_incompat;
 
+static char current_insn_name[256];
+
 void
 print_common_part_ex (const char *type, const char *name,
 		      const char *parse_args, int min, int max)
@@ -39,6 +41,9 @@ print_common_part_ex (const char *type, const char *name,
      in case `fetch_cop_channels ()' isn't invoked prior to this function. See
      also my comment when setting `forward_incompat' to 1.  */
   forward_incompat = 0;
+
+  /* For potential use in `print_alf_part ()'.  */
+  strcpy (current_insn_name, name);
 }
 
 void
@@ -69,10 +74,17 @@ void
 print_alf_part (const char *alopf, const char *mas, int cop, const int *chns,
                 const char *format)
 {
+  const char *name = current_insn_name;
+  const char *ld_st = "";
+  if (name[0] == 'l' && name[1] == 'd')
+    ld_st = " | LOAD";
+  else if (name[0] == 's' && name[1] == 't')
+    ld_st = " | STORE";
+
   int i;
   /* next == NULL  */
   printf (", NULL");
-  printf (", %s, %s, 0x%x, {", alopf, mas, cop);
+  printf (", %s, %s%s, 0x%x, {", alopf, mas, ld_st, cop);
 
   for (i = 0; i < 6; i++)
     printf ("%d%s", chns[i], i < 5 ? ", " : "");
@@ -1811,6 +1823,7 @@ gen_alopf11 ()
       {"clmull", "ARGS_DDD"},
 
       {"apincr", "ARGS_QDQ"},
+      {"apincrc", "ARGS_QDQ"},
       {"subarr", "ARGS_QDQ"},
       {"subarrc", "ARGS_QDQ"},
 
@@ -1881,8 +1894,10 @@ gen_alopf11 ()
 	  const char *opce = "NONE";
 	  int real_cpu = mcpu;
 
-	  if (strcmp (crnt->name, "getmi") == 0
-	      || strcmp (crnt->name, "getind") == 0)
+	  if (strcmp (crnt->name, "apincrc") == 0)
+	    cop_name = "apincr";
+	  else if (strcmp (crnt->name, "getmi") == 0
+		   || strcmp (crnt->name, "getind") == 0)
 	    cop_name = "getapf";
 	  else if (strcmp (crnt->name, "getptrc") == 0)
 	    cop_name = "getptr";
@@ -1900,9 +1915,10 @@ gen_alopf11 ()
 	  if (strcmp (crnt->name, "getind") == 0
 	      || strcmp (crnt->name, "getptrc") == 0
 	      || strcmp (crnt->name, "qpsbgltrhi") == 0
-	      /* FIXME(?): for SUBARRC they name this code "color" as well as
-		 for a few other instructions. Other ones may refer to it via
-		 other names or just the immediate value.  */
+	      /* FIXME(?): for SUBARRC and APINCRc they name this code "color"
+		 as well as for a few other instructions. Other ones refer to
+		 it via distinct names or just the immediate value.  */
+	      || strcmp (crnt->name, "apincrc") == 0
 	      || strcmp (crnt->name, "subarrc") == 0)
 	    opce = "0xc1";
 	  else if (strcmp (crnt->name, "ldosrrd") == 0)

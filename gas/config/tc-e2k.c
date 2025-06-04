@@ -116,6 +116,10 @@ typedef struct e2k_als {
      structs GENERIC_ALS seems redundant. We should get rid of it. */
   GENERIC_ALS;
 
+  /* Used to control prohibited combinations of LOADs and STOREs
+     within WI.  */
+  unsigned flags;
+
   /* Each ALS can be connected at most with one long literal,
      associated with src2. In fact this field is only required
      for ALF{1,2,3,5,7,8} but now it is convinient to have a
@@ -757,7 +761,6 @@ e2k_target_format ()
 }
 
 static int forward_incompat;
-static unsigned long output_mach;
 
 /* This one is invoked via a TARGET_MACH macro when creating an output
    file.  */
@@ -1043,7 +1046,7 @@ e2k_after_parse_args (void)
 #if defined ENABLE_FIX_LCC_BUG_142105
   if (mcpu >= 7)
     {
-      /* Unlike Bug #140436 workaround related directives --fix-lcc-bug142105
+      /* Unlike HW Bug #140436 workaround related directives --fix-lcc-bug142105
 	 is NOT completely prohibited for elbrus-v{X>=7}: 0 value is still
 	 supported because some users may stupidly pass -ffix-lcc-bug144614 to
 	 LCC no matter which -m{arch,tune} the compilation is done with.  */
@@ -1055,7 +1058,7 @@ e2k_after_parse_args (void)
 	  return;
 	}
 
-      /* elbrus-v{X>=7} processors are believed to be free of Bug #140436,
+      /* elbrus-v{X>=7} processors are believed to be free of HW Bug #140436,
 	 which is why its workaround is disabled for them (Bug #152233,
 	 Comment #7).  */
       mcstbug_140436_workaround = 0;
@@ -3186,6 +3189,16 @@ parse_chn_optional (char **pstr, const e2k_alf_opcode_templ *tpl, int second)
 	    char in_which_iset[32];
 	    if (supported_in_alc_at_all (tpl, chn))
 	      sprintf (in_which_iset, "on elbrus-v%d", mcpu);
+	    else if (output_mach == bfd_mach_e2k_maket32c
+		     && chn >= 3
+		     && supported_in_alc (tpl, chn - 3)
+		     && (strcmp (tpl->name, "qpaesltr") == 0
+			 || strcmp (tpl->name, "qpaesiltr") == 0
+			 || strcmp (tpl->name, "qpaesebgn") == 0
+			 || strcmp (tpl->name, "qpaesdbgn") == 0
+			 || strcmp (tpl->name, "qpkuzltr") == 0
+			 || strcmp (tpl->name, "qpkuzebgn") == 0))
+	      strcpy (in_which_iset, "on elbrus-maket32c");
 	    else
 	      in_which_iset[0] = '\0';
 
@@ -3980,9 +3993,12 @@ parse_three_args_for_ld_st (char **pstr,
 static int
 parse_alf1_args (char **pstr, const e2k_opcode_templ *op)
 {
+  const e2k_alf_opcode_templ *alf = (const e2k_alf_opcode_templ *) op;
+
   /* See the list of unsupported instructions on elbrus-maket32c in
      MCST Bug #161286, Comment #24.  */
   if (output_mach == bfd_mach_e2k_maket32c
+      && alf->alopf == ALOPF11
       && strcmp (op->name, "qpfstobf") == 0)
     {
       as_bad (_("`%s' instruction is not supported on elbrus-maket32c"),
@@ -3991,7 +4007,6 @@ parse_alf1_args (char **pstr, const e2k_opcode_templ *op)
     }
 
   char *s = *pstr;
-  const e2k_alf_opcode_templ *alf = (const e2k_alf_opcode_templ *) op;
   u_int8_t max_alopf = get_max_alopf (alf);
 
   if (max_alopf == ALOPF11 || max_alopf == ALOPF11_MERGE)
@@ -4029,7 +4044,7 @@ parse_alf1_args (char **pstr, const e2k_opcode_templ *op)
 						     && op->name[4] == 'i'))))
 					? 1 : 0),
 				       0,
-				       alf1->need_mas,  1));
+				       (alf1->flags & MAS) != 0,  1));
 
     if (alf->alopf == ALOPF11_MERGE)
       {
@@ -4272,8 +4287,8 @@ parse_alf3_args (char **pstr, const e2k_opcode_templ *op)
   const e2k_alf3_opcode_templ *alf = (const e2k_alf3_opcode_templ *) op;
 
   do {
-    CHECK (parse_three_args_for_ld_st (&s, alf->arg_fmt, 0, 1, alf->need_mas,
-				       1));
+    CHECK (parse_three_args_for_ld_st (&s, alf->arg_fmt, 0, 1,
+				       (alf->flags & MAS) != 0, 1));
 
     if (alf->alopf == ALOPF13)
       {
@@ -4709,7 +4724,9 @@ parse_mova_args (char **pstr, const e2k_opcode_templ *op)
 
   if (parse_generic_register (&s, &reg))
     {
-      if (reg.fmt != mova->arg_fmt && reg.fmt != SINGLE)
+      if (reg.fmt != mova->arg_fmt
+	  && reg.fmt != SINGLE
+	  && reg.fmt != DOUBLE)
         {
           as_bad (_("register of invalid format specified for dst of mova"));
           return 0;
@@ -4937,11 +4954,43 @@ parse_fapb_args (char **pstr,
         }
     }
 
+  if (asz_fld.set)
+    {
+      if (asz_fld.val > 5)
+	{
+	  as_bad (_("unsupported value for `asz = 0x%x'"),
+		  (unsigned) asz_fld.val);
+	  return false;
+	}
+
+      if (abs_fld.set)
+	{
+	  unsigned real_asz = 0x1 << asz_fld.val;
+	  unsigned real_abs = abs_fld.val;
+	  if (real_abs % real_asz != 0)
+	    {
+	      as_bad (_("fapb area base is not aligned on its size"));
+	      return 0;
+	    }
+	}
+    }
+
   /* ATTENTION: in order not to mistakenly encode `disp' into APSx it's crucial
      that it comes last in the fields[] array!  */ 
   for (i = 0; i < sizeof (fields) / sizeof (fields[0]) - 1; i++)
-    if (fields[i]->set)
-      wc.aps[chn] |= fields[i]->val << fields[i]->bit_offset;
+    {
+      if (fields[i]->set)
+	{
+	  if (fields[i]->val >= (0x1U << fields[i]->bit_size))
+	    {
+	      as_bad (_("%s = 0x%x is out of range"), fields[i]->name,
+		      (unsigned) fields[i]->val);
+	      return 0;
+	    }
+
+	  wc.aps[chn] |= fields[i]->val << fields[i]->bit_offset;
+	}
+    }
 
   /* Encode `disp' into APLSx. */
   wc.apls[chn] = disp_fld.val;
@@ -5521,12 +5570,14 @@ parse_aaurr_args (char **pstr, const e2k_opcode_templ *op)
 static int
 parse_alopf21_args (char **pstr, const e2k_opcode_templ *op)
 {
+  const e2k_alopf21_opcode_templ *alf = (const e2k_alopf21_opcode_templ *) op;
+
   /* See the list of unsupported instructions on elbrus-maket32c in
      MCST Bug #161286, Comment #24.  */
   if (output_mach == bfd_mach_e2k_maket32c
+      && alf->alopf == ALOPF21
       && (strcmp (op->name, "qpidotshduu") == 0
-	  || strcmp (op->name, "qpbfdots") == 0
-	  || strcmp (op->name, "qpfstobf") == 0))
+	  || strcmp (op->name, "qpbfdots") == 0))
     {
       as_bad (_("`%s' instruction is not supported on elbrus-maket32c"),
 	      op->name);
@@ -5534,7 +5585,6 @@ parse_alopf21_args (char **pstr, const e2k_opcode_templ *op)
     }
 
   char *s = *pstr;
-  const e2k_alopf21_opcode_templ *alf = (const e2k_alopf21_opcode_templ *) op;
 
   free_als->need_ales = 1;
   free_als->ales.alef1.opc2 = alf->ales_opc2;
@@ -5647,6 +5697,10 @@ parse_alf_args (char **pstr, const e2k_opcode_templ *op)
 
   alf = (e2k_alf_opcode_templ *) op;
   s = *pstr;
+
+  /* Used to control prohibited combinations of LOADs and STOREs
+     within WI.  */
+  free_als->flags = alf->flags;
   
   if (last_ilabel)
     {
@@ -5707,7 +5761,7 @@ parse_alf_args (char **pstr, const e2k_opcode_templ *op)
 	 ALCes. Without stale `ldo*q' taken into account this should be only
 	 `ldapq'.  */
       if (alf->alopf == ALOPF11
-	  && alf->need_mas
+	  && (alf->flags & MAS) != 0
 	  && ((e2k_alopf11_opcode_templ *) alf)->arg_fmt[0] == QUAD)
 	free_als->same_src1_quad = 1;
     }
@@ -8317,38 +8371,32 @@ finish_alses (void)
     }
 }
 
-/* Функция, выполняющая сравнения двух ALS'ов по числу возможных
-   размещений. Вызывается при сортировке указателей на ALS'ы
-   перед их размещением в широкой команде. */
-
+/* Compare ALSes before accomodating them within the WI.  */
 static int
 compare_alses (const void *frst, const void *scnd)
 {
   const e2k_als *frst_als = ((const e2k_als **) frst)[0];
   const e2k_als *scnd_als = ((const e2k_als **) scnd)[0];
 
-  return ((size_t) frst_als < (size_t) scnd_als) ? -1 : 1;
+  /* Give preference to ALS with fewer "independent" (note that PLCMNT_NMB for
+     quad insns may be 2 times larger) placements.  */
+  unsigned frst_plcmnt_nmb = frst_als->plcmnt_nmb / frst_als->real_als_nmb;
+  unsigned scnd_plcmnt_nmb = scnd_als->plcmnt_nmb / scnd_als->real_als_nmb;
 
-#if 0
-  /* Прежде всего сравниваем общее количество возможных размещений. */
-  if (frst_als->plcmnt_nmb < scnd_als->plcmnt_nmb)
+  if (frst_plcmnt_nmb < scnd_plcmnt_nmb)
     return -1;
-  else if (frst_als->plcmnt_nmb > scnd_als->plcmnt_nmb)
+  else if (frst_plcmnt_nmb > scnd_plcmnt_nmb)
     return 1;
 
-  /* Пока я не рассматриваю ALS'ы, занимающие 2 слога (например, в командах,
-     работающих с квадро-регистрами), у меня нет других оснований для предпочтения
-     одного из ALS'ов. */
-
   return 0;
-#endif /* 0  */
 }
 
 static int
 place_alses (void)
 {
   int i;
-  int crnt_idx[ALS_CHANNELS_NUMBER] = {0, 0, 0, 0, 0, 0};
+  unsigned crnt_idx[ALS_CHANNELS_NUMBER] = {0, 0, 0, 0, 0, 0};
+  int ld_st_flags[ALS_CHANNELS_NUMBER] = {0, 0, 0, 0, 0, 0};
   e2k_als *pals[ALS_CHANNELS_NUMBER];
   unsigned int best_res = 1 << ALS_CHANNELS_NUMBER;
   int crnt_als = free_als - &free_alses[0];
@@ -8363,104 +8411,138 @@ place_alses (void)
 
   qsort (pals, crnt_als, sizeof (pals[0]), compare_alses);
 
+  for (i = 0; i < crnt_als; i++)
+    {
+      /* It's crucial that ALSes are sorted accordingly for this test
+	 to be correct.  */
+      if (pals[i]->plcmnt_nmb != 1
+	  && ! (pals[i]->plcmnt_nmb == 2
+		&& pals[i]->real_als_nmb == 2))
+	break;
+
+      int ld_st = pals[i]->flags & (LOAD | STORE);
+      ld_st_flags[pals[i]->real_alses[pals[i]->pos[0]][0]] = ld_st;
+
+      if (pals[i]->implicit_paired_alc_delta)
+	ld_st_flags[pals[i]->real_alses[pals[i]->pos[0]][0]
+		    + pals[i]->implicit_paired_alc_delta] = ld_st;
+
+      if (pals[i]->real_als_nmb == 2)
+	ld_st_flags[pals[i]->real_alses[pals[i]->pos[0]][1]] = ld_st;
+    }
+
+  /* Barf on prohibited combination(s) of LOAD(s) and STORE(s) if they are
+     explicitly specified by the user.  */
+  int ld_st_check_failed = 0;
+  if (ld_st_flags[2] == STORE && ld_st_flags[3] == LOAD)
+    {
+      as_bad (_("the combination of STORE in ALC2 with LOAD in ALC3 "
+		"is prohibited"));
+      ld_st_check_failed = 1;
+    }
+
+  if ((ld_st_flags[5] == STORE && ld_st_flags[0] == LOAD))
+    {
+      as_bad (_("the combination of STORE in ALC5 with LOAD in ALC0 "
+		"is prohibited"));
+      ld_st_check_failed = 1;
+    }
+
+  if (ld_st_check_failed)
+    return 0;
+
   while (1)
     {
       memset (wc.al, 0, sizeof (wc.al));
       wc.busy_al = 0;
+      for (i = 0; i < ALS_CHANNELS_NUMBER; i++)
+	ld_st_flags[i] = 0;
 
       for (i = 0; i < crnt_als; i++)
         {
           unsigned j;
+	  unsigned char mask = 0;
+	  for (j = 0; j < pals[i]->real_als_nmb; j++)
+	    {
+	      unsigned alc = pals[i]->real_alses[pals[i]->pos[crnt_idx[i]]][j];
+	      mask |= ((1 << alc)
+		       /* Here one makes use of the fact that an implicit
+			  paired ALC (if present) always comes next(???) to the
+			  explicitly used one.  */
+		       | (pals[i]->implicit_paired_alc_delta
+			  ? (1 << (alc + pals[i]->implicit_paired_alc_delta))
+			  : 0));
+
+	      int ld_st = pals[i]->flags & (LOAD | STORE);
+	      ld_st_flags[alc] = ld_st;
+
+	      if (pals[i]->implicit_paired_alc_delta)
+		ld_st_flags[alc + pals[i]->implicit_paired_alc_delta] = ld_st;
+	    }
 
           if (i < first_incr)
             {
 	      /* It should be possible to successfully accomodate all ALCes so
-		 far, `assert ()'s are exclusively intended for internal
-		 control. */
-              for (j = 0; j < pals[i]->real_als_nmb; j++)
-                {
-		  unsigned alc
-		    = pals[i]->real_alses[pals[i]->pos[crnt_idx[i]]][j];
-		  unsigned char mask
-		    = ((1 << alc)
-		       /* Here and in the analogous code below one makes use of
-			  the fact that an implicit paired ALC (if present)
-			  always comes next to the explicitly used one.  */
-		       | (pals[i]->implicit_paired_alc_delta
-			  ? (1 << (alc + pals[i]->implicit_paired_alc_delta))
-			  : 0));
+		 far without encoding prohibited combinations of LOADs and
+		 STOREs, `assert ()'s are just for internal control. */
+	      gas_assert
+		((wc.busy_al & mask) == 0
+		 && ! (ld_st_flags[2] == STORE && ld_st_flags[3] == LOAD)
+		 && ! (ld_st_flags[5] == STORE && ld_st_flags[0] == LOAD));
 
-		  gas_assert ((wc.busy_al & mask) == 0);
-		  wc.busy_al |= mask;
-                }
+	      wc.busy_al |= mask;
             }
           else
             {
-	      /* The accomodation of ALCes may very well fail here. */
-              for (j = 0; j < pals[i]->real_als_nmb; j++)
-                {
-		  unsigned alc
-		    = pals[i]->real_alses[pals[i]->pos[crnt_idx[i]]][j];
-		  unsigned char mask
-		    = ((1 << alc)
-		       | (pals[i]->implicit_paired_alc_delta
-			  ? (1 << (alc + pals[i]->implicit_paired_alc_delta))
-			  : 0));
-
-		  if (wc.busy_al & mask)
-		    break;
-                }
-
-              if (j < pals[i]->real_als_nmb)
-		/* No place. There's no point in proceeding to next literals
-		   if we failed to accomodate this one.  */
+	      /* The accomodation of ALCes may very well fail here. Check for
+		 overlapping ALSes or prohibited combination(s) of LOADs and
+		 STOREs.  */
+              if ((wc.busy_al & mask) != 0
+		  || (ld_st_flags[2] == STORE && ld_st_flags[3] == LOAD)
+		  || (ld_st_flags[5] == STORE && ld_st_flags[0] == LOAD))
+		/* There's no point in proceeding to next literals if we
+		   failed to accomodate this one.  */
                 break;
               else
-                {
-                  for (j = 0; j < pals[i]->real_als_nmb; j++)
-		    {
-		      unsigned alc
-			= pals[i]->real_alses[pals[i]->pos[crnt_idx[i]]][j];
-		      unsigned char mask
-			= ((1 << alc)
-			   | (pals[i]->implicit_paired_alc_delta
-			      ? (1 << (alc + pals[i]->implicit_paired_alc_delta))
-			      : 0));
-
-		      wc.busy_al |= mask;
-		    }
-                }
+		wc.busy_al |= mask;
             }
         }
 
       if (i == crnt_als)
         {
-          /* На этом шаге все ALS'ы успешно уместились. Будем продвигать индексы,
-             начиная с последнего размещения. */
+          /* All ALSes have successfully been accomodated at this step. Resume
+	     promotion starting from the last "placement".  */
           first_incr = crnt_als - 1;
-          /* Критерий того, удалось ли нам "компактнее" разместить ALS'ы. Но имеет ли
-             смысл вообще этим заниматься? Ведь, кажется, ALS'ы в отличие от литералов
-             могут входить (или не входить) в широкую команду совершенно независимо друг от друга. */
-          if (best_res == 1 << ALS_CHANNELS_NUMBER
-              && (unsigned int) wc.busy_al < best_res)
+          /* This test making it possible to obtain the most "compact"
+	     combination of ALSes in terms of their numbers is just for
+	     elegance as these numbers do not affect the size of the WI
+	     in any way (unlike LTSes which are not encoded separately
+	     from each other which may result in the emergence of "holes"
+	     between them).  */
+          if ((unsigned int) wc.busy_al < best_res)
             {
               best_res = (unsigned int) wc.busy_al;
               for (i = 0; i < crnt_als; i++)
-                /* Сохраним значения "оптимальных" индексов размещения для каждого ALS'а. */
+                /* Update the most optimal placement index for each ALS.. */
                 pals[i]->optimal_plcmnt_idx = crnt_idx[i];
             }
         }
       else
-        /* Обломались на i-ом размещении. Будем продвигать, начиная с него. */
+        /* I-th placement has failed. Resume promotion starting from it. */
         first_incr = i;
 
-      /* Обнуляем индексы для размещений, следующих за первым продвигаемым. */
+      /* Zero out indices for placements following the one from which promotion
+	 is resumed. */
       for (i = crnt_als - 1; i > first_incr; i--)
         crnt_idx[i] = 0;
 
-      /* Продвигаем текущие индексы размещений. */
+      /* Promote the current indices of placements starting from the one we
+	 decided to resume at above.  */
       for (i = first_incr; i >= 0; i--)
         {
+	  /* If it is possible to promote the current index of the I-th
+	     placement do so, otherwise set it to zero and proceed to the
+	     preceding placement.  */
           if ((++crnt_idx[i]) < pals[i]->plcmnt_nmb)
             break;
           else
@@ -8468,12 +8550,14 @@ place_alses (void)
         }
 
         if (i == -1)
-          /* All possible placements have been considered. Escape.  */
+          /* All possible combinations of placements have been considered.
+	     Escape.  */
           break;
         else
-          /* Теперь это значение показывает, в каком размещении реально увеличился
-             индекс (до него - индексы размещений остались неизменными, после
-             него - нули). */
+          /* This is the number of placement for each the current index has
+	     been increased. The current indices of preceding placements have
+	     remained unchanged, whereas the current indices of subsequent
+	     placements have been zeroed out.  */
           first_incr = i;
     }
 
@@ -10063,7 +10147,7 @@ e2k_cleanup_hook ()
    a standard executable section or in a user-defined section and
    its type is not specified (STT_NOTYPE), default to STT_FUNC. */
 
-/* FIXME: Are  We going to have a function symbol for each "labxx:"
+/* FIXME: Am  We going to have a function symbol for each "labxx:"
    inside a real function? LAS does not output such (non-global)
    labels to an object file. */
 

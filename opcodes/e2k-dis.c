@@ -1280,7 +1280,7 @@ print_alf (disassemble_info *info, int chn)
 	}
     }
 
-  if (match->need_mas
+  if ((match->flags & MAS) != 0
       /* We wonder if instructions requiring MAS may be placed into MASless ALC
          in principle . . .  */
       && (chn == 0 || chn == 2 || chn == 3 || chn == 5)

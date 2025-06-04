@@ -772,7 +772,7 @@ public:
   // since unlike LD the generic part of GOLD hasn't taken it into account when
   // calculating relocation for a TLS symbol prior to calling us (see
   // `Got_entry::write ()').
-  // FIXME: take care of the output TLS section's alignment here. How are We going
+  // FIXME: take care of the output TLS section's alignment here. How am We going
   // to get access to it?
   int64_t
   do_tls_offset_for_global(Symbol* gsym,
@@ -1197,7 +1197,7 @@ Target_e2k<size, pm>::got_section(Symbol_table* symtab,
       int entry_size = pm ? 16 : size / 8;
       gold_assert(symtab != NULL && layout != NULL);
 
-      // When using `-z now', we can treat `.got.plt' as a relro section.
+      // When using `-z now', we can tread `.got.plt' as a relro section.
       // Without `-z now', it is modified after program startup by lazy
       // PLT relocations.
       bool is_got_plt_relro = parameters->options().now();
