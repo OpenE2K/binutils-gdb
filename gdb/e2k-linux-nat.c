@@ -234,12 +234,14 @@ e2k_linux_read_description (struct target_ops *ops)
   pid_t pid;
   struct target_desc *result = nullptr;
 
-#if defined __LCC__
+#ifdef __MCST_SUPPORT_ELBRUS_MAKET32C__
+  if (__builtin_cpu_is ("elbrus-maket32c"))
+    result = tdesc_elbrus_maket32c_linux;
+  else
+#endif /* __MCST_SUPPORT_ELBRUS_MAKET32C__  */
   if (__builtin_cpu_is ("elbrus-v7"))
     result = tdesc_elbrus_v7_linux;
-  else
-#endif
-  if (__builtin_cpu_is ("elbrus-v6"))
+  else if (__builtin_cpu_is ("elbrus-v6"))
     result = tdesc_elbrus_v6_linux;
   else if (__builtin_cpu_is ("elbrus-v5"))
     result = tdesc_elbrus_v5_linux;

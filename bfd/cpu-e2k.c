@@ -67,7 +67,7 @@ canonicalize_arch_name (const char *name, int *pmode)
            || STRNCMP (name, "elbrus-4c", len) == 0)
     name = "elbrus-v3";
   else if (STRNCMP (name, "elbrus-v4", len) == 0)
-    name = "elbrus-v4";    
+    name = "elbrus-v4";
   else if (STRNCMP (name, "elbrus-8c", len) == 0)
     name = "elbrus-8c";
   else if  (STRNCMP (name, "elbrus-1c+", len) == 0)
@@ -77,8 +77,20 @@ canonicalize_arch_name (const char *name, int *pmode)
     name = "elbrus-v5";
   else if (STRNCMP (name, "elbrus-v6", len) == 0)
     name = "elbrus-v6";
+  else if (STRNCMP (name, "elbrus-12c", len) == 0)
+    name = "elbrus-12c";
+  else if (STRNCMP (name, "elbrus-16c", len) == 0)
+    name = "elbrus-16c";
+  else if (STRNCMP (name, "elbrus-2c3", len) == 0)
+    name = "elbrus-2c3";
   else if (STRNCMP (name, "elbrus-v7", len) == 0)
     name = "elbrus-v7";
+  else if (STRNCMP (name, "elbrus-48c", len) == 0)
+    name = "elbrus-48c";
+  else if (STRNCMP (name, "elbrus-8v7", len) == 0)
+    name = "elbrus-8v7";
+  else if (STRNCMP (name, "elbrus-maket32c", len) == 0)
+    name = "elbrus-maket32c";
   /* "elbrus-v2-golang" remains unchanged.  */
   else if (STRNCMP (name, "elbrus-v2-golang", len) != 0)
     return NULL;
@@ -134,12 +146,17 @@ bfd_e2k_compatible (const bfd_arch_info_type *i, const bfd_arch_info_type *o)
     e2c3,
     e48c,
     e8v7,
+    emaket32c,
     /* The related bit in mask stands for "all future processor models".  */
     ev8
   };
 
 #define AT(p) (1L << p)
 #define AT_ev6 (AT (e12c) | AT (e16c) | AT (e2c3))
+
+/* Note the absence of emaket32c in this mask. This is because the execution
+   of code coming from elbrus-v{X<=7} object files is considered to be
+   impossible on elbrus-maket32c.  */
 #define AT_ev7 (AT (e48c) | AT (e8v7))
 
 
@@ -181,6 +198,8 @@ bfd_e2k_compatible (const bfd_arch_info_type *i, const bfd_arch_info_type *o)
      [bfd_mach_e2k_48c] =	AT (e48c),
 
      [bfd_mach_e2k_8v7] =	AT (e8v7),
+
+     [bfd_mach_e2k_maket32c] =	AT (emaket32c),
     };
 
   unsigned long imach, omach, remind;
@@ -348,7 +367,12 @@ enum
     I_8v7_64,
     I_8v7_32,
     I_8v7_pm,
-    I_8v7_any
+    I_8v7_any,
+
+    I_maket32c_64,
+    I_maket32c_32,
+    I_maket32c_pm,
+    I_maket32c_any
   };
 
 #define NN(index) (&arch_info_struct[(index) + 1])
@@ -370,9 +394,9 @@ enum
 #define LAST_QUAD(mach, name)						\
   TRIP (mach, name),							\
   N (bfd_mach_e2k_##mach, any, name, false, NULL)
-    
 
-    
+
+
 
 const bfd_arch_info_type arch_info_struct[] =
 {
@@ -381,7 +405,7 @@ const bfd_arch_info_type arch_info_struct[] =
 
   /* `elbrus-v1' entries.  */
   QUAD (ev1, "elbrus-v1"),
- 
+
   /* `elbrus-v2' entries.  */
   QUAD (ev2, "elbrus-v2"),
 
@@ -422,7 +446,9 @@ const bfd_arch_info_type arch_info_struct[] =
 
   QUAD (48c, "elbrus-48c"),
 
-  LAST_QUAD (8v7, "elbrus-8v7"),
+  QUAD (8v7, "elbrus-8v7"),
+
+  LAST_QUAD (maket32c, "elbrus-maket32c"),
 };
 
 /* I don't remember for sure what DEFAULT actually means here. We should

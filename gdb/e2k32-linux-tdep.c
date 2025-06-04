@@ -72,4 +72,10 @@ _initialize_e2k32_linux_tdep ()
 			     obtain the 32-bit ABI machine number.  */
 			  4 * bfd_mach_e2k_generic + 1,
 			  GDB_OSABI_LINUX, e2k32_linux_init_abi);
+
+  /* elbrus-maket32c needs a separate registration because it's incompatible
+     with "generic" unlike all other e2k machines.  */
+  gdbarch_register_osabi (bfd_arch_e2k,
+			  4 * bfd_mach_e2k_maket32c + 1,
+			  GDB_OSABI_LINUX, e2k32_linux_init_abi);
 }

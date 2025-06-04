@@ -14,6 +14,7 @@ extern struct target_desc *tdesc_elbrus_v3_linux;
 extern struct target_desc *tdesc_elbrus_v5_linux;
 extern struct target_desc *tdesc_elbrus_v6_linux;
 extern struct target_desc *tdesc_elbrus_v7_linux;
+extern struct target_desc *tdesc_elbrus_maket32c_linux;
 
 
 extern LONGEST e2k_linux_get_syscall_number (struct gdbarch *gdbarch,
@@ -34,5 +35,10 @@ extern void e2k_collect_gregset (const int *reg_offsets,
                                  int regnum,
                                  void *gregs,
                                  int to_core);
+
+extern const struct target_desc *
+e2k_linux_core_read_description (struct gdbarch *gdbarch,
+                                 struct target_ops *target,
+                                 bfd *abfd);
 
 #endif /* E2K_LINUX_TDEP_H  */

@@ -283,7 +283,7 @@ e2k_linux_iterate_over_regset_sections (struct gdbarch *gdbarch,
   cb (".reg", size, size, &e2k_linux_gregset, NULL, cb_data);
 }
 
-static const struct target_desc *
+const struct target_desc *
 e2k_linux_core_read_description (struct gdbarch *gdbarch,
                                  struct target_ops *target,
                                  bfd *abfd)
@@ -329,6 +329,15 @@ e2k_linux_core_read_description (struct gdbarch *gdbarch,
 	  /* 10, 11 and 12 are used for elbrus-{12c,16,2c3} respectively. */
 	  else if (mdl == 10 || mdl == 11 || mdl == 12)
 	    return tdesc_elbrus_v6_linux;
+	  else if (mdl == 13)
+	    {
+	      unsigned long long rev = (idr >> 8) & 0xf;
+	      return (rev == 0
+		      ? tdesc_elbrus_maket32c_linux
+		      : tdesc_elbrus_v7_linux);
+	    }
+	  else if (mdl == 14)
+	    return tdesc_elbrus_v7_linux;
     }
 
   return tdesc_e2k_linux;
@@ -555,5 +564,11 @@ _initialize_e2k_linux_tdep ()
 			     FIXME: a special macro should be introduced to
 			     obtain the 64-bit ABI machine number.  */
 			  4 * bfd_mach_e2k_generic,
+			  GDB_OSABI_LINUX, e2k_linux_init_abi);
+
+  /* elbrus-maket32c needs a separate registration because it's incompatible
+     with "generic" unlike all other e2k machines.  */
+  gdbarch_register_osabi (bfd_arch_e2k,
+			  4 * bfd_mach_e2k_maket32c,
 			  GDB_OSABI_LINUX, e2k_linux_init_abi);
 }

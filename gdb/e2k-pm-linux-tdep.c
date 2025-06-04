@@ -68,6 +68,10 @@ e2k_pm_linux_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_fetch_tls_load_module_address (gdbarch,
                                              svr4_fetch_objfile_link_map);
 
+  set_gdbarch_core_read_description (gdbarch,
+                                     e2k_linux_core_read_description);
+
+
 }
 
 void _initialize_e2k_pm_linux_tdep ();
@@ -83,5 +87,11 @@ _initialize_e2k_pm_linux_tdep ()
 			     FIXME: a special macro should be introduced to
 			     obtain the PM ABI machine number.  */
 			  4 * bfd_mach_e2k_generic + 2,
+			  GDB_OSABI_LINUX, e2k_pm_linux_init_abi);
+
+  /* elbrus-maket32c needs a separate registration because it's incompatible
+     with "generic" unlike all other e2k machines.  */
+  gdbarch_register_osabi (bfd_arch_e2k,
+			  4 * bfd_mach_e2k_maket32c + 2,
 			  GDB_OSABI_LINUX, e2k_pm_linux_init_abi);
 }

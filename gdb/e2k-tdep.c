@@ -58,6 +58,7 @@
 #include "features/elbrus-v5-linux.c"
 #include "features/elbrus-v6-linux.c"
 #include "features/elbrus-v7-linux.c"
+#include "features/elbrus-maket32c-linux.c"
 
 #include "target-descriptions.h"
 
@@ -1765,7 +1766,7 @@ e2k_sigtramp_frame_sniffer (const struct frame_unwind *self,
   CORE_ADDR pc = get_frame_pc (this_frame);
   if ((pc >> 40) == 0xff)
     return 1;
-    
+
   return 0;
 }
 
@@ -4328,4 +4329,5 @@ _initialize_e2k_tdep ()
   initialize_tdesc_elbrus_v5_linux ();
   initialize_tdesc_elbrus_v6_linux ();
   initialize_tdesc_elbrus_v7_linux ();
+  initialize_tdesc_elbrus_maket32c_linux ();
 }

@@ -914,6 +914,8 @@ decorated_arch_name (bfd *abfd)
       return "elbrus-48c";
     case bfd_mach_e2k_8v7:
       return "elbrus-8v7";
+    case bfd_mach_e2k_maket32c:
+      return "elbrus-maket32c";
     default:
       BFD_ASSERT (0);
       return NULL;
@@ -956,6 +958,7 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd)
     e2c3,
     e48c,
     e8v7,
+    emaket32c,
     /* The related bit in mask stands for "all future processor models".  */
     ev8
   };
@@ -965,6 +968,11 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd)
 #define AT(p) (1L << p)
 
 #define AT_ev6 (AT (e12c) | AT (e16c) | AT (e2c3))
+
+/* Note the absence of emaket32c in this mask. This is because the execution
+   of code coming from elbrus-v{X<=7} object files is considered to be
+   impossible on elbrus-maket32c and thus the linkage of these object files
+   into elbrus-maket32c executable should be prohibited.  */
 #define AT_ev7 (AT (e48c) | AT (e8v7))
 
   /* This is a machine compatibility table. It provides the mask of machines an
@@ -1022,6 +1030,9 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd)
 
       [bfd_mach_e2k_8v7] =	{AT (e8v7),
 				 AT (e8v7)},
+
+      [bfd_mach_e2k_maket32c] =	{AT (emaket32c),
+				 AT (emaket32c)},
     };
 
   if (bfd_get_flavour (ibfd) == bfd_target_elf_flavour && getenv ("MAGIC"))

@@ -144,6 +144,7 @@ END_RELOC_NUMBERS (R_E2K_max)
 #define E_E2K_MACH_2C3	    23	/* -mtune=elbrus-2c3 code.  */
 #define E_E2K_MACH_48C	    24  /* -mtune=elbrus-48c code.  */
 #define E_E2K_MACH_8V7	    25  /* -mtune=elbrus-8v7 code.  */
+#define E_E2K_MACH_MAKET32C 26  /* -mtune=elbrus-maket32c code.  */
 
 static inline unsigned long
 e2k_arch_info_mach_to_iset (unsigned long mach)
@@ -160,6 +161,7 @@ e2k_arch_info_mach_to_iset (unsigned long mach)
       return 6;
     case E_E2K_MACH_48C:
     case E_E2K_MACH_8V7:
+    case E_E2K_MACH_MAKET32C:
       return 7;
     default:
       return mach;

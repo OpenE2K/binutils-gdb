@@ -1808,6 +1808,7 @@ enum bfd_architecture
 #define bfd_mach_e2k_2c3        23
 #define bfd_mach_e2k_48c        24
 #define bfd_mach_e2k_8v7        25
+#define bfd_mach_e2k_maket32c   26
   bfd_arch_e2k_golang, /* MCST E2K with GOLANG ABI. */
   bfd_arch_kvx,        /* Kalray VLIW core of the MPPA processor family */
 #define bfd_mach_kv3_unknown       0
