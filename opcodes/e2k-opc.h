@@ -1,3 +1,19 @@
+/* Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
+
 {
 	static e2k_alf1_opcode_templ dummy =
 		{"adds", 0xff, parse_alf_args, NULL, ALOPF1, NO_MAS, 0x10, {1, 1, 1, 1, 1, 1}, ARGS_SSS};
@@ -465,142 +481,142 @@
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldcsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x68, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldcsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x68, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"lddsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x6c, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"lddsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x6c, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldesb", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x70, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldesb", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x70, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldfsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x74, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldfsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x74, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldgsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x78, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldgsb", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x78, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldssb", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x7c, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldssb", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x7c, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldcsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x69, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldcsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x69, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"lddsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x6d, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"lddsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x6d, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldesh", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x71, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldesh", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x71, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldfsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x75, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldfsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x75, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldgsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x79, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldgsh", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x79, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldssh", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x7d, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldssh", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x7d, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldcsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x6a, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldcsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x6a, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"lddsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x6e, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"lddsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x6e, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldesw", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x72, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldesw", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x72, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldfsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x76, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldfsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x76, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldgsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x7a, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldgsw", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x7a, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldssw", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x7e, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldssw", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x7e, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldcsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldcsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"lddsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x6f, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"lddsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x6f, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldesd", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x73, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldesd", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x73, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldfsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x77, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldfsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x77, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldgsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x7b, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldgsd", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x7b, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldssd", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x7f, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
+		{"ldssd", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x7f, {1, 0, 1, 1, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldb", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x64, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
+		{"ldb", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x64, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldh", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x65, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
+		{"ldh", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x65, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldw", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x66, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
+		{"ldw", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x66, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf1_opcode_templ dummy =
-		{"ldd", 0xff, parse_alf_args, NULL, ALOPF1, MAS, 0x67, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
+		{"ldd", 0xff, parse_alf_args, NULL, ALOPF1, MAS | LOAD, 0x67, {1, 0, 1, 1, 0, 1}, ARGS_DDD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -830,142 +846,142 @@
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stcsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x28, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stcsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x28, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stdsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x2c, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stdsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x2c, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stesb", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stesb", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stfsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x34, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stfsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x34, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stgsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x38, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stgsb", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x38, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stssb", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x3c, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stssb", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x3c, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stcsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x29, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stcsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x29, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stdsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x2d, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stdsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x2d, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stesh", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x31, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stesh", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x31, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stfsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x35, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stfsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x35, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stgsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x39, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stgsh", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x39, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stssh", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x3d, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stssh", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x3d, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stcsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x2a, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stcsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x2a, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stdsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x2e, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stdsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x2e, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stesw", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stesw", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stfsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x36, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stfsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x36, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stgsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x3a, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stgsw", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x3a, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stssw", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x3e, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
+		{"stssw", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x3e, {0, 0, 1, 0, 0, 1}, ARGS_SSS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stcsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
+		{"stcsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stdsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x2f, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
+		{"stdsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x2f, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stesd", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x33, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
+		{"stesd", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x33, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stfsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x37, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
+		{"stfsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x37, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stgsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x3b, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
+		{"stgsd", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x3b, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stssd", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
+		{"stssd", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_SSD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stb", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x24, {0, 0, 1, 0, 0, 1}, ARGS_DDS};
+		{"stb", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x24, {0, 0, 1, 0, 0, 1}, ARGS_DDS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"sth", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x25, {0, 0, 1, 0, 0, 1}, ARGS_DDS};
+		{"sth", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x25, {0, 0, 1, 0, 0, 1}, ARGS_DDS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"stw", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x26, {0, 0, 1, 0, 0, 1}, ARGS_DDS};
+		{"stw", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x26, {0, 0, 1, 0, 0, 1}, ARGS_DDS};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf3_opcode_templ dummy =
-		{"std", 0xff, parse_alf_args, NULL, ALOPF3, MAS, 0x27, {0, 0, 1, 0, 0, 1}, ARGS_DDD};
+		{"std", 0xff, parse_alf_args, NULL, ALOPF3, MAS | STORE, 0x27, {0, 0, 1, 0, 0, 1}, ARGS_DDD};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -1330,87 +1346,87 @@
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"staab", 0xff, parse_alf_args, NULL, ALOPF10, MAS, 0x1c, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"staab", 0xff, parse_alf_args, NULL, ALOPF10, MAS | STORE, 0x1c, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"staah", 0xff, parse_alf_args, NULL, ALOPF10, MAS, 0x1d, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"staah", 0xff, parse_alf_args, NULL, ALOPF10, MAS | STORE, 0x1d, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"staaw", 0xff, parse_alf_args, NULL, ALOPF10, MAS, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"staaw", 0xff, parse_alf_args, NULL, ALOPF10, MAS | STORE, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"staad", 0xff, parse_alf_args, NULL, ALOPF10, MAS, 0x1f, {0, 0, 1, 0, 0, 1}, ARGS_D};
+		{"staad", 0xff, parse_alf_args, NULL, ALOPF10, MAS | STORE, 0x1f, {0, 0, 1, 0, 0, 1}, ARGS_D};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"staaq", 0xff, parse_alf_args, NULL, ALOPF10, MAS, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
+		{"staaq", 0xff, parse_alf_args, NULL, ALOPF10, MAS | STORE, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurw", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"aaurw", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurws", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"aaurws", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x1e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurwd", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x1f, {0, 0, 1, 0, 0, 1}, ARGS_D};
+		{"aaurwd", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x1f, {0, 0, 1, 0, 0, 1}, ARGS_D};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"aaurwq", 0xff, parse_alf_args, NULL, AAURW, NO_MAS, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
+		{"aaurwq", 0xff, parse_alf_args, NULL, AAURW, NO_MAS | STORE, 0x3f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"ldaab", 0xff, parse_alf_args, NULL, ALOPF19, MAS, 0x5c, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"ldaab", 0xff, parse_alf_args, NULL, ALOPF19, MAS | LOAD, 0x5c, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"ldaah", 0xff, parse_alf_args, NULL, ALOPF19, MAS, 0x5d, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"ldaah", 0xff, parse_alf_args, NULL, ALOPF19, MAS | LOAD, 0x5d, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"ldaaw", 0xff, parse_alf_args, NULL, ALOPF19, MAS, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"ldaaw", 0xff, parse_alf_args, NULL, ALOPF19, MAS | LOAD, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"ldaad", 0xff, parse_alf_args, NULL, ALOPF19, MAS, 0x5f, {0, 0, 1, 0, 0, 1}, ARGS_D};
+		{"ldaad", 0xff, parse_alf_args, NULL, ALOPF19, MAS | LOAD, 0x5f, {0, 0, 1, 0, 0, 1}, ARGS_D};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"ldaaq", 0xff, parse_alf_args, NULL, ALOPF19, MAS, 0x7f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
+		{"ldaaq", 0xff, parse_alf_args, NULL, ALOPF19, MAS | LOAD, 0x7f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"aaurr", 0xff, parse_alf_args, NULL, AAURR, NO_MAS, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
+		{"aaurr", 0xff, parse_alf_args, NULL, AAURR, NO_MAS | LOAD, 0x5e, {0, 0, 1, 0, 0, 1}, ARGS_S};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"aaurrd", 0xff, parse_alf_args, NULL, AAURR, NO_MAS, 0x5f, {0, 0, 1, 0, 0, 1}, ARGS_D};
+		{"aaurrd", 0xff, parse_alf_args, NULL, AAURR, NO_MAS | LOAD, 0x5f, {0, 0, 1, 0, 0, 1}, ARGS_D};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"aaurrq", 0xff, parse_alf_args, NULL, AAURR, NO_MAS, 0x7f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
+		{"aaurrq", 0xff, parse_alf_args, NULL, AAURR, NO_MAS | LOAD, 0x7f, {0, 0, 1, 0, 0, 1}, ARGS_Q};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -1680,12 +1696,12 @@
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldrd", 0xff, parse_alf_args, NULL, ALOPF11, NO_MAS, 0x5b, {1, 0, 1, 1, 0, 1}, ARGS_DDD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldrd", 0xff, parse_alf_args, NULL, ALOPF11, NO_MAS | LOAD, 0x5b, {1, 0, 1, 1, 0, 1}, ARGS_DDD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldosrrd", 0xc0, parse_alf_args, NULL, ALOPF11, NO_MAS, 0x5b, {1, 0, 1, 1, 0, 1}, ARGS_DDD, 0xdc, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldosrrd", 0xc0, parse_alf_args, NULL, ALOPF11, NO_MAS | LOAD, 0x5b, {1, 0, 1, 1, 0, 1}, ARGS_DDD, 0xdc, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -2100,182 +2116,182 @@
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgdb", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x64, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldgdb", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x64, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgdh", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x65, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldgdh", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x65, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgdw", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x66, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldgdw", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x66, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgdd", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x67, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldgdd", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x67, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgdq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x79, {1, 0, 1, 1, 0, 1}, ARGS_SSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldgdq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x79, {1, 0, 1, 1, 0, 1}, ARGS_SSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcudb", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x60, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldcudb", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x60, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcudh", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x61, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldcudh", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x61, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcudw", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x62, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldcudw", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x62, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcudd", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x63, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldcudd", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x63, {1, 0, 1, 1, 0, 1}, ARGS_SSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcudq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x78, {1, 0, 1, 1, 0, 1}, ARGS_SSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldcudq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x78, {1, 0, 1, 1, 0, 1}, ARGS_SSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldapb", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x68, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldapb", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x68, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldaph", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x69, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldaph", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x69, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldapw", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x6a, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldapw", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6a, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldapd", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldapd", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldapq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x7a, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldapq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x7a, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwb", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x70, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwb", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x70, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwd", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x73, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwd", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x73, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwh", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x71, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwh", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x71, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwq", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x7c, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwq", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x7c, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodww", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x72, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodww", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x72, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpb", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x74, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpb", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x74, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpd", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x77, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpd", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x77, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodph", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x75, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodph", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x75, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpq", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x7d, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpq", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x7d, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpw", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x76, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpw", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x76, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrb", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x6c, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrb", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6c, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrd", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x6f, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrd", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6f, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrh", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x6d, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrh", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6d, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrq", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x7b, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrq", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x7b, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrw", 0x01, parse_alf_args, NULL, ALOPF11, MAS, 0x6e, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrw", 0x01, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6e, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x42, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldcsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x42, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"lddsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x43, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"lddsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x43, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldesq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x44, {1, 0, 1, 1, 0, 1}, ARGS_SSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldesq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x44, {1, 0, 1, 1, 0, 1}, ARGS_SSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldfsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x45, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldfsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x45, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x46, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldgsq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x46, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldssq", 0xff, parse_alf_args, NULL, ALOPF11, MAS, 0x47, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldssq", 0xff, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x47, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -2495,167 +2511,167 @@
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stcsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x2, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
+		{"stcsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stdsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x3, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
+		{"stdsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stesq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x4, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
+		{"stesq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x4, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stfsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x5, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
+		{"stfsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x5, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x6, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
+		{"stgsq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x6, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stssq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x7, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
+		{"stssq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x7, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"strd", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x1b, {0, 0, 1, 0, 0, 1}, ARGS_DDD, NONE, EXT};
+		{"strd", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x1b, {0, 0, 1, 0, 0, 1}, ARGS_DDD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stosrrd", 0xc0, parse_alf_args, NULL, ALOPF13, MAS, 0x1b, {0, 0, 1, 0, 0, 1}, ARGS_DDD, 0xdc, EXT};
+		{"stosrrd", 0xc0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x1b, {0, 0, 1, 0, 0, 1}, ARGS_DDD, 0xdc, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgdb", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x24, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, EXT};
+		{"stgdb", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x24, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgdh", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x25, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, EXT};
+		{"stgdh", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x25, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgdw", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x26, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, EXT};
+		{"stgdw", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x26, {0, 0, 1, 0, 0, 1}, ARGS_SSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgdd", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x27, {0, 0, 1, 0, 0, 1}, ARGS_SSD, NONE, EXT};
+		{"stgdd", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x27, {0, 0, 1, 0, 0, 1}, ARGS_SSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgdq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x39, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
+		{"stgdq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x39, {0, 0, 1, 0, 0, 1}, ARGS_SSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stapb", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x28, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stapb", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x28, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"staph", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x29, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"staph", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x29, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stapw", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x2a, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stapw", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2a, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stapd", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
+		{"stapd", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stapq", 0xff, parse_alf_args, NULL, ALOPF13, MAS, 0x3a, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
+		{"stapq", 0xff, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3a, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpb", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x34, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodpb", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x34, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpd", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x37, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
+		{"stodpd", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x37, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodph", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x35, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodph", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x35, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpq", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x3d, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
+		{"stodpq", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3d, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpw", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x36, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodpw", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x36, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrb", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x2c, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodrb", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2c, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrd", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x2f, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
+		{"stodrd", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2f, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrh", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x2d, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodrh", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2d, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrq", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x3b, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
+		{"stodrq", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3b, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrw", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x2e, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodrw", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2e, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwb", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodwb", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwd", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x33, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
+		{"stodwd", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x33, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwh", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x31, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodwh", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x31, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwq", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x3c, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
+		{"stodwq", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3c, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodww", 0x01, parse_alf_args, NULL, ALOPF13, MAS, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodww", 0x01, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -2930,77 +2946,77 @@
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwb", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x70, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwb", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x70, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwd", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x73, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwd", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x73, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwh", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x71, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwh", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x71, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodwq", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x7c, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodwq", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x7c, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodww", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x72, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodww", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x72, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpb", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x74, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpb", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x74, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpd", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x77, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpd", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x77, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodph", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x75, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodph", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x75, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpq", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x7d, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpq", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x7d, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodpw", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x76, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodpw", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x76, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrb", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x6c, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrb", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6c, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrd", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x6f, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrd", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6f, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrh", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x6d, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrh", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6d, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrq", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x7b, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrq", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x7b, {1, 0, 1, 1, 0, 1}, ARGS_QSQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldodrw", 0x02, parse_alf_args, NULL, ALOPF11, MAS, 0x6e, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldodrw", 0x02, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6e, {1, 0, 1, 1, 0, 1}, ARGS_QSD, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -3015,77 +3031,77 @@
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpb", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x34, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodpb", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x34, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpd", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x37, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
+		{"stodpd", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x37, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodph", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x35, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodph", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x35, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpq", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x3d, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
+		{"stodpq", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3d, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodpw", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x36, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodpw", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x36, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrb", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x2c, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodrb", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2c, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrd", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x2f, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
+		{"stodrd", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2f, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrh", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x2d, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodrh", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2d, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrq", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x3b, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
+		{"stodrq", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3b, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodrw", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x2e, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodrw", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2e, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwb", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodwb", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x30, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwd", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x33, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
+		{"stodwd", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x33, {0, 0, 1, 0, 0, 1}, ARGS_QSD, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwh", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x31, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodwh", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x31, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodwq", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x3c, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
+		{"stodwq", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x3c, {0, 0, 1, 0, 0, 1}, ARGS_QSQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stodww", 0x02, parse_alf_args, NULL, ALOPF13, MAS, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
+		{"stodww", 0x02, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x32, {0, 0, 1, 0, 0, 1}, ARGS_QSS, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -3500,12 +3516,12 @@
 }
 {
 	static e2k_alf10_opcode_templ dummy =
-		{"staaqp", 0xf0, parse_alf_args, NULL, ALOPF10, MAS, 0x20, {0, 0, 1, 0, 0, 1}, ARGS_P};
+		{"staaqp", 0xf0, parse_alf_args, NULL, ALOPF10, MAS | STORE, 0x20, {0, 0, 1, 0, 0, 1}, ARGS_P};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alf9_opcode_templ dummy =
-		{"ldaaqp", 0xf0, parse_alf_args, NULL, ALOPF19, MAS, 0x60, {0, 0, 1, 0, 0, 1}, ARGS_P};
+		{"ldaaqp", 0xf0, parse_alf_args, NULL, ALOPF19, MAS | LOAD, 0x60, {0, 0, 1, 0, 0, 1}, ARGS_P};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -4105,67 +4121,67 @@
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldq", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x41, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
+		{"ldq", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x41, {1, 0, 1, 1, 0, 1}, ARGS_DDQ, NONE, {EXT, 0, EXT, EXT, 0, EXT}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x61, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x61, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgdqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x69, {1, 0, 1, 1, 0, 1}, ARGS_SSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldgdqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x69, {1, 0, 1, 1, 0, 1}, ARGS_SSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcudqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x68, {1, 0, 1, 1, 0, 1}, ARGS_SSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldcudqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x68, {1, 0, 1, 1, 0, 1}, ARGS_SSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldcsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x62, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldcsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x62, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"lddsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x63, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"lddsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x63, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldesqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x64, {1, 0, 1, 1, 0, 1}, ARGS_SSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldesqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x64, {1, 0, 1, 1, 0, 1}, ARGS_SSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldfsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x65, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldfsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x65, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldgsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x66, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldgsqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x66, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldssqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x67, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldssqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x67, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldapqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x6a, {1, 0, 1, 1, 0, 1}, ARGS_QSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldapqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6a, {1, 0, 1, 1, 0, 1}, ARGS_QSP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldrqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldrqp", 0xf0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_DDP, NONE, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
-		{"ldosrrqp", 0xc0, parse_alf_args, NULL, ALOPF11, MAS, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_DDP, 0xdc, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
+		{"ldosrrqp", 0xc0, parse_alf_args, NULL, ALOPF11, MAS | LOAD, 0x6b, {1, 0, 1, 1, 0, 1}, ARGS_DDP, 0xdc, {EXT1, 0, EXT1, EXT1, 0, EXT1}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -4255,107 +4271,107 @@
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stq", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x1, {0, 0, 1, 0, 0, 1}, ARGS_DDQ, NONE, EXT};
+		{"stq", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x1, {0, 0, 1, 0, 0, 1}, ARGS_DDQ, NONE, EXT};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgdmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x19, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
+		{"stgdmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x19, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgdqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x29, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
+		{"stgdqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x29, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stapqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x2a, {0, 0, 1, 0, 0, 1}, ARGS_QSP, NONE, EXT1};
+		{"stapqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2a, {0, 0, 1, 0, 0, 1}, ARGS_QSP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stapmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x1a, {0, 0, 1, 0, 0, 1}, ARGS_QSP, NONE, EXT1};
+		{"stapmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x1a, {0, 0, 1, 0, 0, 1}, ARGS_QSP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x11, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x11, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x21, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x21, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stcsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x12, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stcsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x12, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stcsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x22, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stcsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x22, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stdsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x13, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stdsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x13, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stdsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x23, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stdsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x23, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stesmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x14, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
+		{"stesmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x14, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stesqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x24, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
+		{"stesqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x24, {0, 0, 1, 0, 0, 1}, ARGS_SSP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stfsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x15, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stfsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x15, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stfsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x25, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stfsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x25, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x16, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stgsmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x16, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stgsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x26, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stgsqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x26, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stssmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x17, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stssmqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x17, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stssqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x27, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"stssqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x27, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"strqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
+		{"strqp", 0xf0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_DDP, NONE, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
 	static e2k_alopf13_opcode_templ dummy =
-		{"stosrrqp", 0xc0, parse_alf_args, NULL, ALOPF13, MAS, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_DDP, 0xdc, EXT1};
+		{"stosrrqp", 0xc0, parse_alf_args, NULL, ALOPF13, MAS | STORE, 0x2b, {0, 0, 1, 0, 0, 1}, ARGS_DDP, 0xdc, EXT1};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {
@@ -4780,6 +4796,11 @@
 }
 {
 	static e2k_alopf11_opcode_templ dummy =
+		{"apincrc", 0xc0, parse_alf_args, NULL, ALOPF11, NO_MAS, 0x51, {1, 1, 0, 1, 1, 0}, ARGS_QDQ, 0xc1, {EXT, EXT, 0, EXT, EXT, 0}, 0};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+{
+	static e2k_alopf11_opcode_templ dummy =
 		{"subarr", 0xc0, parse_alf_args, NULL, ALOPF11, NO_MAS, 0x50, {1, 1, 0, 1, 1, 0}, ARGS_QDQ, NONE, {EXT, EXT, 0, EXT, EXT, 0}, 0};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
@@ -4936,6 +4957,11 @@
 {
 	static e2k_alopf21_opcode_templ dummy =
 		{"qpidotshdss", 0xc0, parse_alf_args, NULL, ALOPF21, NO_MAS, 0x24, {1, 1, 0, 1, 1, 0}, ARGS_PPPP, EXT2};
+	add_to_insn_table ((e2k_opcode_templ *) &dummy);
+}
+{
+	static e2k_alopf21_opcode_templ dummy =
+		{"qpidotshduu", 0xc0, parse_alf_args, NULL, ALOPF21, NO_MAS, 0x26, {1, 1, 0, 1, 1, 0}, ARGS_PPPP, EXT2};
 	add_to_insn_table ((e2k_opcode_templ *) &dummy);
 }
 {

@@ -1,23 +1,20 @@
 /* E2k ELF support for BFD.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2008, 2009
-   Free Software Foundation, Inc.
-   Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
-   This file is part of BFD, the Binary File Descriptor library.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+   Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
 #ifndef _ELF_E2K_H
 #define _ELF_E2K_H
@@ -56,9 +53,9 @@ START_RELOC_NUMBERS (elf_e2k_reloc_type)
   RELOC_NUMBER (R_E2K_64_GOTOFF, 69)
   /* Because of the originally stupid order of assigning numbers to relocations
      we have reached the upper border for pure 64-bit ones. To avoid possible
-     collisions with pure 32-bit relocations I prefer to go on with the
-     increasing sequence of numbers starting from 256 rather than with the
-     decreasing one starting from 49 (see Bug #91797, Comment #3). Note that
+     collisions with pure 32-bit relocations proceed with the increasing
+     sequence of numbers starting from 256 rather than with the
+     decreasing one starting from 49 (see MCSTBug #91797, Comment #3). Note that
      this will make it impossible to use these relocations in 32-bit mode, but
      they shouldn't be intended for that in fact . . .  */
   RELOC_NUMBER (R_E2K_64_GOTOFF_LIT, 256)
@@ -95,7 +92,7 @@ START_RELOC_NUMBERS (elf_e2k_reloc_type)
   RELOC_NUMBER (R_E2K_ISLOCAL, 115)
   RELOC_NUMBER (R_E2K_ISLOCAL32, 118)
   RELOC_NUMBER (R_E2K_ALIGN_RELAX, 119)
-  RELOC_NUMBER (R_E2K_HWBUG_140436_RELAX, 120)
+  RELOC_NUMBER (R_E2K_MCSTBUG_140436_RELAX, 120)
 END_RELOC_NUMBERS (R_E2K_max)
 
 /* Processor specific flags for the ELF header e_flags field.  */
@@ -173,7 +170,7 @@ e2k_arch_info_mach_to_iset (unsigned long mach)
 
 enum
 {
-  /* Defective "prior to Bug #60151" lazy binding implementation which requires
+  /* Defective "prior to MCSTBug #60151" lazy binding implementation which requires
      additional fixup of all PLT entries. It's not used starting with this
      version of binutils.  */
   DT_E2K_LAZY_DEFECTIVE = DT_LOPROC,

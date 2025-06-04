@@ -1,23 +1,19 @@
 /* BFD support for the E2K architecture.
-   Copyright 1992, 1995, 1996, 1998, 2000, 2002, 2005, 2007
-   Free Software Foundation, Inc.
-
-   This file is part of BFD, the Binary File Descriptor library.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
 #include "sysdep.h"
 #include "bfd.h"
@@ -261,13 +257,13 @@ bfd_e2k_compatible (const bfd_arch_info_type *i, const bfd_arch_info_type *o)
 
 #define __N(ARCH, MACH, MODE, PRINT, DEFAULT, NEXT)			\
   {                                                                     \
-    /* We believe that E2k has 32 bits in a word for all architectures  \
-       in all supported ABIs. I wonder whether it's actually so from    \
-       the point of view of binutils.  */                               \
+    /* E2K has 32 bits in a word for all architectures and for all	\
+       supported ABIs. Is this actually so from	the point of view of	\
+       binutils?  */							\
     32,                                                                 \
       /* Number of bits in an address  */                               \
       BITS_ADDR_##MODE,                                                 \
-      /* We have 8 bits in a byte everywhere.  */                       \
+      /* A byte contains of 8 bits in all cases.  */			\
       8,                                                                \
       ARCH,								\
       /* Get an actual machine number used inside binutils while        \
@@ -451,9 +447,8 @@ const bfd_arch_info_type arch_info_struct[] =
   LAST_QUAD (maket32c, "elbrus-maket32c"),
 };
 
-/* I don't remember for sure what DEFAULT actually means here. We should
-   probably only one default arch, however. Let it be a 64-bit elbrus
-   generic arch.  */
+/* What does DEFAULT=true actually stand for here? Only one "default" arch
+   should exist, though. Let it be a 64-bit elbrus generic arch.  */
 const bfd_arch_info_type bfd_e2k_arch =
   N (bfd_mach_e2k_generic, 64, "generic", true, NN (I_generic_64));
 

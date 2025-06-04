@@ -1,3 +1,19 @@
+/* Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
+
 #include "sysdep.h"
 #include "bfd.h"
 #include "elf-bfd.h"
@@ -52,12 +68,12 @@ _bfd_e2k_pm_elf_modify_segment_map (bfd *abfd, struct bfd_link_info *info)
   int sizeof_headers;
 
   if (info != NULL)
-    /* We're doing linking, so evalute SIZEOF_HEADERS as in a linker script.  */
+    /* We're linking, so evalute SIZEOF_HEADERS as in the linker script.  */
     sizeof_headers = bfd_sizeof_headers (abfd, info);
   else
     {
-      /* We're not doing linking, so this is objcopy or suchlike.
-	 We just need to collect the size of the existing headers.  */
+      /* We're not linking, so this is objcopy or suchlike. The size of the
+	 existing headers just needs to be collected then.  */
       struct elf_segment_map *seg;
       sizeof_headers = bed->s->sizeof_ehdr;
       for (seg = *m; seg != NULL; seg = seg->next)
@@ -74,7 +90,8 @@ _bfd_e2k_pm_elf_modify_segment_map (bfd *abfd, struct bfd_link_info *info)
 
 	  /* First, we're just finding the earliest PT_LOAD.
 	     By the normal rules, this will be the lowest-addressed one.
-	     We only have anything interesting to do if it's executable.  */
+	     There may be something interesting to do only if it is
+	     executable.  */
 	  last_load = m;
 	  if (first_load == NULL)
 	    {

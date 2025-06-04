@@ -1,3 +1,19 @@
+/* Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
+
 #include "gdbsupport/common-defs.h"
 #include "e2k-dregs.h"
 
@@ -437,15 +453,14 @@ e2k_handle_nonaligned_watchpoint (struct e2k_debug_reg_state *state,
 	    internal_error (_("\
 Invalid value %d of operation in e2k_handle_nonaligned_watchpoint.\n"),
 			    (int)what);
-	  /* We keep the loop going even after a failure, because some
+	  /* Let the loop continue even after this failure, because some
 	     of the other aligned watchpoints might still succeed
 	     (e.g. if they watch addresses that are already watched,
 	     in which case we just increment the reference counts of
-	     occupied debug registers).  If we break out of the loop
-	     too early, we could cause those addresses watched by
-	     other watchpoints to be disabled when breakpoint.c reacts
-	     to our failure to insert this watchpoint and tries to
-	     remove it.  */
+	     occupied debug registers). If this loop was broken too early,
+	     that could make those addresses watched by  other watchpoints
+	     be disabled when breakpoint.c reacts to our failure to
+	     insert this watchpoint and tries to  remove it.  */
 	  if (status)
 	    retval = status;
 	}

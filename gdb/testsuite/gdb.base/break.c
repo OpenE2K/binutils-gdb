@@ -42,8 +42,7 @@ main (int argc, char **argv, char **envp)
 {
     if (argc == 12345) {  /* an unlikely value < 2^16, in case uninited */ /* set breakpoint 6 here */
 	fprintf (stderr, "usage:  factorial <number>\n");
-	argc = 1;
-        goto ret;
+	return 1;
     }
     printf ("%d\n", factorial (atoi ("6")));  /* set breakpoint 1 here */
     /* set breakpoint 12 here */
@@ -56,7 +55,7 @@ main (int argc, char **argv, char **envp)
     (void)malloc (1);
 
     argc = (argc == 12345); /* This is silly, but we can step off of it */ /* set breakpoint 2 here */
- ret: return argc;  /* set breakpoint 10 here */
+    return argc;  /* set breakpoint 10 here */
 } /* set breakpoint 10a here */
 
 int factorial (int value)

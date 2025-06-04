@@ -1,3 +1,19 @@
+/* Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
+
 #include "gdbsupport/common-defs.h"
 #include "gdb_proc_service.h"
 
@@ -142,9 +158,9 @@ e2k_linux_access_regs (int set, int tid, e2k_linux_gregset_t regs)
   gdb_assert (sizeof (e2k_linux_gregset_t)
 	      == SIZE_OF_ELBRUS_V6_USER_REGS_STRUCT + 8);
 
-  /* We should determine which regset to use during the very first invocation
+  /* One should determine which regset to use during the very first invocation
      of this function which should be PTRACE_GETREGS. The bogus behaviour of
-     old E2K kernels (see below) doesn't let us determine this for
+     old E2K kernels (see below) doesn't let one determine this for
      PTRACE_SETREGS.  */
   gdb_assert (min_regset == max_regset || set == 0);
 
@@ -177,8 +193,8 @@ e2k_linux_access_regs (int set, int tid, e2k_linux_gregset_t regs)
       
       /* The new kernel should NEVER modify `user_regs.sizeof_struct' (see Bug
          #81304, Comment #5). However, it DOES so on seeing an unsupported
-	 sizeof_struct along with producing the right RES thanks to <sanekf@
-	 mcst.ru> who inattentively read that comment. However, unlike the old
+	 sizeof_struct along with producing the right RES thanks to kernel
+	 folks who inattentively read that comment. However, unlike the old
 	 one it'll never zero out this field because of unavailable pt_regs.  */
       if (regs[0] == 0)
         {
@@ -237,7 +253,7 @@ e2k_linux_access_regs (int set, int tid, e2k_linux_gregset_t regs)
              not the latest proposed in Bug #81304, Comments #8 - #11) revision
              of the "new" `user_regs_struct'. Therefore for the latest GDB to
              work with it somehow, it should rely on the legacy `user_regs_
-             struct'. This is what the underlying check allows for: it case it
+             struct'. This is what the underlying check allows for: in case it
              fails the loop will continue as if an old kernel was used. Should
              it be left here forever to make it possible to fallback to the
              legacy `user_regs_struct' in case of some unexpected changes in

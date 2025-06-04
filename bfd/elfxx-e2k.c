@@ -1,22 +1,20 @@
-/* E2k-specific support for ELF
-   Copyright 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+/* E2K-specific support for ELF
 
-   This file is part of BFD, the Binary File Descriptor library.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
 #include "sysdep.h"
 #include "bfd.h"
@@ -441,9 +439,9 @@ static reloc_howto_type _bfd_e2k_elf_howto_table[] =
 	 bfd_elf_generic_reloc, "R_E2K_ALIGN_RELAX", false,
 	 0, 0, false),
 
-  [R_E2K_HWBUG_140436_RELAX] =
-  HOWTO (R_E2K_HWBUG_140436_RELAX, 0, 0, 0, false, 0, complain_overflow_dont,
-	 bfd_elf_generic_reloc, "R_E2K_HWBUG_140436_RELAX", false,
+  [R_E2K_MCSTBUG_140436_RELAX] =
+  HOWTO (R_E2K_MCSTBUG_140436_RELAX, 0, 0, 0, false, 0, complain_overflow_dont,
+	 bfd_elf_generic_reloc, "R_E2K_MCSTBUG_140436_RELAX", false,
 	 0, 0, false),
 };
 
@@ -523,8 +521,8 @@ _bfd_e2k_elf_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       return &_bfd_e2k_elf_howto_table[R_E2K_32_DYNOPT];
     case BFD_RELOC_E2K_ALIGN_RELAX:
       return &_bfd_e2k_elf_howto_table[R_E2K_ALIGN_RELAX];
-    case BFD_RELOC_E2K_HWBUG_140436_RELAX:
-      return &_bfd_e2k_elf_howto_table[R_E2K_HWBUG_140436_RELAX];
+    case BFD_RELOC_E2K_MCSTBUG_140436_RELAX:
+      return &_bfd_e2k_elf_howto_table[R_E2K_MCSTBUG_140436_RELAX];
     default:
       break;
     }
@@ -563,7 +561,7 @@ static bool relaxed_e2k_machine_check;
 static bool output_new_e_machine = true;
 bool simulating_mode;
 static bool pack_cud_gd;
-static bool hwbug_140436_workaround;
+static bool mcstbug_140436_workaround;
 static bool plt_via_movtd_ct = false;
 static bool relaxed_e2k_pm_check = false;
 
@@ -810,7 +808,7 @@ _bfd_e2k_elf_after_open (int ipd,
                          bool new_e_machine,
                          bool simulate,
 			 bool pack_cg,
-			 bool hwbug_140436,
+			 bool mcstbug_140436,
 			 bool movtd_ct_plt,
 			 bool pm_check)
 {
@@ -826,7 +824,7 @@ _bfd_e2k_elf_after_open (int ipd,
   output_new_e_machine = new_e_machine;
   simulating_mode = simulate;
   pack_cud_gd = pack_cg;
-  hwbug_140436_workaround = hwbug_140436;
+  mcstbug_140436_workaround = mcstbug_140436;
   plt_via_movtd_ct = movtd_ct_plt;
   relaxed_e2k_pm_check = pm_check;
 }
@@ -1090,8 +1088,8 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd)
   imach = bfd_get_mach (ibfd);
   omach = bfd_get_mach (obfd);
 
-  /* We shouldn't find ourselves here if `bfd_e2k_compatible ()' failed,
-     should we?  */
+  /* It should be impossible to find ourselves here if `bfd_e2k_compatible ()'
+     failed, shouldn't it?  */
   if (imach % 4 != omach % 4)
     {
       _bfd_error_handler
@@ -1234,8 +1232,8 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd)
   incompatible_output = (incompatible_input || incompatible_output);
 
   /* If the output arch has been specified explicitly, fail if we get
-     something different (e.g. the user wants E3S while the combination
-     of input files makes us choose E2S).  */
+     something different (e.g. the user wants elbrus-4c while the
+     combination  of input files makes us choose elbrus-8c).  */
   if (arch_set_via_cmdline
       && omach != mask[obfd->arch_info->mach / 4][incompatible_output])
     omach = 0;
@@ -1484,7 +1482,7 @@ copy_plt_refcount (struct elf_link_hash_entry *dst,
 static bfd_vma
 safe_plt_offset (bfd_vma off, bfd_vma idx, bfd_vma entry_size)
 {
-  if (! hwbug_140436_workaround)
+  if (! mcstbug_140436_workaround)
     return off + idx * entry_size;
 
   while (true)
@@ -4196,7 +4194,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
       set_plt_idx (h, NULL);
     }
 
-  /* We may need to allocate a few other entries under the following
+  /* A few other entries may need to be allocated here under the following
      circumstances:
 
      R_E2K_DISP can't be resolved  at linktime and an accompanying secondary PLT
@@ -4279,7 +4277,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 
           srela->size += htab->bytes_per_rela;
         }
-      /* We may find ourselves here, for example, if the symbol is not defined
+      /* One may find himself here, for example, if the symbol is not defined
          anywhere. What should be done then?  */
     }
   else
@@ -4632,9 +4630,9 @@ _bfd_e2k_elf_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
                          local symbols.  */
                     }
 
-                  /* We need one GOT entry to store a symbol's runtime offset
-                     (in case of IE and GDREL) or address (in case of
-                     GOT_NORMAL) related to the type of access under
+                  /* One GOT entry is required to store the symbol's runtime
+		     offset (in case of IE and GDREL) or address (in case of
+                     GOT_NORMAL) depending on the type of access under
                      consideration.  */
                   if (types[i] != GOT_TLS_GDMOD)
                     {
@@ -4692,7 +4690,7 @@ _bfd_e2k_elf_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
      for symbols requiring this.  */
   elf_link_hash_traverse (&htab->elf, finalize_plt_offsets, info);
 
-  /* We now have determined the sizes of the various dynamic sections.
+  /* The sizes of the various dynamic sections have been determined by now.
      Allocate memory for them.  */
   for (s = dynobj->sections; s != NULL; s = s->next)
     {
@@ -4701,7 +4699,7 @@ _bfd_e2k_elf_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 
       if (startswith (bfd_section_name (s), ".rela"))
         {
-          /* We use the reloc_count field as a counter if we need
+          /* The "reloc_count" field is used as a counter if one needs
 	     to copy relocs into the output file.  */
 	  s->reloc_count = 0;
         }
@@ -4728,8 +4726,8 @@ _bfd_e2k_elf_late_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       if ((s->flags & SEC_HAS_CONTENTS) == 0)
 	continue;
 
-      /* Allocate memory for the section contents.  We use bfd_zalloc
-	 here in case unused entries are not reclaimed before the
+      /* Allocate memory for the section contents.  bfd_zalloc () is
+	 used here in case unused entries are not reclaimed before the
 	 section's contents are written out.  This should not happen,
 	 but this way if it does, we get a R_E2K_NONE reloc instead
 	 of garbage.  */
@@ -5021,7 +5019,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 	case R_E2K_64_DYNOPT:
 	case R_E2K_32_DYNOPT:
 	case R_E2K_ALIGN_RELAX:
-	case R_E2K_HWBUG_140436_RELAX:
+	case R_E2K_MCSTBUG_140436_RELAX:
           break;
         default:
           _bfd_error_handler
@@ -5252,7 +5250,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
       switch (r_type)
         {
 	case R_E2K_ALIGN_RELAX:
-	case R_E2K_HWBUG_140436_RELAX:
+	case R_E2K_MCSTBUG_140436_RELAX:
 	  continue;
 
         case R_E2K_GOT:
@@ -5291,8 +5289,8 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                       asection *s;
                       Elf_Internal_Rela outrel;
 
-                      /* We need to generate a R_E2K_XX_RELATIVE reloc
-                         for the dynamic linker.  */
+                      /* R_E2K_XX_RELATIVE reloc needs to be generated for the
+			 dynamic linker here.  */
                       s = htab->elf.srelgot;
                       BFD_ASSERT (s != NULL);
 
@@ -5378,8 +5376,8 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                       asection *s;
                       Elf_Internal_Rela outrel;
 
-                      /* We need to generate a R_E2K_XX_RELATIVE reloc
-                         for the dynamic linker.  */
+                      /* R_E2K_XX_RELATIVE reloc needs to be generated for the
+			 dynamic linker here.  */
                       s = htab->elf.srelgot;
                       BFD_ASSERT (s != NULL);
 
@@ -5466,8 +5464,8 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 
           /* Check to make sure it isn't a protected function or data
 	     symbol for shared library since it may not be local when
-	     used as function address or with copy relocation.  We also
-	     need to make sure that a symbol is referenced locally.  */
+	     used as function address or with copy relocation.  One also
+	     needs to ensure that the symbol is referenced locally.  */
 	  if (!bfd_link_executable (info) && h)
 	    {
               if (!h->def_regular)
@@ -5584,10 +5582,10 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
           relocation = st_size;
           goto common_processing;
 
-          /* Prevent _bfd_final_link_relocate from its usual actions
-             when dealing with bogus LIT-relocs. We are going to pass
-             it a swapped value which shouldn't be modified. That's
-             why we take care of these things ourselves. */
+          /* Prevent _bfd_final_link_relocate from its usual actions when
+	     dealing with bogus LIT-relocs. It is going to be passed a
+	     swapped value which shouldn't be modified. That's why we take
+	     care of these things ourselves.  */
         case R_E2K_64_PC_LIT:
           relocation -= (input_section->output_section->vma
                          + input_section->output_offset
@@ -5687,7 +5685,7 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                        && h->dynindx != -1
                        && (! SYMBOLIC_BIND (info, h)
 			   /* SYMBOLIC_BIND may very well return 1 for a symbol
-			      mkssing from the shared library being linked with,
+			      missing from the shared library being linked with,
 			      say, `-Bsymbolic-functions'. This will result in a
 			      defective relative relocation against its base
 			      (i.e. zero link-time address) as it happened in
@@ -6533,9 +6531,9 @@ _bfd_e2k_elf_finish_dynamic_sections (bfd *output_bfd,
 		    htab->elf.splt->contents + 4 * i);
     }
 
-  /* Customize the PLT header in case it's actually used. Note that in Protected
-     Mode lacking support for lazy binding it's not needed which is made clear
-     by setting its size to zero.  */
+  /* Customize the PLT header in case it's actually used. Note that in
+     Protected Mode lacking support for lazy binding the header is not
+     needed which is made clear by setting its size to zero.  */
   if (htab->elf.splt
       && htab->elf.splt->size > 0
       && htab->plt_got_header_size > 0)
@@ -6928,7 +6926,7 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
       /* Skip NOP of a potentially variable length (on practice "unsafe" address
 	 ranges in .plt are currently eliminated by filling them in with zero
 	 dwords encoding sequences of "standard" 8-byte NOPs as they are not
-	 executed anyway) inserted for the sake of HWBug #140436 workaround.
+	 executed anyway) inserted for the sake of MCSTBug #140436 workaround.
 	 This issue was realized while working on Bug #144538.  */
       if ((hs & 0xffffff8f) == 0)
 	{
@@ -7465,7 +7463,7 @@ _bfd_e2k_elf_copy_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
             = (EF_E2K_MACH_TO_OLD_FLAG (mach) | (iflags & 0xf));
         }
     }
-  /* We find ourselves here only if `obfd->e_machine == EM_MCST_ELBRUS'.  */
+  /* One can find himself here only if `obfd->e_machine == EM_MCST_ELBRUS'.  */
   else if (elf_elfheader (ibfd)->e_machine == EM_E2K_OLD)
     {
       unsigned long iflags = elf_elfheader (ibfd)->e_flags;
@@ -8054,7 +8052,7 @@ _bfd_e2k_elf_relax_section (bfd *abfd,
 
   for (i = 0; i < sec->reloc_count; i++)
     {
-      if (ELF_R_TYPE (abfd, relocs[i].r_info) == R_E2K_HWBUG_140436_RELAX)
+      if (ELF_R_TYPE (abfd, relocs[i].r_info) == R_E2K_MCSTBUG_140436_RELAX)
 	{
 	  bfd_vma addr = ((sec->output_section->vma + sec->output_offset
 			   + relocs[i].r_offset - relocs[i].r_addend)

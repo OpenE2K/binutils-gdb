@@ -1,22 +1,20 @@
-/* Target-dependent code for GNU/Linux E2K64.
+/* Target-dependent code for GNU/Linux E2K & E2K64.
 
-   Copyright (C) 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
-
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
 #include "osabi.h"
@@ -229,9 +227,9 @@ e2k_linux_collect_core_gregset (const struct regset *regset,
      with REGNUM different from -1.  */
   gdb_assert (regnum == -1);
 
-  /* We can be invoked to fill in ".reg" section for the latest flavour of core
-     files only (see `e2k_linux_iterate_over_regset_sections ()'). There is
-     just no point in producing older ones.  */
+  /* This function can be invoked to fill in ".reg" section for the latest
+     flavour of core files only (see `e2k_linux_iterate_over_regset_sections
+     ()'). There is just no point in producing older ones.  */
   gdb_assert (len == SIZE_OF_ELBRUS_V6_USER_REGS_STRUCT);
 
   e2k_collect_gregset (e2k_linux_ptrace_offsets, regcache, regnum, regs, 1);

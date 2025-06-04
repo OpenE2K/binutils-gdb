@@ -6075,8 +6075,8 @@ linux_process_target::qxfer_tags (unsigned char *readbuf,
   int i;
   long pid = lwpid_of (current_thread);
 
-  /* Take into account that these idiots in `handle_qxfer ()' pass us
-     `LEN + 1' in fact . . .  */
+  /* Take into account that `handle_qxfer ()' passes us `LEN + 1'
+     in fact . . .  */
   len -= 1;
 
   if (offset & 3)
@@ -6117,8 +6117,7 @@ linux_process_target::qxfer_packed_tags (unsigned char *readbuf,
   if (!readbuf && !writebuf)
     return -1;
 
-  /* Note that these idiots in `handle_qxfer ()' supply us with `LEN + 1'
-     in fact . . .  */
+  /* Note that `handle_qxfer ()' supplies us with `LEN + 1' in fact . . .  */
   len -= 1;
 
   /* Writing packed tags back into memory is not supported and makes no sense

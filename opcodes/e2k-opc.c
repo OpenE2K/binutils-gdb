@@ -1,3 +1,22 @@
+/* Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
+
+#include "sysdep.h"
+#include "bfd.h"
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,9 +25,13 @@
 #include "opcode/e2k.h"
 
 /* Imply `-mcpu=elbrus-v2' by default now that support for `-mcpu={generic,
-   elbrus-v1}' is to be removed from `e2k-linux-as' (see Bug #96498,
+   elbrus-v1}' is to be removed from `e2k-linux-as' (see MCSTBug #96498,
    Comment #11).  */
 int mcpu = 2;
+
+/* This has been moved to libopcodes because of the need to recognize
+   elbrus-maket32c in `add_to_insn_table ()' (MCSTBug #162899).  */
+unsigned long output_mach;
 
 #define ISET_ALL_COMPAT_MASK	0x7f
 #define ISET_V2_COMPAT_MASK	0x7e
@@ -27,6 +50,26 @@ add_to_insn_table (e2k_opcode_templ *new)
 {
   if (e2k_num_opcodes == MAX_E2K_NUM_OPCODES)
     abort ();
+
+  /* The following instructions are not supported in ALC{i>=3} on
+     elbrus-maket32c in spite of what instruction tables in iset-v7.single
+     state (MCSTBug #162899).  */
+  if (output_mach == bfd_mach_e2k_maket32c
+      && (strcmp (new->name, "qpkuzltr") == 0
+	  || strcmp (new->name, "qpaesebgn") == 0
+	  || strcmp (new->name, "qpaesltr") == 0
+	  || strcmp (new->name, "qpaesdbgn") == 0
+	  || strcmp (new->name, "qpaesiltr") == 0
+	  || strcmp (new->name, "qpkuzebgn") == 0))
+    {
+      int i;
+      e2k_alf_opcode_templ *alf = (e2k_alf_opcode_templ *) new;
+      for (i = 3; i <= 5; i++)
+	{
+	  if (alf->allowed_channels[i] != 0)
+	    alf->allowed_channels[i] = 0;
+	}
+    }
 
   e2k_opcode_templs[e2k_num_opcodes++] = new;
 }
@@ -337,7 +380,7 @@ merge_alopf_simple (struct e2k_opcode_templ *lhs,
     {
       if (r->allowed_channels[i] != 0)
         {
-          /* There should be no duplication of ALC'es now. I can probably rely
+          /* There should be no duplication of ALC'es now. One can probably rely
              on this above in `merge_alopf11 ()' as well . . .  */
           if (l->allowed_channels[i] != 0)
             abort ();
@@ -485,15 +528,15 @@ init_opcode_templs ()
 
   {
     static const e2k_alf3_opcode_templ mmurr =
-      {"mmurr", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURR, NO_MAS,
-       0x67, {0, 0, 1, 0, 0, 1}, ARGS_DDD};
+      {"mmurr", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURR,
+       LOAD | NO_MAS, 0x67, {0, 0, 1, 0, 0, 1}, ARGS_DDD};
 
-    /* FIXME: I've intentionally specified NO_MAS here so that `parse_alf_args
-       ()' doesn't attempt to parse it. I set it manually in parse_mmurw_args
-       instead.  */
+    /* FIXME: NO_MAS has intentionally been specified here so that
+       `parse_alf_args ()' doesn't attempt to parse it. It will be
+       set manually in `parse_mmurw_args ()' instead.  */
     static const e2k_alf3_opcode_templ mmurw =
-      {"mmurw", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURW, NO_MAS,
-       0x27, {0, 0, 1, 0, 0, 0}, ARGS_DDD};
+      {"mmurw", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURW,
+       STORE | NO_MAS, 0x27, {0, 0, 1, 0, 0, 0}, ARGS_DDD};
 
     add_to_insn_table ((e2k_opcode_templ *) &mmurr);
     add_to_insn_table ((e2k_opcode_templ *) &mmurw);

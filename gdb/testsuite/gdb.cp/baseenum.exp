@@ -15,8 +15,6 @@
 
 # Test searching enum constant symbols derived from base classes.
 
-set USE_GCC 1
-
 standard_testfile .cc
 
 if {[prepare_for_testing "failed to prepare" $testfile $srcfile {debug c++}]} {

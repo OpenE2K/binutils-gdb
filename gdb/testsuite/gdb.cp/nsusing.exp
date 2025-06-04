@@ -13,12 +13,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-<<<<<<< HEAD
-set USE_GCC 1
-
-
-=======
->>>>>>> 03f2bc641dd8adb7d44cfe10b7e1f547c103105a
 standard_testfile .cc
 
 if {[prepare_for_testing "failed to prepare" $testfile $srcfile {debug c++}]} {

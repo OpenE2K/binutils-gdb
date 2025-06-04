@@ -17,17 +17,7 @@
 # This file was written by Sue Kimura (sue_kimura@hp.com)
 # Rewritten by Michael Chastain (mec.gnu@mindspring.com)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-set USE_GCC 1
-
-if { [skip_stl_tests] } { continue }
-=======
-if { [skip_stl_tests] } { return }
->>>>>>> d195321cec5d77f48845fc606f8a3a97dc0e0024
-=======
 require allow_stl_tests
->>>>>>> dd19001ff621dbdaddadf71d3b4984ea016fd153
 
 standard_testfile .cc
 

@@ -19,7 +19,7 @@ ENTRY (1, "%pci_l_b", 0x80, 0x8, 2, 1)
 ENTRY (1, "%us_cl_d", 0x90, 0x8, 2, 1)
 ENTRY (1, "%ph_h_b", 0xa0, 0x8, 2, 1)
 
-/* These idiots name the underlying two entries as %apic_base in
+/* They name the underlying two entries as %apic_base in
    iset-v1.single. Therefore I believe that the corresponding registers are
    missing from elbrus-v1, though it may be just a misprint.  */
 ENTRY (2, "%used_4kb_dtlb", 0xb0, 0x8, 2, 1)

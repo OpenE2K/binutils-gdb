@@ -14,12 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-<<<<<<< HEAD
-set USE_GCC 1
-=======
 # This test is used to verify GDB's ability to refer to linkage names
 # for types and functions within anonymous structures.
->>>>>>> 80a3733432f335fd0d2a0e7a6aeac1e3849d765c
 
 standard_testfile .cc
 

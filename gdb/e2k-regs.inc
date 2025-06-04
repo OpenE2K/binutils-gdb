@@ -1751,7 +1751,7 @@ E2K_PSEUDO_REG ("xg29",                                    VXG29_REGNUM)
 E2K_PSEUDO_REG ("xg30",                                    VXG30_REGNUM)
 E2K_PSEUDO_REG ("xg31",                                    VXG31_REGNUM)
 
-/* Inspite of the fact that only 64 registers `%r0, . . ., %r63' exist which
+/* In spite of the fact that only 64 registers `%r0, . . ., %r63' exist which
    LCC is capable of encoding in debug info, I obviously need more to handle
    `VDWB*_REGNUM's in terms of `VDWR*' ones. For symmetry with tagged window
    registers I support all 224 dwarf ones, though not all of them are likely to

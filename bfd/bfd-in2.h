@@ -7632,8 +7632,8 @@ enum bfd_reloc_code_real
   /* This one corresponds to R_E2K_ALIGN_RELAX.  */
   BFD_RELOC_E2K_ALIGN_RELAX,
 
-  /* This one corresponds to R_E2K_HWBUG_140436_RELAX.  */
-  BFD_RELOC_E2K_HWBUG_140436_RELAX,
+  /* This one corresponds to R_E2K_MCSTBUG_140436_RELAX.  */
+  BFD_RELOC_E2K_MCSTBUG_140436_RELAX,
 
   /* This one corresponds to R_E2K_64_PC_LIT.  */
   BFD_RELOC_E2K_64_PCREL_LIT,

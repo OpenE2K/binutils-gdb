@@ -381,7 +381,7 @@
     <!-- "Should be 0": a 1 bit wide zero field.  -->
     <field name="root" start="4" end="4"/>
     <!-- "Should be 0" probably means that the corresponding field always
-         contains 0. We have a 3 bit wide zero field here. -->
+         contains 0. There is a 3 bit wide zero field here. -->
   </struct>
 
   <union id="aalda">
@@ -625,8 +625,7 @@
     <field name="" type="cwd_bits"/>
   </union>
 
-  <!-- PCSHTP: see 5.13.2, `value' field is invented by these idiots in
-       gdb-5.2  -->
+  <!-- PCSHTP: see 5.13.2, `value' field is invented in gdb-5.2  -->
   <struct id="pcshtp_bits" size="8">
     <field name="value" start="4" end="10"/>
   </struct>

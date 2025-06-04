@@ -24,7 +24,6 @@
 # test running programs
 #
 
-set USE_GCC 1
 
 require allow_cplus_tests
 

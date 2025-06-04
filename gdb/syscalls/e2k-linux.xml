@@ -1,15 +1,18 @@
 <?xml version="1.0"?>
 <!DOCTYPE syscalls_info SYSTEM "gdb-syscalls.dtd">
-<!-- Copyright (C) 2009-2016 Free Software Foundation, Inc.
+<!-- Copyright (c) 2009-2025 AO MCST.
+     Copyright (C) 1991-2025 Free Software Foundation, Inc.
 
      Copying and distribution of this file, with or without modification,
      are permitted in any medium without royalty provided the copyright
      notice and this notice are preserved.  -->
+
 <!-- This file was generated using the following file:
      
      arch/e2k/include/uapi/asm/unistd.h
 
      The file mentioned above belongs to the Linux Kernel.  -->
+
 <!-- FIXME: syscalls having different numbers across different modes and fast
      syscalls should be distinguished somehow . . .  -->
 <syscalls_info>

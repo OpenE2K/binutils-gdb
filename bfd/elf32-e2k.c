@@ -1,23 +1,19 @@
 /* E2K-specific support for 32-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
-
-   This file is part of BFD, the Binary File Descriptor library.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
-   MA 02110-1301, USA.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
 #include "sysdep.h"
 #include "bfd.h"
@@ -97,11 +93,11 @@ static const struct elf_size_info elf32_e2k_size_info = {
 
 #define elf_backend_setup_gnu_properties	_bfd_e2k_elf_link_setup_gnu_properties
 
-/* Make tests employing `gc-sections' option PASS. I wonder if any backend-
-   specific support is required. TODO: place here actual names of the tests.  */
+/* Make tests employing `gc-sections' option PASS. Is any backend-
+   specific support required? TODO: place here actual names of the tests.  */
 #define elf_backend_can_gc_sections             1
 #define elf_backend_want_got_sym                1
-/* I want got.refcount start from `0', not from `-1'
+/* got.refcount should start from `0', not from `-1'
    (see _bfd_elf_link_hash_table_init). */
 #define elf_backend_can_refcount                1
 

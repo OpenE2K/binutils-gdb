@@ -1,21 +1,20 @@
 /* GNU/Linux/E2K specific low level interface, for the remote server for GDB.
-   Copyright (C) 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2007, 2008, 2009,
-   2010 Free Software Foundation, Inc.
 
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
 #include "server.h"
 #include "linux-low.h"
@@ -207,7 +206,7 @@ e2k_fill_gregset (struct regcache *regcache, void *buf)
    (PTRACE_GETREGS, ...,  data) `data' buffer are not the
    same as the ones used by gdbserver when transmitting
    registers to the remote host. Instead they have bogus
-   arrays for the former group of offsets. There are two
+   arrays for the former group of offsets. There are too
    many sets of registers and kinds of offsets within GDB
    indeed! */
 
@@ -285,7 +284,7 @@ e2k_store_gregset (struct regcache *regcache, const void *buf)
 		  sizeof (psp_base));
 
 	  /* Make `%psp_base' available if it has been successfully fetched
-	     from `/proc/PID/maps' inspite of the Kernel lacking support for
+	     from `/proc/PID/maps' in spite of the Kernel lacking support for
 	     the latest user_regs_struct.  */
 	  if (psp_base != 0)
 	    avail = 1;

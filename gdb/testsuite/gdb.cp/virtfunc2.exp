@@ -16,8 +16,6 @@
 # This file was written by Chris Moller <moller@redhat.com> based on
 # virtfunc.exp
 
-set USE_GCC 1
-
 set nl		"\[\r\n\]+"
 
 require allow_cplus_tests

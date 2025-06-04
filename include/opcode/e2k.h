@@ -38,13 +38,15 @@
   /* Pointer to the NEXT with the same name.  */	\
   struct e2k_alf_opcode_templ_struct *next;		\
   u_int8_t alopf;					\
-  int need_mas;						\
+  int flags;						\
   u_int8_t opc;						\
   int allowed_channels[6]
 
 
-#define MAS             1
 #define NO_MAS          0
+#define MAS             1
+#define LOAD		2
+#define STORE		4
 
 /* ALES.opc2 values. See B.1.2 in iset.single.  */
 #define EXT     0x1
@@ -558,8 +560,8 @@ typedef struct
   /* These two are used for quad ops occupying two channels. */		\
   unsigned real_als_nmb;                                                \
   /* The first element in real_alses will always be the minor           \
-     channel number. I want the user to be able to write                \
-     stapq,5 instead of stapq,2. */                                     \
+     channel number. The user should be capable of specifying		\
+     "stapq,5" instead of "stapq,2". */					\
   unsigned real_alses[6][2];                                            \
                                                                         \
   /* This means that ALS{j,k}.src1 should contain the same value        \
@@ -613,3 +615,4 @@ void fill_in_ales_opc2 (const e2k_alf_opcode_templ *, u_int8_t *);
 
 
 extern int mcpu;
+extern unsigned long output_mach;

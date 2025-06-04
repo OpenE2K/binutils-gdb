@@ -18,17 +18,7 @@
 
 # This file is part of the gdb testsuite
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-set USE_GCC 1
-
-if { [skip_cplus_tests] } { continue }
-=======
-if { [skip_cplus_tests] } { return }
->>>>>>> d195321cec5d77f48845fc606f8a3a97dc0e0024
-=======
 require allow_cplus_tests
->>>>>>> dd19001ff621dbdaddadf71d3b4984ea016fd153
 
 #
 # test running programs

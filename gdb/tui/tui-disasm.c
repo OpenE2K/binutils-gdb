@@ -120,7 +120,7 @@ tui_disassemble (struct gdbarch *gdbarch,
 
   /* Now construct each line.  */
 #ifdef ENABLE_E2K_QUIRKS
-  /* Unlike our disassembler the one for IA-64, doesn't output the whole
+  /* Unlike our disassembler the one for IA-64 doesn't output the whole
      wide command at once via `gdb_print_insn ()'. It outputs its
      constituent parts  as strings without newlines instead and each
      subcommand has its unique PC.  Since our implementation of

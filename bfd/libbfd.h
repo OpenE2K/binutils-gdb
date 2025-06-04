@@ -3698,7 +3698,7 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_E2K_DYNOPT32",
   "BFD_RELOC_E2K_DYNOPT64",
   "BFD_RELOC_E2K_ALIGN_RELAX",
-  "BFD_RELOC_E2K_HWBUG_140436_RELAX",
+  "BFD_RELOC_E2K_MCSTBUG_140436_RELAX",
   "BFD_RELOC_E2K_64_PCREL_LIT",
  "@@overflow: BFD_RELOC_UNUSED@@",
 };

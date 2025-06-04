@@ -15,8 +15,6 @@
 
 # This file is part of the gdb testsuite
 
-set USE_GCC 1
-
 # Test expressions which assume an implicit "this" with a qualified
 # name.
 

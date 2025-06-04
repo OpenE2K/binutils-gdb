@@ -1,22 +1,20 @@
-/* Target-dependent code for E2K64&common.
+/* Target-dependent code for E2K & E2K64.
 
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
-
-   This file is part of GDB.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   Copyright (c) 2009-2025 AO MCST.
+   Copyright (C) 1991-2025 Free Software Foundation, Inc.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   You should have received a copy of the GNU Lesser General Public
+   License along with this program; if not, see
+   <https://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
 #include "arch-utils.h"
@@ -776,8 +774,8 @@ e2k_frame_cache (frame_info_ptr this_frame, void **this_cache,
   if (cache->this_pcsp != 0)
     cache->pcsp = prev_pcsp = cache->this_pcsp - 32;
   else
-    /* All this is because of these idiots who cannot provide us with
-       valid values when stopped with PTRACE_EVENT_EXEC. */
+    /* All this is because of the kernel incapable of providing us with
+       valid values when the inferior is stopped with PTRACE_EVENT_EXEC. */
     cache->pcsp = prev_pcsp = 0;
 
   if (pcsp_base != 0 && prev_pcsp >= pcsp_base)
@@ -1965,7 +1963,7 @@ e2k_pseudo_register_read (struct gdbarch *gdbarch,
       free_ivar (cr0_lo);
 
       /* This also looks a bit complicated . . . Why should I
-         temporarely migrate to integers? */
+         temporarily migrate to integers? */
       store_unsigned_integer (buf, register_size (gdbarch, rnum + VP0_REGNUM),
                               byte_order, ivar_field (pred, "word"));
 
@@ -2821,8 +2819,8 @@ e2k_print_registers_info (struct gdbarch *gdbarch,
 	  || *(gdbarch_register_name (gdbarch, i)) == '\0')
 	continue;
 
-      /* I don't use `throw_exception when reading unavailable window registers
-         anymore. Unavailable values are imployed instead.  */
+      /* Don't use throw_exception () when reading unavailable window
+	 registers anymore. Unavailable values are employed instead.  */
       res = deprecated_frame_register_read (frame, i, buffer);
 
       if (res != 1)
@@ -3364,7 +3362,7 @@ e2k_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
     return regnum >= VQPR0_REGNUM && regnum <= VQPR0_REGNUM + 223;
   else if (group == general_reggroup)
     {
-      /* Our notioon of general registers is different from that of
+      /* Our notion of general registers is different from that of
          default_register_reggroup_p. */
       return ((regnum >= VR0_REGNUM && regnum <= (VR0_REGNUM + 63))
               || (regnum >= VB0_REGNUM && regnum <= VB127_REGNUM));
@@ -3372,7 +3370,7 @@ e2k_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
 
   /* Keep this misery to let the old implementation of CALLs work somehow. When
      the new one is used it prevents some important raw registers (e.g. `%cr1.
-     {lo,hi}' from being restored properly when popping a dummy frame.  */
+     {lo,hi}') from being restored properly when popping a dummy frame.  */
 
   if (group == all_reggroup)
     {
