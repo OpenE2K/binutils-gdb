@@ -68,12 +68,12 @@ _bfd_e2k_pm_elf_modify_segment_map (bfd *abfd, struct bfd_link_info *info)
   int sizeof_headers;
 
   if (info != NULL)
-    /* We're doing linking, so evalute SIZEOF_HEADERS as in a linker script.  */
+    /* We're linking, so evalute SIZEOF_HEADERS as in the linker script.  */
     sizeof_headers = bfd_sizeof_headers (abfd, info);
   else
     {
-      /* We're not doing linking, so this is objcopy or suchlike.
-	 We just need to collect the size of the existing headers.  */
+      /* We're not linking, so this is objcopy or suchlike. The size of the
+	 existing headers just needs to be collected then.  */
       struct elf_segment_map *seg;
       sizeof_headers = bed->s->sizeof_ehdr;
       for (seg = *m; seg != NULL; seg = seg->next)
@@ -90,7 +90,8 @@ _bfd_e2k_pm_elf_modify_segment_map (bfd *abfd, struct bfd_link_info *info)
 
 	  /* First, we're just finding the earliest PT_LOAD.
 	     By the normal rules, this will be the lowest-addressed one.
-	     We only have anything interesting to do if it's executable.  */
+	     There may be something interesting to do only if it is
+	     executable.  */
 	  last_load = m;
 	  if (first_load == NULL)
 	    {

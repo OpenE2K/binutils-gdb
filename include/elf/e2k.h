@@ -72,8 +72,8 @@ START_RELOC_NUMBERS (elf_e2k_reloc_type)
   RELOC_NUMBER (R_E2K_64_GOTOFF, 69)
   /* Because of the originally stupid order of assigning numbers to relocations
      we have reached the upper border for pure 64-bit ones. To avoid possible
-     collisions with pure 32-bit relocations We prefer to go on with the
-     increasing sequence of numbers starting from 256 rather than with the
+     collisions with pure 32-bit relocations proceed with the increasing
+     sequence of numbers starting from 256 rather than with the
      decreasing one starting from 49 (see MCSTBug #91797, Comment #3). Note that
      this will make it impossible to use these relocations in 32-bit mode, but
      they shouldn't be intended for that in fact . . .  */

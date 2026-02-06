@@ -26,8 +26,8 @@
 #include "elf/e2k.h"
 #include "libiberty.h"
 
-/* We need MCPU referred to in "e2k-opc.h" here to prevent "e2k-opc.c" from
-   being linked into OBJDUMP. At the same time We want to prevent "e2k-dis.c"
+/* One needs MCPU referred to in "e2k-opc.h" here to prevent "e2k-opc.c" from
+   being linked into OBJDUMP. At the same time, "e2k-dis.c" should be prevented
    from being mistakenly linked into GAS because of this variable, which is why
    it's made static and renamed here.  */
 #define mcpu e2k_dis_mcpu
@@ -146,7 +146,7 @@ unpack_instr (bfd_byte *buf)
 
   /* The following condition means that ALES{2,5} are physically present within
      the wide instruction. However, they should be probably taken into account
-     only if HS.ale{2,5} are set. Should We disassemble them if these bits are
+     only if HS.ale{2,5} are set. Should they be disassembled if these bits are
      not set but the syllables physically exist?  */
   if (((hs & (0x1 << 15)) && mdl == pos + 8)
       || (!(hs & (0x1 << 15)) && mdl == pos + 4))
@@ -244,10 +244,10 @@ unpack_instr (bfd_byte *buf)
     }
 
   /* Calculate the next 32-bit syllable's position. It may be the uppermost LTS
-     syllable. Note that We don't consider the case when LTS syllables reuse the
-     values encoded in the preceding ones, though according to `iset-v5.single'
-     this is quite legal. GAS doesn't produce such a code. Hopefully neither LAS
-     has ever done that . . .  */
+     syllable. Note that the case when LTS syllables reuse the values encoded
+     in the preceding ones is not considered, though according to
+     `iset-v5.single' this is quite legal. GAS doesn't produce such a code.
+     Hopefully neither LAS has ever done that . . .  */
   gap = pos + 2 * hsyll_cntr;
 
   /* Set POS to point to the last syllable in the current wide instruction and
@@ -633,27 +633,48 @@ print_dst2 (disassemble_info *info, int chn)
   my_printf ("%%pred%d", pred_num);
 }
 
-static void
-print_state_reg (disassemble_info *info, int code)
+static const char *cu_reg_names[256];
+
+void
+disassemble_init_e2k (struct disassemble_info *info)
 {
-  static const char *names[] = {
-    /* ALT_ENTRies are ignored for the sake of unambiguous disassembly.  */
-#define ALT_ENTRY(a,b,c,d)
-#define ENTRY(a,b,c,d) [b] = a,
-#define __e3s(arg) arg
-#define __e2s(arg) arg
-#define __v5(arg) arg
-
+  static struct
+  {
+    unsigned min_iset;
+    unsigned max_iset;
+    const char *name;
+    size_t regnum;
+  } table[] = {
+#define ENTRY(a, b, c, d, e) {a, 7, b, c},
+#define STALE_ENTRY(a, b, c, d, e, f) {a, b, c, d},
+    /* Don't use alternative state register names when disassembling.  */
+#define ALT_ENTRY(a, b, c, d, e)
 #include "opcode/e2k/state-regs.def"
-
-#undef __v5
-#undef __e2s
-#undef __e3s
-#undef ENTRY
 #undef ALT_ENTRY
+#undef STALE_ENTRY
+#undef ENTRY
   };
 
-  my_printf ("%s", names[code]);
+  unsigned iset = (unsigned) e2k_arch_info_mach_to_iset (info->mach);
+
+  size_t i;
+  for (i = 0; i < sizeof (table) / sizeof (table[0]); i++)
+    {
+      size_t rnum = table[i].regnum;
+      assert (rnum < 256);
+      if (iset >= table[i].min_iset && iset <= table[i].max_iset
+	  /* Give preference to suitable names which come first in
+	     state-regs.def.  */
+	  && cu_reg_names[rnum] == NULL)
+	cu_reg_names[rnum] = table[i].name;
+    }
+}
+
+static void
+print_state_reg (disassemble_info *info, unsigned code)
+{
+  assert (code < 256);
+  my_printf ("%s", cu_reg_names[code]);
 }
 
 
@@ -832,7 +853,7 @@ print_alf (disassemble_info *info, int chn)
           || templ->alopf == ALOPF8)
         {
           /* If the current instruction has one of the short encodings the
-             related ALES should not be present. (By "present" We mean that it
+             related ALES should not be present. (Here "present" means that it
              has been marked in HS, not allocated in a wide instruction. This
              makes difference for `ALES{5,2}'.)  */
           if (instr->ales_present[chn] & 0x1)
@@ -974,7 +995,7 @@ print_alf (disassemble_info *info, int chn)
             {
               /* FIXME: according to the up-to-date version of iset-v5.single
                  there are no instructions with ALOPF22 encoding at all! Where
-                 have We taken them from then? Moreover, according to the
+                 have they been taken from then? Moreover, according to the
                  underlying test, their ALES seems to be of ALEF2 format, not
                  ALEF1. What's the difference between them and ALOPF12
                  instructions then?  */
@@ -1015,6 +1036,19 @@ print_alf (disassemble_info *info, int chn)
 	  if ((match->alopf == ALOPF10 && templ->alopf == AAURW)
 	      || (match->alopf == ALOPF19 && templ->alopf == AAURR))
 	    match = templ;
+	  else if (match->alopf == ALOPF16)
+	    {
+	      assert (templ->alopf == ALOPF16);
+	      /* Distinguish between RRd and RRSHd by comparing SRC2 within
+		 INSTR and TEMPL.  */
+	      if (((instr->als[chn] & 0x0000ff00) >> 8)
+		  != ((e2k_alopf16_opcode_templ *) match)->src2)
+		{
+		  match = templ;
+		  assert (((instr->als[chn] & 0x0000ff00) >> 8)
+			  == ((e2k_alopf16_opcode_templ *) match)->src2);
+		}
+	    }
 	  /* Otherwise, give preference to the former in the couple of
 	     templates.  */
 
@@ -1116,7 +1150,7 @@ print_alf (disassemble_info *info, int chn)
       || match->alopf == ALOPF21_LT_PACK_CODE
       || match->alopf == ALOPF21_MERGE)
     {
-      /* FIXME: here We make use of the fact that in `e2k_alopf{1,2}1_opcode_
+      /* FIXME: here one makes use of the fact that in `e2k_alopf{1,2}1_opcode_
          templ' `arg_fmt[]' is located at the same offset as in
          `e2k_alf1_opcode_templ'.  */
       const e2k_alf1_opcode_templ *alf1 = (const e2k_alf1_opcode_templ *) match;
@@ -1281,8 +1315,8 @@ print_alf (disassemble_info *info, int chn)
     }
 
   if ((match->flags & MAS) != 0
-      /* We wonder if instructions requiring MAS may be placed into MASless ALC
-         in principle . . .  */
+      /* May instructions requiring MAS be placed into MASless ALC in
+	 principle?  */
       && (chn == 0 || chn == 2 || chn == 3 || chn == 5)
       && instr->cs1_present
       && ((instr->cs1 & 0xf0000000) >> 28) == 6)
@@ -1411,8 +1445,8 @@ print_pls_syllables (disassemble_info *info)
     {
       /* Check if PLS{i}.{C,M}LP.vdst is set to 1 and mark the corresponding
          pdst local predicates as needed. Note that for correctly encoded MLP
-         operations it should be set to one unconditionally. Should We allow for
-         incorrectly encoded MLPs?  */
+         operations it should be set to one unconditionally. Should incorrectly
+	 encoded MLPs be allowed for?  */
       if (instr->pls_present[i] && (instr->pls[i] & 0x20))
         need[4 + i] = 1;
     }
@@ -1516,7 +1550,7 @@ print_hs (disassemble_info *info)
 {
   const struct unpacked_instr *instr = &unpacked_instr;
   unsigned int hs = instr->hs;
-  /* Mimic the behaviour of LDIS. We wonder what this colon is needed for. */
+  /* Mimic the behaviour of LDIS. What is this colon needed for?  */
   print_syllable ("HS", 0, hs);
 
   if (hs & 0x00000400)
@@ -1549,8 +1583,8 @@ print_hs (disassemble_info *info)
 static void
 print_ctcond (disassemble_info *info, unsigned int ctcond)
 {
-  /* We don't want to call it `ct' as it's done in C.17.1.2 of iset-vX.single
-     because it looks rather confusing.  */
+  /* It would be rather confusing to name it "ct" as this is done in C.17.1.2
+     of iset-vX.single.  */
   unsigned int cond_type = (ctcond & 0x1e0) >> 5;
   unsigned int psrc = (ctcond & 0x01f);
 
@@ -1696,8 +1730,8 @@ print_ct (disassemble_info *info, unsigned int ctop, unsigned int ctcond)
 {
   const struct unpacked_instr *instr = &unpacked_instr;
 
-  /* We don't want to call it `ct' as it's done in C.17.1.2 of iset-vX.single
-     because it looks rather confusing.  */
+  /* It would be rather confusing to name it "ct" as this is done in C.17.1.2
+     of iset-vX.single.  */
   unsigned int cond_type = (ctcond & 0x1e0) >> 5;
 
   /* There's no point in printing any CT instruction if it's blocked by
@@ -1744,9 +1778,9 @@ print_ss (disassemble_info *info)
   print_syllable ("SS", 0, ss);
 
   /* When printing out SS instructions try to follow the same order as LDIS at
-     least for `SS.type == 0'. To find out this order We customized
-     `SS == 0xfffeffff' to get all possible fields in `SS.type == 0' case and
-     disassembled it with LDIS.  */
+     least for `SS.type == 0'. To find out this order `SS == 0xfffeffff'
+     providing all available fields in `SS.type == 0' case was created and
+     disassembled with LDIS.  */
 
   /* CT deserves its own output function due to the complexity of CTCOND.  */
   print_ct (info, ctop, ctcond);
@@ -1933,11 +1967,11 @@ print_cs0 (disassemble_info *info, bfd_vma instr_addr)
                  DONE is also C0F2 and thus has `disp', though it obviously
                  makes no sense for it.  */
               unsigned int disp = (cs0 & 0x0fffffff);
-              /* Calculate a signed displacement in bytes. We wonder if it
-                 should be actually printed out.  */
+              /* Calculate a signed displacement in bytes. Should it actually
+		 be printed out?  */
               int sdisp = ((int) (disp << 4)) >> 1;
-              /* FIXME: this way We ensure that it'll work correctly
-                 both on 32 and 64-bit hosts.  */
+              /* FIXME: this way it's sure to work correctly both on 32- and
+		 64-bit hosts.  */
               my_printf (" 0x%llx", (unsigned long long) (instr_addr + sdisp));
             }
 
@@ -1957,15 +1991,15 @@ print_cs0 (disassemble_info *info, bfd_vma instr_addr)
       if (type == DISP
           || type == SDISP
           || type == LDISP
-          /* Note that RETURN is said to be COPF1. We can't understand what its
-             `CS0.param' is needed for: all of the bits except the three
-             lowermost ones are undefined, while the latter also known as "type"
-             field should be filled in with zeroes.  */
+          /* Note that RETURN is said to be COPF1. What is its `CS0.param'
+	     needed for? All of the bits except the three lowermost ones are
+	     undefined, while the latter also known as "type" field should be
+	     filled in with zeroes.  */
           || type == RETURN
           /* GETTSD has as meaningless `CS0.param' as RETURN. The only
-             difference is that its `CS0.param.type' should be equal to `1'. I
-             wonder if We should check for that and output something like
-             "invalid gettsd" if this turns out not to be the case . . .  */
+             difference is that its `CS0.param.type' should be equal to `1'.
+             Should one check for that and output something like "invalid
+	     gettsd" if this turns out not to be the case?  */
           || type == GETTSD)
         my_printf ("%%ctpr%d", ctpr);
 
@@ -1974,18 +2008,18 @@ print_cs0 (disassemble_info *info, bfd_vma instr_addr)
       else if (type == DISP
                || type == LDISP
                || type == PUTTSD)
-        {
+       {
           unsigned int disp = (cs0 & 0x0fffffff);
           int sgnd_disp = ((int) (disp << 4)) >> 1;
           /* PUTTSD obviously doesn't take %ctpr{j} parameter. TODO: beware of
              an optional predicate which may control its execution which is
              encoded via `SS.ctcond.psrc' and `SS.ts_opc == PUTTSDC{P,N}' in
-             case of `SS.type == 1' (see C.21.4). We wonder if `ct %ctpr<j>'
-             encoded in `SS.ctop' under the same `SS.ctcond' takes an effect in
-             such a case.  */
+             case of `SS.type == 1' (see C.21.4). Does `ct %ctpr<j>' encoded
+	     in `SS.ctop' under the same `SS.ctcond' take an effect in such a
+	     case?  */
           my_printf ("%s0x%llx", type == PUTTSD ? "" : ", ",
-                     /* FIXME: this way We ensure that it'll work correctly
-                        both on 32 and 64-bit hosts.  */
+                     /* FIXME: this way it's sure to work correctly both on 32-
+			and 64-bit hosts.  */
                      (unsigned long long) (instr_addr + sgnd_disp));
         }
 
@@ -2036,8 +2070,8 @@ print_cs1 (disassemble_info *info)
 
       /* Try to follow the same order of these instructions as in LDIS.
          Presumably `vfrpsz' should come first, while `setbp' should be placed
-         between `setwd' and `setbn', but this is to be verified. We don't have
-         a binary with these commands by hand right now.  */
+         between `setwd' and `setbn', but this is to be verified. A binary with
+	 these instructions is not available right now.  */
 
       if (opc == SETR1)
         {
@@ -2365,7 +2399,7 @@ print_instr (disassemble_info *info, bfd_vma instr_addr)
 
   for (i = 0; i < 5; i++)
     {
-      /* We've already taken care of ALES2 above.  */
+      /* ALES2 has already been treated above.  */
       if (i == 2)
         continue;
 
@@ -2481,8 +2515,8 @@ print_apb_instr (disassemble_info *info)
           unsigned int mrng = (api[0] & 0x01f00000) >> 20;
           unsigned int d = (api[0] & 0x000f8000) >> 15;
           unsigned int asz = (api[0] & 0x000000e0) >> 5;
-          /* We don't call it `abs' as it's called in `iset-vX.single' since
-             gcc-4.6.3 and more recent ones complain that it shadows the global
+          /* Don't borrow the name "abs" from `iset-vX.single' since gcc-4.6.3
+	     and more recent versions complain that it shadows the global
              `abs ()' function provided that `-Wshadow' is supplied.  */
           unsigned int area_base = (api[0] & 0x0000001f);
 
@@ -2562,8 +2596,8 @@ add_to_insn_table (e2k_opcode_templ *t)
 static void
 build_hash_table (void)
 {
-  /* FIXME: this way We temporarely get rid of the fields which are inappropriate
-     to disassembler.  */
+  /* FIXME: this way the fields inappropriate to disassembler are temporarily
+     eliminated.  */
 #define parse_alf_args     NULL
 #define merge_alopf_simple NULL
 #define merge_alopf11      NULL
@@ -2633,8 +2667,8 @@ print_insn_e2k (bfd_vma memaddr, disassemble_info *info)
       return command_length;
     }
 
-  /* We can't read instruction bytes with a reserve here since this may cause
-     a memory access error. Therefore, read just one byte . . .  */
+  /* Instruction bytes cannot be read in advance here because this may cause
+     a memory access error. Therefore, read just one byte.  */
   status = (*info->read_memory_func) (memaddr, buffer, 1, info);
   if (status != 0)
     {
@@ -2644,9 +2678,9 @@ print_insn_e2k (bfd_vma memaddr, disassemble_info *info)
 
   /* . . . and use it to determine the current instruction's length as if it
      were synchronous. FIXME: what's going to happen if it's not? Previously
-     when reading bytes with a surplus We used `UnpackInstruction' to determine
-     COMMAND_LENGTH. We wonder if this function is capable of distinguishing
-     between synchronous and asynchronous instructions . . .  */
+     when reading bytes with a surplus `UnpackInstruction ()' was used to
+     determine  COMMAND_LENGTH. Is this function capable of distinguishing
+     between synchronous and asynchronous instructions?  */
   command_length = (((buffer[0] >> 4) & 0x7) + 1) * 2;
   command_length *= 4;
 

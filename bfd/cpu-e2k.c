@@ -118,7 +118,7 @@ static const bfd_arch_info_type *
 bfd_e2k_compatible (const bfd_arch_info_type *i, const bfd_arch_info_type *o)
 {
   /* FIXME: while reworking this function to make it return the "least common
-     denominator" of We and O a limited amount of code was copy/pasted from
+     denominator" of I and O a limited amount of code was copy/pasted from
      `_bfd_e2k_elf_merge_private_bfd_data_1 ()'. Moreover, it was simplified
      so as not to take EF_E2K_INCOMPAT case into account. The latter means
      that GDB won't emit a warning (not an error?) on an attempt to execute a
@@ -256,13 +256,13 @@ bfd_e2k_compatible (const bfd_arch_info_type *i, const bfd_arch_info_type *o)
 
 #define N(ARCH, MODE, PRINT, DEFAULT, NEXT)                             \
   {                                                                     \
-    /* We believe that E2k has 32 bits in a word for all architectures  \
-       in all supported ABIs. We wonder whether it's actually so from    \
-       the point of view of binutils.  */                               \
+    /* E2K has 32 bits in a word for all architectures and for all	\
+       supported ABIs. Is this actually so from	the point of view of	\
+       binutils?  */							\
     32,                                                                 \
       /* Number of bits in an address  */                               \
       BITS_ADDR_##MODE,                                                 \
-      /* We have 8 bits in a byte everywhere.  */                       \
+      /* A byte contains of 8 bits in all cases.  */			\
       8,                                                                \
       bfd_arch_e2k,                                                     \
       /* Get an actual machine number used inside binutils while        \
@@ -442,8 +442,7 @@ const bfd_arch_info_type arch_info_struct[] =
   LAST_QUAD (maket32c, "elbrus-maket32c"),
 };
 
-/* We don't remember for sure what DEFAULT actually means here. We should
-   probably only one default arch, however. Let it be a 64-bit elbrus
-   generic arch.  */
+/* What does DEFAULT=true actually stand for here? Only one "default" arch
+   should exist, though. Let it be a 64-bit elbrus generic arch.  */
 const bfd_arch_info_type bfd_e2k_arch =
   N (bfd_mach_e2k_generic, 64, "generic", true, NN (I_generic_64));

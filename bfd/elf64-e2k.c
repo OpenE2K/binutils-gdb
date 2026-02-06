@@ -55,7 +55,7 @@ static const struct elf_size_info elf64_e2k_size_info = {
   64, 3,
   2, 1,
 #ifdef ELF64_E2K_PM
-  /* We are included from `bfd/elf64-e2k-pm.c', therefore, set PTR_SIZE
+  /* This file is included from `bfd/elf64-e2k-pm.c', therefore, set PTR_SIZE
      appropriately to PM.  */
   128,
 #else /* ! defined ELF64_E2K_PM  */
@@ -123,11 +123,11 @@ static const struct elf_size_info elf64_e2k_size_info = {
 
 #define elf_backend_setup_gnu_properties	_bfd_e2k_elf_link_setup_gnu_properties
 
-/* Make tests employing `gc-sections' option PASS. We wonder if any backend-
-   specific support is required. TODO: place here actual names of the tests.  */
+/* Make tests employing `gc-sections' option PASS. Is any backend-specific
+   support required? TODO: place here actual names of the tests.  */
 #define elf_backend_can_gc_sections             1
 #define elf_backend_want_got_sym                1
-/* We want got.refcount start from `0', not from `-1'
+/* got.refcount should start from `0', not from `-1'
    (see _bfd_elf_link_hash_table_init). */
 #define elf_backend_can_refcount                1
 

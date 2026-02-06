@@ -1096,8 +1096,8 @@ _bfd_e2k_elf_merge_private_bfd_data_1 (bfd *ibfd, bfd *obfd)
   imach = bfd_get_mach (ibfd);
   omach = bfd_get_mach (obfd);
 
-  /* We shouldn't find ourselves here if `bfd_e2k_compatible ()' failed,
-     should we?  */
+  /* It should be impossible to find ourselves here if `bfd_e2k_compatible ()'
+     failed, shouldn't it?  */
   if (imach % 4 != omach % 4)
     {
       _bfd_error_handler
@@ -4218,7 +4218,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
       set_plt_idx (h, NULL);
     }
 
-  /* We may need to allocate a few other entries under the following
+  /* A few other entries may need to be allocated here under the following
      circumstances:
 
      R_E2K_DISP can't be resolved  at linktime and an accompanying secondary PLT
@@ -4301,7 +4301,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 
           srela->size += htab->bytes_per_rela;
         }
-      /* We may find ourselves here, for example, if the symbol is not defined
+      /* One may find himself here, for example, if the symbol is not defined
          anywhere. What should be done then?  */
     }
   else
@@ -4653,9 +4653,9 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
                          local symbols.  */
                     }
 
-                  /* We need one GOT entry to store a symbol's runtime offset
-                     (in case of IE and GDREL) or address (in case of
-                     GOT_NORMAL) related to the type of access under
+                  /* One GOT entry is required to store the symbol's runtime
+		     offset (in case of IE and GDREL) or address (in case of
+                     GOT_NORMAL) depending on the type of access under
                      consideration.  */
                   if (types[i] != GOT_TLS_GDMOD)
                     {
@@ -4713,7 +4713,7 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
      for symbols requiring this.  */
   elf_link_hash_traverse (&htab->elf, finalize_plt_offsets, info);
 
-  /* We now have determined the sizes of the various dynamic sections.
+  /* The sizes of the various dynamic sections have been determined by now.
      Allocate memory for them.  */
   for (s = dynobj->sections; s != NULL; s = s->next)
     {
@@ -4722,7 +4722,7 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 
       if (startswith (bfd_section_name (s), ".rela"))
         {
-          /* We use the reloc_count field as a counter if we need
+          /* The "reloc_count" field is used as a counter if one needs
 	     to copy relocs into the output file.  */
 	  s->reloc_count = 0;
         }
@@ -4749,8 +4749,8 @@ _bfd_e2k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
       if ((s->flags & SEC_HAS_CONTENTS) == 0)
 	continue;
 
-      /* Allocate memory for the section contents.  We use bfd_zalloc
-	 here in case unused entries are not reclaimed before the
+      /* Allocate memory for the section contents.  bfd_zalloc () is
+	 used here in case unused entries are not reclaimed before the
 	 section's contents are written out.  This should not happen,
 	 but this way if it does, we get a R_E2K_NONE reloc instead
 	 of garbage.  */
@@ -5312,8 +5312,8 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                       asection *s;
                       Elf_Internal_Rela outrel;
 
-                      /* We need to generate a R_E2K_XX_RELATIVE reloc
-                         for the dynamic linker.  */
+                      /* R_E2K_XX_RELATIVE reloc needs to be generated for the
+			 dynamic linker here.  */
                       s = htab->elf.srelgot;
                       BFD_ASSERT (s != NULL);
 
@@ -5399,8 +5399,8 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
                       asection *s;
                       Elf_Internal_Rela outrel;
 
-                      /* We need to generate a R_E2K_XX_RELATIVE reloc
-                         for the dynamic linker.  */
+                      /* R_E2K_XX_RELATIVE reloc needs to be generated for the
+			 dynamic linker here.  */
                       s = htab->elf.srelgot;
                       BFD_ASSERT (s != NULL);
 
@@ -5487,8 +5487,8 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 
           /* Check to make sure it isn't a protected function or data
 	     symbol for shared library since it may not be local when
-	     used as function address or with copy relocation.  We also
-	     need to make sure that a symbol is referenced locally.  */
+	     used as function address or with copy relocation.  One also
+	     needs to ensure that the symbol is referenced locally.  */
 	  if (!bfd_link_executable (info) && h)
 	    {
               if (!h->def_regular)
@@ -5605,10 +5605,10 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
           relocation = st_size;
           goto common_processing;
 
-          /* Prevent _bfd_final_link_relocate from its usual actions
-             when dealing with bogus LIT-relocs. We are going to pass
-             it a swapped value which shouldn't be modified. That's
-             why we take care of these things ourselves. */
+          /* Prevent _bfd_final_link_relocate from its usual actions when
+	     dealing with bogus LIT-relocs. It is going to be passed a
+	     swapped value which shouldn't be modified. That's why we take
+	     care of these things ourselves.  */
         case R_E2K_64_PC_LIT:
           relocation -= (input_section->output_section->vma
                          + input_section->output_offset
@@ -6017,7 +6017,10 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 		 of a .got entry is evaluated here. It obviously needs to be
 		 adjusted no matter if the target symbol is absolute or not.  */
 	      || ((r_type == R_E2K_AP_GOT
-		   || r_type == R_E2K_PL_GOT)
+		   || r_type == R_E2K_PL_GOT
+		   || r_type == R_E2K_TLS_IE
+		   || r_type == R_E2K_TLS_GDMOD
+		   || r_type == R_E2K_TLS_GDREL)
 		  /* Because starting from elbrus-v7 the evaluation of these
 		     relocations results in offsets from _GLOBAL_OFFSET_TABLE_,
 		     not from GD.base, there's no point in "adjusting" them as
@@ -6026,9 +6029,6 @@ _bfd_e2k_elf_relocate_section (bfd *output_bfd,
 		  && (e2k_arch_info_mach_to_iset (input_bfd->arch_info->mach)
 		      < 7)
 		  )
-	      || r_type == R_E2K_TLS_IE
-	      || r_type == R_E2K_TLS_GDMOD
-	      || r_type == R_E2K_TLS_GDREL
 	      || r_type == R_E2K_32_PC))
 	{
 	  /* All this idiotism is required for PC-relative relocations to be
@@ -6869,6 +6869,9 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
       /* .got is required only for calculation of "@secondary_plt" synthetic
 	 symbols.  */
       got = bfd_get_section_by_name (abfd, ".got");
+      if (got == NULL)
+	return NULL;
+
       got_contents = got->contents;
       if (got_contents == NULL)
         {
@@ -7009,13 +7012,13 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
       else if (abi64)
 	{
 	  /* Skip PIC and non-PIC PLT headers.  */
-	  if (hs == plt64_got_non_pic_header[0])
+	  if ((hs & 0xfffffc7fu)
+	      == (plt64_got_non_pic_header[0] & 0xfffffc7fu))
 	    {
 	      off += sizeof (plt64_got_non_pic_header);
 	      continue;
 	    }
-	  else if ((hs & 0xfffffc7f)
-		   == (plt64_got_pic_header[0] & 0xfffffc7f))
+	  else if (hs == plt64_got_pic_header[0])
 	    {
 	      off += sizeof (plt64_got_pic_header);
 	      continue;
@@ -7023,12 +7026,13 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
 	  /* This is a primary PLT entry which the address of the related entry
 	     in .got may be extracted from and thereby the correspondence with
 	     the dynamic relocation be established.  */
-	  else if (hs == plt64_got_non_pic_primary_entry[0]
-		   || ((hs & 0xfffffc7f)
-		       == (plt64_got_pic_primary_entry[0] & 0xfffffc7f)))
+	  else if (((hs & 0xfffffc7fu)
+		    == (plt64_got_non_pic_primary_entry[0] & 0xfffffc7fu))
+		   || (hs == plt64_got_pic_primary_entry[0]))
 	    {
 	      /* Handle non-PIC primary PLT entry.  */
-	      if (hs == plt64_got_non_pic_primary_entry[0])
+	      if ((hs & 0xfffffc7fu)
+		  == (plt64_got_non_pic_primary_entry[0] & 0xfffffc7fu))
 		{
 		  addr_in_got = ((H_GET_32 (plt->owner,
 					    plt_contents + off
@@ -7059,13 +7063,13 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
       else /* if (!abi64)  */
 	{
 	  /* Skip PIC and non-PIC PLT headers.  */
-	  if (hs == plt32_got_non_pic_header[0])
+	  if ((hs & 0xfffffc7fu)
+	      == (plt32_got_non_pic_header[0] & 0xfffffc7fu))
 	    {
 	      off += sizeof (plt32_got_non_pic_header);
 	      continue;
 	    }
-	  else if ((hs & 0xfffffc7f)
-		   == (plt32_got_pic_header[0] & 0xfffffc7f))
+	  else if (hs == plt32_got_pic_header[0])
 	    {
 	      off += sizeof (plt32_got_pic_header);
 	      continue;
@@ -7073,12 +7077,13 @@ _bfd_e2k_elf_plt_sym_val (bfd *abfd,
 	  /* This is a primary PLT entry which the address of the related entry
 	     in .got may be extracted from and thereby the correspondence with
 	     the dynamic relocation be established.  */
-	  else if (hs == plt32_got_non_pic_primary_entry[0]
-		   || ((hs & 0xfffffc7f)
-		       == (plt32_got_pic_primary_entry[0] & 0xfffffc7f)))
+	  else if (((hs & 0xfffffc7fu)
+		    == (plt32_got_non_pic_primary_entry[0] & 0xfffffc7fu))
+		   || (hs == plt32_got_pic_primary_entry[0]))
 	    {
 	      /* Handle non-PIC primary PLT entry.  */
-	      if (hs == plt32_got_non_pic_primary_entry[0])
+	      if ((hs & 0xfffffc7fu)
+		    == (plt32_got_non_pic_primary_entry[0] & 0xfffffc7fu))
 		{
 		  addr_in_got = H_GET_32 (plt->owner,
 					  plt_contents + off
@@ -7483,7 +7488,7 @@ _bfd_e2k_elf_copy_private_bfd_data_1 (bfd *ibfd, bfd *obfd,
             = (EF_E2K_MACH_TO_OLD_FLAG (mach) | (iflags & 0xf));
         }
     }
-  /* We find ourselves here only if `obfd->e_machine == EM_MCST_ELBRUS'.  */
+  /* One can find himself here only if `obfd->e_machine == EM_MCST_ELBRUS'.  */
   else if (elf_elfheader (ibfd)->e_machine == EM_E2K_OLD)
     {
       unsigned long iflags = elf_elfheader (ibfd)->e_flags;

@@ -84,10 +84,10 @@ typedef struct
       It does not hold LITERAL_xx!   */
   size_t size[11];
 
-  /* п╖п╦я│п╩п╬ п╡п╬п╥п╪п╬п╤п╫я▀я┘ я─п╟п╥п╪п╣я┴п╣п╫п╦п╧ (я█п╩п╣п╪п╣п╫я┌п╬п╡ п╡ п╪п╟я│я│п╦п╡п╟я┘ pos, size). */
+  /* Число возможных размещений (элементов в массивах pos, size). */
   int plcmnt_nmb;
-  /* п≤п╫п╢п╣п╨я│ п╬п©я┌п╦п╪п╟п╩я▄п╫п╬пЁп╬ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐ п╢п╩я▐ п╢п╟п╫п╫п╬пЁп╬ п╩п╦я┌п╣я─п╟п╩п╟ (п╡ я┌п╬п╪ я│п╩я┐я┤п╟п╣, п╨п╬п╫п╣я┤п╫п╬,
-     п╣я│п╩п╦ п╡п╬п╬п╠я┴п╣ я┐п╢п╟п╩п╬я│я▄ я┐п╪п╣я│я┌п╦я┌я▄ п╡я│п╣ п╩п╦я┌п╣я─п╟п╩я▀). */
+  /* Индекс оптимального размещения для данного литерала (в том случае, конечно,
+     если вообще удалось уместить все литералы). */
   int optimal_plcmnt_idx;
 
   expressionS exp;
@@ -154,9 +154,9 @@ typedef struct e2k_als {
 } e2k_als;
 
 
-/* п°п╟я│я│п╦п╡ я│ п╢п╬я│я┌п╟я┌п╬я┤п╫я▀п╪ п╥п╟п©п╟я│п╬п╪ ALS-я│п╩п╬пЁп╬п╡ п╢п╩я▐ я└п╬я─п╪п╦я─п╬п╡п╟п╫п╦я▐
-   п╩я▌п╠п╬п╧ я┬п╦я─п╬п╨п╬п╧ п╨п╬п╪п╟п╫п╢я▀. п²п╟я│п╨п╬п╩я▄п╨п╬ я▐ п©п╬п╫п╦п╪п╟я▌, п╦п╪п╣я┌я▄ п╦я┘
-   п╠п╬п╩я▄я┬п╣ 6 я│п╪я▀я│п╩п╟ п╫п╣ п╦п╪п╣п╣я┌? */
+/* Массив с достаточным запасом ALS-слогов для формирования
+   любой широкой команды. Насколько я понимаю, иметь их
+   больше 6 смысла не имеет? */
 static e2k_als free_alses[ALS_CHANNELS_NUMBER], *free_als;
 
 
@@ -169,7 +169,7 @@ static e2k_als free_alses[ALS_CHANNELS_NUMBER], *free_als;
 
 
 
-/* FIXME п╡я│я▒ п╥п╟я┌я▀я┤п╨п╦ - я┤я┌п╬п╠я▀ я│п╬п╠п╦я─п╟п╩я│я▐ gas */
+/* FIXME всё затычки - чтобы собирался gas */
 
 const char comment_chars[] = "!";
 const char line_comment_chars[] = "#";
@@ -412,8 +412,8 @@ s_e2k_lcomm (int ignore ATTRIBUTE_UNUSED)
 static int parse_generic_register (char **pstr, e2k_generic_register *preg);
 static void encode_reg_in_src1 (u_int8_t *src1, e2k_generic_register *preg);
 
-/* п≈п╢п╣я│я▄ п╪п╬пЁя┐я┌ п╨п╬п╢п╦я─п╬п╡п╟я┌я▄я│я▐ п╣я┴п╣ п╫п╣п╨п╦п╣ п╫п╣я┤п╦я│п╩п╬п╡я▀п╣ я─п╣пЁп╦я│я┌я─я▀, я┌п╟п╨ я┤я┌п╬ define'п╬п╪
-   п╡ п╬п╠я┴п╣п╪ я│п╩я┐я┤п╟п╣ п╫п╣ п╬п╠п╬п╧п╢п╣я┬я▄я│я▐. */
+/* Здесь могут кодироваться еще некие нечисловые регистры, так что define'ом
+   в общем случае не обойдешься. */
 #define encode_reg_in_dst(dst, preg) encode_reg_in_src1 (dst, preg)
 
 
@@ -1741,10 +1741,8 @@ parse_generic_register (char **pstr, e2k_generic_register *preg)
      Hopefully, this hack is going to help us pass them without an error.  */
   else if (slurp_str (&s, "qp"))
     preg->fmt = SINGLE; /* QPACKED  */
-  /* FIXME: temporarely interpret `%qr'-registers as SINGLE until MCSTBug #79092 is
-     fixed.  */
   else if (slurp_char (&s, 'q'))
-    preg->fmt = SINGLE; /* QUAD;  */
+    preg->fmt = QUAD;
   else
     preg->fmt = SINGLE;
 
@@ -1752,15 +1750,38 @@ parse_generic_register (char **pstr, e2k_generic_register *preg)
     preg->type = BASED;
   else if (slurp_char (&s, 'g'))
     preg->type = GLOBAL;
-    else if (slurp_char (&s, 'r'))
-      preg->type = WINDOW;
-    else if (slurp_str (&s, "aasti"))
-      preg->type = AASTI;
-    else
-      return 0;
+  else if (slurp_char (&s, 'r'))
+    preg->type = WINDOW;
+  else if (slurp_str (&s, "aasti"))
+    preg->type = AASTI;
+  else
+    return 0;
 
   if (!parse_number (&s, &preg->idx, sizeof (preg->idx), 0))
     return 0;
+
+  if (preg->fmt == QUAD)
+    {
+      /* FIXME: temporarily interpret `%qr'-registers as SINGLE until
+	 Bug #79092 is fixed.  */
+      preg->fmt = SINGLE;
+
+      if ((preg->idx % 2) != 0)
+	{
+	  /* Take care of based %b[...] registers when producing an error
+	     message.  */
+	  char *beyond = (*s == ']') ? s + 1 : s;
+	  char c = *beyond;
+	  *beyond = '\0';
+	  as_bad (_("invalid odd %%q-register encountered at %s"), *pstr);
+	  *beyond = c;
+	  /* Do NOT `return 0' as that should typically be done for a
+	     syntactically incorrect expression whereas this one may very
+	     well turn out to be syntactically correct so as to avoid
+	     misleading error messages at the underlying levels.  */
+	}
+    }
+
 
   if (preg->type == BASED
       && ! slurp_char (&s, ']'))
@@ -1858,8 +1879,8 @@ static literal_placement allowed_placements[MAX_LITERAL_NMB];
 
 static int inside_wide_command = 0;
 
-/* п╒п╣п╨я┐я┴п╦п╣ п©п╬я─я▐п╢п╨п╬п╡я▀п╣ п╫п╬п╪п╣я─п╟ п╢п╩я▐ я─п╣я│я┐я─я│п╬п╡, я│п╬я┘я─п╟п╫я▐п╣п╪я▀я┘ п╢п╬ я└п╟п╥я▀ я└п╬я─п╪п╦я─п╬п╡п╟п╫п╦я▐
-   я┬п╦я─п╬п╨п╬п╧ п╨п╬п╪п╟п╫п╢я▀. п÷п╬п╨п╟ я█я┌п╬ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐ (п╢п╩п╦п╫п╫я▀я┘) п╩п╦я┌п╣я─п╟п╩п╬п╡ п╦ я│п╩п╬пЁп╦ ALF1. */
+/* Текущие порядковые номера для ресурсов, сохраняемых до фазы формирования
+   широкой команды. Пока это размещения (длинных) литералов и слоги ALF1. */
 
 static int crnt_lit;
 
@@ -1947,7 +1968,7 @@ parse_literal (char **pstr, e2k_literal_size max_short_lit_size,
 
   literal_placement *plcmnt;
 
-  /* п°п╦п╫п╦п╪п╟п╩я▄п╫я▀п╧ я─п╟п╥п╪п╣я─ п╩п╦я┌п╣я─п╟п╩п╟, п©я─п╦пЁп╬п╢п╫я▀п╧ п╢п╩я▐ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐ val. */
+  /* Минимальный размер литерала, пригодный для размещения val. */
   e2k_literal_size min_size;
 
   expressionS exp;
@@ -2077,7 +2098,7 @@ parse_literal (char **pstr, e2k_literal_size max_short_lit_size,
 
   if (exp.X_op == O_constant)
     {
-      /* п║я┤п╦я┌я▀п╡п╟п╣п╪п╬п╣ п╥п╫п╟я┤п╣п╫п╦п╣. */
+      /* Считываемое значение. */
       int64_t sval;
       u_int64_t val;
 
@@ -2233,8 +2254,8 @@ parse_literal (char **pstr, e2k_literal_size max_short_lit_size,
   plcmnt->plcmnt_nmb = 0;
   plcmnt->exp = exp;
 
-  /* п≤п╫п╢п╣п╨я│, я│п╬п╬я┌п╡п╣я┌я│я┌п╡я┐я▌я┴п╦п╧ я─п╟п╥п╪п╣я─я┐ п╩п╦я┌п╣я─п╟п╩п╟, п╦п╥п╪п╣п╫я▐п╣я┌я│я▐ п╡п╬ п╡п╫п╣я┬п╫п╣п╪ я├п╦п╨п╩п╣. п╜я┌п╬
-     пЁп╟я─п╟п╫я┌п╦я─я┐п╣я┌, я┤я┌п╬ п╪п╟я│я│п╦п╡ allowed_placements[].size п╠я┐п╢п╣я┌ п╡п╬п╥я─п╟я│я┌п╟я▌я┴п╦п╪. */
+  /* Индекс, соответствующий размеру литерала, изменяется во внешнем цикле. Это
+     гарантирует, что массив allowed_placements[].size будет возрастающим. */
   for (i = ((int) min_row >= 0 ? min_row : 0); i <=  max_row; i++)
     {
       for (j = min_col; j <= max_col; j++)
@@ -2261,14 +2282,14 @@ parse_literal (char **pstr, e2k_literal_size max_short_lit_size,
   return 1;
 }
 
-/* п▓ я█я┌п╦я┘ я└я┐п╫п╨я├п╦я▐я┘ я▐ (п╫п╟п╦п╡п╫п╬?) п©п╬п╩п╟пЁп╟я▌я│я▄ п╫п╟ я┌п╬, я┤я┌п╬ п╫п╦п╨я┌п╬ п╫п╣ п╡я▀п╩п╣п╥п╣я┌ п╥п╟ п©я─п╣п╢п╣п╩я▀
-   п╬я┌п╡п╣п╢п╣п╫п╫я▀я┘ п╣п╪я┐ п©п╬п╩п╣п╧ п╦ п╫п╣ п©я─п╬п╡п╬п╤я┐ п╢п╬п©п╬п╩п╫п╦я┌п╣п╩я▄п╫я┐я▌ п╬я┤п╦я│я┌п╨я┐. п▓я│п╣ п©п╬п╩п╣ val п╠я┐п╢п╣я┌
-   я┤п╦я│я┌п╦я┌я▄я│я▐ я├п╣п╩п╦п╨п╬п╪ п©п╬я│п╩п╣ п╡я▀п╢п╣п╩п╣п╫п╦я▐. п п╬п╫п╣я┤п╫п╬, п╢п╬п©п╬п╩п╫п╦я┌п╣п╩я▄п╫я▀п╣ п©я─п╬п╡п╣я─п╨п╦ п╠я┐п╢я┐я┌ я│п╬п╡я│п╣п╪
-   п╫п╣ п╩п╦я┬п╫п╦п╪п╦. */
+/* В этих функциях я (наивно?) полагаюсь на то, что никто не вылезет за пределы
+   отведенных ему полей и не провожу дополнительную очистку. Все поле val будет
+   чиститься целиком после выделения. Конечно, дополнительные проверки будут совсем
+   не лишними. */
 static void
 encode_reg_in_src1 (u_int8_t *src1, e2k_generic_register *preg)
 {
-  /* п²п╦п╨я┌п╬ я│я▌п╢п╟ я│п╩я┐я┤п╟п╧п╫п╬ п╫п╣ п╫п╟пЁп╟п╢п╦п╩? */
+  /* Никто сюда случайно не нагадил? */
   gas_assert (*src1 == 0);
 
   if (preg->type == BASED)
@@ -2288,6 +2309,36 @@ encode_reg_in_src1 (u_int8_t *src1, e2k_generic_register *preg)
     }
 }
 
+static const char *
+name_of_qreg_from_reg (u_int8_t reg)
+{
+  static char buf[64];
+  if (reg < 128)
+    sprintf (buf, "%%qb[%d]", reg);
+  else if (reg >= 128 && reg < 192)
+    sprintf (buf, "%%qr%d", reg - 128);
+  else if (reg >= 224)
+    sprintf (buf, "%%qg%d", reg - 224);
+  else if (reg == 222 || reg == 223)
+    sprintf (buf, "%%empty.%s", reg == 222 ? "lo" : "hi");
+  else
+    /* FIXME: it's a drawback that prohibited by iset uses of special registers
+       in postion of DST are not detected in general at earlier stages, but
+       only when a special register with odd number is used as a %q* one.  */
+    sprintf (buf, "%%special_register");
+
+  return &buf[0];
+}
+
+static const char *
+name_of_arg_from_idx (int idx)
+{
+  static const char *names[4] = {"src1", "src2", "src3", "dst"};
+  gas_assert (idx >= 1 && idx <= 4);
+
+  return names[idx - 1];
+}
+
 static void
 encode_reg (int arg_idx, e2k_register_format fmt,
             u_int8_t reg)
@@ -2299,6 +2350,16 @@ encode_reg (int arg_idx, e2k_register_format fmt,
   if ((reg >= 192 && reg <= 223)
       && (arg_idx >= 1 && arg_idx <= 3))
     as_bad (_("special register not allowed in position of SRC%d"), arg_idx);
+
+  /* Implicitly convert `%empty --> %empty.lo' (note that "%empty" has the
+     same encoding as "%empty.hi") in case of an argument (DST) of QUAD
+     (%q) format. */
+  if (fmt == QUAD && reg == 223)
+    reg &= 0xfe;
+
+  if (fmt == QUAD && (reg % 2 != 0))
+    as_bad (_("invalid odd %s specified for %s"), name_of_qreg_from_reg (reg),
+	    name_of_arg_from_idx (arg_idx));
 
   for (i = 0; i < free_als->real_als_nmb; i++)
     {
@@ -2312,12 +2373,7 @@ encode_reg (int arg_idx, e2k_register_format fmt,
           && fmt == QUAD
           && (arg_idx != 1
               || ! free_als->same_src1_quad))
-        /* FIXME: `& 0xfe' will hopefully let us treat special quad registers
-           properly (e.g., `%empty' destination), on the other hand it "fixes"
-           illegal arguments of instructions like `movtq %qr33, . . .' to
-           `movtq %qr32, . . .'. A strict control should be implemented in the
-           latter case instead.  */
-        val = (val & 0xfe) + i;
+	val = val + i;
 
       if (arg_idx == 1)
         p = &free_als->u[i].alf1.src1;
@@ -2463,8 +2519,8 @@ parse_src1 (char **pstr, e2k_register_format fmt)
   else if ((ret = parse_literal (&s, LITERAL_5, NULL, &short_lit_val, &exp,
                                  fmt)) != 0)
     {
-      /* п≈п╢п╣я│я▄ п╪п╬п╤п╣я┌ п╠я▀я┌я▄ я┌п╬п╩я▄п╨п╬ п╨п╬я─п╬я┌п╨п╦п╧ п╩п╦я┌п╣я─п╟п╩. п÷п╬я█я┌п╬п╪я┐ п╡ parse_literal
-         п╦ п╫п╣ п©п╣я─п╣п╢п╟п╣я┌я│я▐ я┐п╨п╟п╥п╟я┌п╣п╩я▄ п╫п╟ literal_placement. */
+      /* Здесь может быть только короткий литерал. Поэтому в parse_literal
+         и не передается указатель на literal_placement. */
       gas_assert (ret == 2);
       encode_short_lit_in_src1 (short_lit_val);
       free_als->exp = exp;
@@ -3025,7 +3081,7 @@ init_state_register_hash (void)
 #define ALT_ENTRY ENTRY
 #define ENTRY(a,b,c,d,e) {a, 7, b, c, d, e},
 #define STALE_ENTRY(a,b,c,d,e,f) {a, b, c, d, e, f},
-#include "opcode/e2k/state-regs.def.new"
+#include "opcode/e2k/state-regs.def"
 #undef STALE_ENTRY
 #undef ENTRY
 #undef ALT_ENTRY
@@ -3587,6 +3643,9 @@ encode_src2 (const char *s, expressionS *e, const e2k_register_format arg_fmt)
       if (lit_spec_num > 0 && lit_spec[0].p < s)
 	as_bad (_("incorrect position of the 1st literal specifier"));
     }
+
+  if (e->X_op != O_register && arg_fmt == QUAD)
+    as_bad (_("literal is not allowed in position of %%q(uad) operand"));
 
   if (e->X_op == O_register)
     encode_reg (2, arg_fmt, e->X_add_number);
@@ -6302,17 +6361,16 @@ parse_setcmd_args (char **pstr, const e2k_opcode_templ *op)
 		  as_bad (_("invalid parameter `%s'"), str);
                   return 0;
                 }
-              /* Allow less parameters than specified in param_str for each
-                 instruction. Hope that not specified ones either will be
-                 set to their default values (like nfx for setwd) or an
-                 error message will be output if a default value does not
-                 exist. In any case We believe that no parameters is
-                 certainly a crime. */
+	      /* Allow for less parameters than reserved in param_str[] for
+		 each instruction in hope that omitted ones either will be
+		 set to their default values (as in case of "nfx" or "mcn" for
+		 SETWD) or an error message will be output if the default value
+		 does not exist. If no parameters are passed at all, pretend
+		 that the first one in param_str[] matching the instruction
+		 under consideration is explicitly provided with the 0 value by
+		 the user for the sake of compatibility with LAS.  */
               else if (param_cntr == 0)
-                {
-                  as_bad (_("no parameters for `%s'\n"), cmd_name[id]);
-                  return 0;
-                }
+		wc.setcmd_args[lo_idx[id]] = 0;
 
               /* Break to successfull `return 1' below if there are less
                  parameters than the maximal supported number.  */
@@ -6410,12 +6468,6 @@ parse_wait_args (char **pstr,
               if (str[0] != '\0')
                 {
                   as_bad (_("junk in WAIT command: `%s'\n"), str);
-                  return 0;
-                }
-
-              if (cs1_param == 0x0)
-                {
-                  as_bad (_("no parameters specified for WAIT command\n"));
                   return 0;
                 }
 
@@ -8088,15 +8140,15 @@ compare_literal_placements (const void *frst, const void *scnd)
 #endif /* 0  */
 
 #if 1
-  /* п÷я─п╣п╤п╢п╣ п╡я│п╣пЁп╬ я│я─п╟п╡п╫п╦п╡п╟п╣п╪ п╬п╠я┴п╣п╣ п╨п╬п╩п╦я┤п╣я│я┌п╡п╬ п╡п╬п╥п╪п╬п╤п╫я▀я┘ я─п╟п╥п╪п╣я┴п╣п╫п╦п╧. */
+  /* Прежде всего сравниваем общее количество возможных размещений. */
   if (frst_plcmnt->plcmnt_nmb < scnd_plcmnt->plcmnt_nmb)
     return -1;
   else if (frst_plcmnt->plcmnt_nmb > scnd_plcmnt->plcmnt_nmb)
     return 1;
 
-  /* п∙я│п╩п╦ п╬п╠я┴п╣п╣ п╨п╬п╩п╦я┤п╣я│я┌п╡п╬ я─п╟п╥п╪п╣я┴п╣п╫п╦п╧ я┐ п╩п╦я┌п╣я─п╟п╩п╬п╡ я│п╬п╡п©п╟п╢п╟п╣я┌, п╫п╟п╡п╣я─п╫п╬п╣, я│п╫п╟я┤п╟п╩п╟
-     п╡я│п╣-я┌п╟п╨п╦ п╡я▀пЁп╬п╢п╫п╣п╣ я─п╟п╥п╪п╣я┴п╟я┌я▄ я┌п╣ п╩п╦я┌п╣я─п╟п╩я▀, п╨п╬я┌п╬я─я▀п╣ я┌я─п╣п╠я┐я▌я┌ п╠п╬п╩я▄я┬п╣ п╪п╣я│я┌п╟.
-     пё п╫п╟я│ п╪п╟я│я│п╦п╡ size[] п╨п╟п╨ п╠я┐п╢я┌п╬ я▐п╡п╩я▐п╣я┌я│я▐ п╡п╬п╥я─п╟я│я┌п╟я▌я┴п╦п╪. */
+  /* Если общее количество размещений у литералов совпадает, наверное, сначала
+     все-таки выгоднее размещать те литералы, которые требуют больше места.
+     У нас массив size[] как будто является возрастающим. */
 
   for (i = 0; i < frst_plcmnt->plcmnt_nmb; i++)
     {
@@ -8106,7 +8158,7 @@ compare_literal_placements (const void *frst, const void *scnd)
         return 1;
     }
 
-  /* п²п╣ я▐я│п╫п╬, п╨п╬п╪я┐ п╬я┌п╢п╟я┌я▄ п©я─п╣п╢п©п╬я┤я┌п╣п╫п╦п╣. */
+  /* Не ясно, кому отдать предпочтение. */
   return ((size_t) frst_plcmnt < (size_t) scnd_plcmnt) ? -1 : 1;
 #endif /* 0  */
 }
@@ -8159,11 +8211,11 @@ place_literal (literal_placement *pplcmnt, int plcmnt_idx, int prove, int finali
   int pos;
 
 #if 0
-  /* п п╬пЁп╢п╟ п╪я▀ я│п╢п╡п╦пЁп╟п╣п╪ п╦п╫п╢п╣п╨я│ я┐ n-пЁп╬ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐, п╩п╦я┌п╣я─п╟п╩я▀, я│п╬п╬я┌п╡п╣я┌я│я┌п╡я┐я▌я┴п╦п╣ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐п╪
-     0, . . ., n - 1 п╪п╬пЁя┐я┌ я│п©п╬п╨п╬п╧п╫п╬ п╬я│я┌п╟п╡п╟я┌я▄я│я▐ п╫п╟ я│п╡п╬п╦я┘ п╪п╣я│я┌п╟я┘. п÷я─п╟п╡п╢п╟, я┐п╢п╬п╠п╫п╣п╣ п╡я│п╣
-     п╡я▀я┤п╦я┴п╟я┌я▄, п©п╬я│п╨п╬п╩я▄п╨я┐ я┤п╟я│я┌я▄ п╥п╟п╫п╦п╪п╟п╣п╪я▀я┘ п╦п╪п╦ п©п╬п╩я┐я│п╩п╬пЁп╬п╡ п╪п╬пЁп╩п╟ п╠я▀я┌я▄ п╦я│п©п╬п╩я▄п╥п╬п╡п╟п╫п╟
-     я─п╟п╥п╪п╣я┴п╣п╫п╦я▐п╪п╦ >= n, п╟ я█я┌п╬ п╬я┌я│п╩п╣п╤п╦п╡п╟я┌я▄ п╨я─п╟п╧п╫п╣ п╫п╣я┐п╢п╬п╠п╫п╬. п²п╬, п©п╬ п╨я─п╟п╧п╫п╣п╧ п╪п╣я─п╣,
-     п╢п╩я▐ п╫п╦я┘ п╪п╬п╤п╫п╬ п╫п╣ п©п╬п╡я┌п╬я─я▐я┌я▄ п©я─п╬п╡п╣я─п╨я┐, я┌.п╣. п╡я▀п╥я▀п╡п╟я┌я▄ я└-я├п╦я▌ я│ prove == 0. */
+  /* Когда мы сдвигаем индекс у n-го размещения, литералы, соответствующие размещениям
+     0, . . ., n - 1 могут спокойно оставаться на своих местах. Правда, удобнее все
+     вычищать, поскольку часть занимаемых ими полуслогов могла быть использована
+     размещениями >= n, а это отслеживать крайне неудобно. Но, по крайней мере,
+     для них можно не повторять проверку, т.е. вызывать ф-цию с prove == 0. */
 #endif /* 0 */
   if (prove)
     {
@@ -8186,13 +8238,13 @@ place_literal (literal_placement *pplcmnt, int plcmnt_idx, int prove, int finali
 		  ||
 #endif /* 0  */
 		  ! hsyll_same_expr (&wc.lts[pplcmnt->pos[plcmnt_idx] + i], &pplcmnt->exp, i)))
-            /* п·я┤п╣я─п╣п╢п╫п╬п╧ п©п╬п╩я┐-п╩п╦я┌п╣я─п╟п╩ п╥п╟п╫я▐я┌ п╢я─я┐пЁп╦п╪ п╥п╫п╟я┤п╣п╫п╦п╣п╪. п▓п╬п╥п╡я─п╟я┴п╟п╣п╪я│я▐,
-               п╫п╦я┤п╣пЁп╬ п╫п╣ п╦я│п©п╬я─я┌п╦п╡. */
+            /* Очередной полу-литерал занят другим значением. Возвращаемся,
+               ничего не испортив. */
             return 0;
         }
     }
 
-  /* п∙я│я┌я▄ п╪п╣я│я┌п╬. п°п╬п╤п╫п╬ п╥п╟п╫п╦п╪п╟я┌я▄ п╠п╣п╥ п╢п╟п╩я▄п╫п╣п╧я┬п╦я┘ п©я─п╬п╡п╣я─п╬п╨. */
+  /* Есть место. Можно занимать без дальнейших проверок. */
   for (i = 0, pos = pplcmnt->pos[plcmnt_idx]; i < pplcmnt->size[plcmnt_idx]; pos++, i++)
     {
       int pos_msk = 1 << (((pos >> 1) << 1) + 1 - (pos & 0x1));
@@ -8213,8 +8265,8 @@ place_literals (void)
   int i;
   int crnt_idx[MAX_LITERAL_NMB] = {0, 0, 0, 0, 0, 0, 0};
   literal_placement *pplcmnt[MAX_LITERAL_NMB];
-  /* п▓ п╫п╟я┤п╟п╩п╣ п╪я▀ п╫п╣ п╪п╬п╤п╣п╪ я│п╨п╟п╥п╟я┌я▄ п╫п╦ п╬п╠ п╬п╢п╫п╬п╪ я─п╟п╥п╪п╣я┴п╣п╫п╦п╦, я▐п╡п╩я▐п╣я┌я│я▐ п╩п╦ п╬п╫п╬
-     п╢п╣п╧я│я┌п╡п╦я┌п╣п╩я▄п╫я▀п╪ (я│п╪. п╦я│п©п╬п╩я▄п╥п╬п╡п╟п╫п╦п╣ п╫п╦п╤п╣). */
+  /* В начале мы не можем сказать ни об одном размещении, является ли оно
+     действительным (см. использование ниже). */
   int first_incr = 0;
 
   unsigned int best_res = 0x100;
@@ -8226,47 +8278,47 @@ place_literals (void)
 
   while (1)
     {
-      /* п▓ п╩я▌п╠п╬п╪ я│п╩я┐я┤п╟п╣ п©п╬п╩п╫п╬я│я┌я▄я▌ п╬п╠п╫я┐п╩я▐п╣п╪ wc.lts[] п╦ п╪п╟я│п╨я┐ п╦я│п©п╬п╩я▄п╥п╬п╡п╟п╫п╦я▐ wc.busy_lts.
-         п≤п╥-п╥п╟ я┌п╬пЁп╬, я┤я┌п╬ п╫п╣я│п╨п╬п╩я▄п╨п╬ я─п╟п╥п╪п╣я┴п╟п╣п╪я▀я┘ п╩п╦я┌п╣я─п╟п╩п╬п╡ п╪п╬пЁя┐я┌ п╦я│п©п╬п╩я▄п╥п╬п╡п╟я┌я▄ п╬п╠я┴п╦п╣ п©п╬п╩я┐я│п╩п╬пЁп╦. */
+      /* В любом случае полностью обнуляем wc.lts[] и маску использования wc.busy_lts.
+         Из-за того, что несколько размещаемых литералов могут использовать общие полуслоги. */
       memset (wc.lts, 0, sizeof (wc.lts));
       wc.busy_lts = 0;
 
       for (i = 0; i < crnt_lit; i++)
         {
-          /* п╒я─п╣я┌п╦п╧ п©п╟я─п╟п╪п╣я┌я─ п©п╬п╨п╟п╥я▀п╡п╟п╣я┌ п╫п╣п╬п╠я┘п╬п╢п╦п╪п╬я│я┌я▄ п©я─п╬п╡п╣я─п╨п╦ п©я─п╦ я─п╟п╥п╪п╣я┴п╣п╫п╦п╦
-             п╩п╦я┌п╣я─п╟п╩п╟. п═п╟п╥п╪п╣я┴п╣п╫п╦я▐, п╦п╢я┐я┴п╦п╣ п╢п╬ п©п╣я─п╡п╬пЁп╬ я│ я┐п╡п╣п╩п╦я┤п╦п╡я┬п╦п╪я│я▐ п╥п╫п╟я┤п╣п╫п╦п╣п╪
-             я┌п╣п╨я┐я┴п╣пЁп╬ п╦п╫п╢п╣п╨я│п╟, п╥п╟п╡п╣п╢п╬п╪п╬ п╬я│я┌п╟я▌я┌я│я▐ п╢п╣п╧я│я┌п╡п╦я┌п╣п╩я▄п╫я▀п╪п╦. */
+          /* Третий параметр показывает необходимость проверки при размещении
+             литерала. Размещения, идущие до первого с увеличившимся значением
+             текущего индекса, заведомо остаются действительными. */
           if (!place_literal (pplcmnt[i], crnt_idx[i], i >= first_incr, 0))
-            /* п∙я│п╩п╦ п╫п╣ я┐п╢п╟п╩п╬я│я▄ я─п╟п╥п╪п╣я│я┌п╦я┌я▄ я█я┌п╬я┌, п╫п╣я┌ я│п╪я▀я│п╩п╟ п╡п╬п╥п╦я┌я▄я│я▐ я│п╬ я│п╩п╣п╢я┐я▌я┴п╦п╪п╦. */
+            /* Если не удалось разместить этот, нет смысла возиться со следующими. */
             break;
         }
 
       if (i == crnt_lit)
         {
-          /* п²п╟ я█я┌п╬п╪ я┬п╟пЁп╣ п╡я│п╣ п╩п╦я┌п╣я─п╟п╩я▀ я┐я│п©п╣я┬п╫п╬ я┐п╪п╣я│я┌п╦п╩п╦я│я▄. п▒я┐п╢п╣п╪ п©я─п╬п╢п╡п╦пЁп╟я┌я▄ п╦п╫п╢п╣п╨я│я▀,
-             п╫п╟я┤п╦п╫п╟я▐ я│ п©п╬я│п╩п╣п╢п╫п╣пЁп╬ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐. */
+          /* На этом шаге все литералы успешно уместились. Будем продвигать индексы,
+             начиная с последнего размещения. */
           first_incr = crnt_lit - 1;
-          /* п я─п╦я┌п╣я─п╦п╧ я┌п╬пЁп╬, я┐п╢п╟п╩п╬я│я▄ п╩п╦ п╫п╟п╪ "п╨п╬п╪п©п╟п╨я┌п╫п╣п╣" я─п╟п╥п╪п╣я│я┌п╦я┌я▄ п╩п╦я┌п╣я─п╟п╩я▀. п÷я─п╟п╡п╢п╟,
-             я─п╣п╟п╩я▄п╫п╬ п╫п╟я│ п╦п╫я┌п╣я─п╣я│я┐п╣я┌ я┌п╬п╩я▄п╨п╬ п©п╬п╩п╬п╤п╣п╫п╦п╣ я│я┌п╟я─я┬п╣пЁп╬ п╫п╣п╫я┐п╩п╣п╡п╬пЁп╬ п╠п╦я┌п╟ п╡ п╨п╟п╤п╢п╬п╪
-             п╦п╥ я│я─п╟п╡п╫п╦п╡п╟п╣п╪я▀я┘ п╥п╫п╟я┤п╣п╫п╦п╧. */
+          /* Критерий того, удалось ли нам "компактнее" разместить литералы. Правда,
+             реально нас интересует только положение старшего ненулевого бита в каждом
+             из сравниваемых значений. */
           if ((unsigned int) wc.busy_lts < best_res)
             {
               best_res = (unsigned int) wc.busy_lts;
               for (i = 0; i < crnt_lit; i++)
-                /* п║п╬я┘я─п╟п╫п╦п╪ п╥п╫п╟я┤п╣п╫п╦я▐ "п╬п©я┌п╦п╪п╟п╩я▄п╫я▀я┘" п╦п╫п╢п╣п╨я│п╬п╡ п╢п╩я▐ п╨п╟п╤п╢п╬пЁп╬ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐. */
+                /* Сохраним значения "оптимальных" индексов для каждого размещения. */
                 pplcmnt[i]->optimal_plcmnt_idx = crnt_idx[i];
             }
         }
       else
-        /* п·п╠п╩п╬п╪п╟п╩п╦я│я▄ п╫п╟ i-п╬п╪ я─п╟п╥п╪п╣я┴п╣п╫п╦п╦. п▒я┐п╢п╣п╪ п©я─п╬п╢п╡п╦пЁп╟я┌я▄, п╫п╟я┤п╦п╫п╟я▐ я│ п╫п╣пЁп╬. */
+        /* Обломались на i-ом размещении. Будем продвигать, начиная с него. */
         first_incr = i;
 
-      /* п·п╠п╫я┐п╩я▐п╣п╪ п╦п╫п╢п╣п╨я│я▀ п╢п╩я▐ я─п╟п╥п╪п╣я┴п╣п╫п╦п╧, я│п╩п╣п╢я┐я▌я┴п╦я┘ п╥п╟ п©п╣я─п╡я▀п╪ п©я─п╬п╢п╡п╦пЁп╟п╣п╪я▀п╪. */
+      /* Обнуляем индексы для размещений, следующих за первым продвигаемым. */
 
       for (i = crnt_lit - 1; i > first_incr; i--)
         crnt_idx[i] = 0;
 
-      /* п÷я─п╬п╢п╡п╦пЁп╟п╣п╪ я┌п╣п╨я┐я┴п╦п╣ п╦п╫п╢п╣п╨я│я▀ я─п╟п╥п╪п╣я┴п╣п╫п╦п╧. */
+      /* Продвигаем текущие индексы размещений. */
       for (i = first_incr; i >= 0; i--)
         {
           if ((++crnt_idx[i]) < pplcmnt[i]->plcmnt_nmb)
@@ -8276,12 +8328,12 @@ place_literals (void)
         }
 
         if (i == -1)
-          /* п▓я│п╣ п╡п╬п╥п╪п╬п╤п╫я▀п╣ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐ п©п╣я─п╣п╠я─п╟п╫я▀. п▓я▀я┘п╬п╢п╦п╪. */
+          /* Все возможные размещения перебраны. Выходим. */
           break;
         else
-          /* п╒п╣п©п╣я─я▄ я█я┌п╬ п╥п╫п╟я┤п╣п╫п╦п╣ п©п╬п╨п╟п╥я▀п╡п╟п╣я┌, п╡ п╨п╟п╨п╬п╪ я─п╟п╥п╪п╣я┴п╣п╫п╦п╦ я─п╣п╟п╩я▄п╫п╬ я┐п╡п╣п╩п╦я┤п╦п╩я│я▐
-             п╦п╫п╢п╣п╨я│ (п╢п╬ п╫п╣пЁп╬ - п╦п╫п╢п╣п╨я│я▀ я─п╟п╥п╪п╣я┴п╣п╫п╦п╧ п╬я│я┌п╟п╩п╦я│я▄ п╫п╣п╦п╥п╪п╣п╫п╫я▀п╪п╦, п©п╬я│п╩п╣
-             п╫п╣пЁп╬ - п╫я┐п╩п╦). */
+          /* Теперь это значение показывает, в каком размещении реально увеличился
+             индекс (до него - индексы размещений остались неизменными, после
+             него - нули). */
           first_incr = i;
     }
 
@@ -8291,8 +8343,8 @@ place_literals (void)
       return 0;
     }
 
-  /* п═п╟п╥п╪п╣я┴п╟п╣п╪ п╩п╦я┌п╣я─п╟п╩я▀ п╬п©я┌п╦п╪п╟п╩я▄п╫я▀п╪ п╬п╠я─п╟п╥п╬п╪. п▓я│п╣ я─п╟п╥п╪п╣я┴п╣п╫п╦я▐ п╨п╬я─я─п╣п╨я┌п╫я▀,
-     п╡ п©я─п╬п╡п╣я─п╨п╣ п╫п╣ п╫я┐п╤п╢п╟я▌я┌я│я▐.*/
+  /* Размещаем литералы оптимальным образом. Все размещения корректны,
+     в проверке не нуждаются.*/
   memset (wc.lts, 0, sizeof (wc.lts));
   wc.busy_lts = 0;
   for (i = 0; i < crnt_lit; i++)
@@ -8310,7 +8362,7 @@ encode_long_lit_in_src23 (u_int8_t *src23, literal_placement *plcmnt,
   int hi = plcmnt->pos[plcmnt->optimal_plcmnt_idx] % 2;
   
   gas_assert (*src23 == 0);
-  /* п²п╟п©п╬п╪п╦п╫п╟я▌, я┤я┌п╬ я█я┌п╬ п©п╬п╩п╣ я│п╬п╢п╣я─п╤п╦я┌ я─п╟п╥п╪п╣я─ п╡ п÷п·п⌡пёп║п⌡п·п⌠п░п╔! */
+  /* Напоминаю, что это поле содержит размер в ПОЛУСЛОГАХ! */
   switch (size)
     {
     case 1:
@@ -8319,7 +8371,7 @@ encode_long_lit_in_src23 (u_int8_t *src23, literal_placement *plcmnt,
       *src23 = 0xd0 | ((lit_nmb == 1) ? 0x1 : 0x0) | (hi ? 0x4 : 0x0);
       break;
     case 2:
-      /* п²п╣ п╪п╬п╤п╣я┌ я─п╟п╥п╪п╣я┴п╟я┌я▄я│я▐, п╫п╟я┤п╦п╫п╟я▐ я│ п╡п╣я─я┘п╫п╣пЁп╬ п©п╬п╩я┐-п╩п╦я┌п╣я─п╟п╩п╟. */
+      /* Не может размещаться, начиная с верхнего полу-литерала. */
       gas_assert (hi == 0);
       *src23 = 0xd8 | (unsigned char) lit_nmb;
       break;
@@ -8334,8 +8386,8 @@ encode_long_lit_in_src23 (u_int8_t *src23, literal_placement *plcmnt,
     }
 }
 
-/* п╓я┐п╫п╨я├п╦я▐, п╥п╟п╡п╣я─я┬п╟я▌я┴п╟я▐ я└п╬я─п╪п╦я─п╬п╡п╟п╫п╦п╣ п╥п╫п╟я┤п╣п╫п╦я▐ п╡ ALS-я│п╩п╬пЁп╣
-   я└п╬я─п╪п╟я┌п╟ ALF1. */
+/* Функция, завершающая формирование значения в ALS-слоге
+   формата ALF1. */
 static int
 finish_alf123578 (e2k_als *pals)
 {
@@ -8357,7 +8409,7 @@ finish_alf123578 (e2k_als *pals)
   return 1;
 }
 
-/* п╓я┐п╫п╨я├п╦я▐, п╥п╟п╡п╣я─я┬п╟я▌я┴п╟я▐ я└п╬я─п╪п╦я─п╬п╡п╟п╫п╦п╣ п╥п╫п╟я┤п╣п╫п╦п╧ п╡ ALS'ax. */
+/* Функция, завершающая формирование значений в ALS'ax. */
 static void
 finish_alses (void)
 {
@@ -8404,8 +8456,8 @@ place_alses (void)
   int first_incr = 0;
   int met_mas = 0;
 
-  /* п▓ я│п╡п╣я┌п╩п╬п╪ п╠я┐п╢я┐я┴п╣п╪ п╪я▀ п╠я┐п╢п╣п╪ я─п╟п╠п╬я┌п╟я┌я▄ п╫п╣ я┌п╬п╩я▄п╨п╬ я│ alf1, п©п╬я█я┌п╬п╪я┐ я┐п╨п╟п╥п╟я┌п╣п╩п╦
-     п╫п╟ я─п╟п╥п╫я▀п╣ я┌п╦п©я▀ ALS'п╬п╡ п╠я┐п╢я┐я┌ п╠я─п╟я┌я▄я│я▐ п╦п╥ п╬п╠я┴п╣пЁп╬ п╪п╟я│я│п╦п╡п╟. */
+  /* В светлом будущем мы будем работать не только с alf1, поэтому указатели
+     на разные типы ALS'ов будут браться из общего массива. */
   for (i = 0; i < crnt_als; i++)
     pals[i] = (e2k_als *) &free_alses[i];
 
@@ -9673,12 +9725,16 @@ encode_setbr (int setup_opcode)
       return;
     }
 
-  if ((wc.setcmd_args[SETBN_IDX] & ~setcmd_masks[SETBN_IDX]) == 0)
+  if ((wc.setcmd_args[SETBN_IDX] & ~setcmd_masks[SETBN_IDX]) == 0
+      || (wc.setcmd_args[SETBN_IDX + 1] & ~setcmd_masks[SETBN_IDX + 1]) == 0
+      || (wc.setcmd_args[SETBN_IDX + 2] & ~setcmd_masks[SETBN_IDX + 2]) == 0)
     {
       SETCMD_PARAM (setbn) = 1;
       SETCMD_PARAM (rsz) = wc.setcmd_args[SETBN_IDX] & setcmd_masks[SETBN_IDX];
-      SETCMD_PARAM (rbs) = wc.setcmd_args[SETBN_IDX + 1] & setcmd_masks[SETBN_IDX + 1];
-      SETCMD_PARAM (rcur) = wc.setcmd_args[SETBN_IDX + 2] & setcmd_masks[SETBN_IDX + 2];
+      SETCMD_PARAM (rbs) = (wc.setcmd_args[SETBN_IDX + 1]
+			    & setcmd_masks[SETBN_IDX + 1]);
+      SETCMD_PARAM (rcur) = (wc.setcmd_args[SETBN_IDX + 2]
+			     & setcmd_masks[SETBN_IDX + 2]);
     }
 
   if ((wc.setcmd_args[SETBP_IDX] & ~setcmd_masks[SETBP_IDX]) == 0)
@@ -9732,10 +9788,19 @@ encode_setr0 (int setup_opcode)
       lts.fields.type = wc.setcmd_args[SETTR_IDX] & setcmd_masks[SETTR_IDX];
     }
 
-  if ((wc.setcmd_args[SETWD_IDX] & ~setcmd_masks[SETWD_IDX]) == 0)
+  if ((wc.setcmd_args[SETWD_IDX] & ~setcmd_masks[SETWD_IDX]) == 0
+      || (wc.setcmd_args[SETWD_IDX + 1] & ~setcmd_masks[SETWD_IDX + 1]) == 0
+      || (wc.setcmd_args[SETWD_IDX + 2] & ~setcmd_masks[SETWD_IDX + 2]) == 0
+      || (wc.setcmd_args[SETWD_IDX + 3] & ~setcmd_masks[SETWD_IDX + 3]) == 0)
     {
       /* There is no field in CS1 indicating that SETWD is present, is there? */
-      lts.fields.wsz = wc.setcmd_args[SETWD_IDX] & setcmd_masks[SETWD_IDX];
+
+      /* Is wsz specified explicitly?  */
+      if ((wc.setcmd_args[SETWD_IDX] & ~setcmd_masks[SETWD_IDX]) == 0)
+	lts.fields.wsz = wc.setcmd_args[SETWD_IDX] & setcmd_masks[SETWD_IDX];
+      else
+	/* Set implicit 0 by analogy to LAS.  */
+	lts.fields.wsz = 0;
       
       /* Is nfx specified explicitly? */
       if ((wc.setcmd_args[SETWD_IDX + 1] & ~setcmd_masks[SETWD_IDX + 1]) == 0)
@@ -9841,10 +9906,20 @@ encode_setcmds (void)
   if ((wc.setcmd_args[VFRPSZ_IDX] & ~setcmd_masks[VFRPSZ_IDX]) == 0)
     encode_setr1 ();
   else if (((wc.setcmd_args[SETWD_IDX] & ~setcmd_masks[SETWD_IDX]) == 0)
+	   || ((wc.setcmd_args[SETWD_IDX + 1] & ~setcmd_masks[SETWD_IDX + 1])
+	       == 0)
+	   || ((wc.setcmd_args[SETWD_IDX + 2] & ~setcmd_masks[SETWD_IDX + 2])
+	       == 0)
+	   || ((wc.setcmd_args[SETWD_IDX + 3] & ~setcmd_masks[SETWD_IDX + 3])
+	       == 0)
            || ((wc.setcmd_args[SETTR_IDX] & ~setcmd_masks[SETTR_IDX]) == 0))
     encode_setr0 (1);
   else if (((wc.setcmd_args[SETBP_IDX] & ~setcmd_masks[SETBP_IDX]) == 0)
-           || ((wc.setcmd_args[SETBN_IDX] & ~setcmd_masks[SETBN_IDX]) == 0))
+	   || ((wc.setcmd_args[SETBN_IDX] & ~setcmd_masks[SETBN_IDX]) == 0)
+	   || ((wc.setcmd_args[SETBN_IDX + 1] & ~setcmd_masks[SETBN_IDX + 1])
+	       == 0)
+	   || ((wc.setcmd_args[SETBN_IDX + 2] & ~setcmd_masks[SETBN_IDX + 2])
+	       == 0))
     encode_setbr (1);
 
   /* SETEI and SETSFT are not packed into `SETBR' or `SETR{0,1}' along with the
@@ -10147,7 +10222,7 @@ e2k_cleanup_hook ()
    a standard executable section or in a user-defined section and
    its type is not specified (STT_NOTYPE), default to STT_FUNC. */
 
-/* FIXME: Am  We going to have a function symbol for each "labxx:"
+/* FIXME: Are we going to have a function symbol for each "labxx:"
    inside a real function? LAS does not output such (non-global)
    labels to an object file. */
 

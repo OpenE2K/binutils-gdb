@@ -772,8 +772,8 @@ public:
   // since unlike LD the generic part of GOLD hasn't taken it into account when
   // calculating relocation for a TLS symbol prior to calling us (see
   // `Got_entry::write ()').
-  // FIXME: take care of the output TLS section's alignment here. How am We going
-  // to get access to it?
+  // FIXME: take care of the output TLS section's alignment here. How are we
+  // going to get access to it?
   int64_t
   do_tls_offset_for_global(Symbol* gsym,
 			   Output_data_got_base *,

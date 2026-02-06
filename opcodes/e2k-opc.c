@@ -380,7 +380,7 @@ merge_alopf_simple (struct e2k_opcode_templ *lhs,
     {
       if (r->allowed_channels[i] != 0)
         {
-          /* There should be no duplication of ALC'es now. We can probably rely
+          /* There should be no duplication of ALC'es now. One can probably rely
              on this above in `merge_alopf11 ()' as well . . .  */
           if (l->allowed_channels[i] != 0)
             abort ();
@@ -531,9 +531,9 @@ init_opcode_templs ()
       {"mmurr", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURR,
        LOAD | NO_MAS, 0x67, {0, 0, 1, 0, 0, 1}, ARGS_DDD};
 
-    /* FIXME: I've intentionally specified NO_MAS here so that `parse_alf_args
-       ()' doesn't attempt to parse it. We set it manually in parse_mmurw_args
-       instead.  */
+    /* FIXME: NO_MAS has intentionally been specified here so that
+       `parse_alf_args ()' doesn't attempt to parse it. It will be
+       set manually in `parse_mmurw_args ()' instead.  */
     static const e2k_alf3_opcode_templ mmurw =
       {"mmurw", ISET_ALL_COMPAT_MASK, parse_alf_args, NULL, MMURW,
        STORE | NO_MAS, 0x27, {0, 0, 1, 0, 0, 0}, ARGS_DDD};

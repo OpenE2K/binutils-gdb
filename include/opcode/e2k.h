@@ -576,8 +576,8 @@ typedef struct
   /* These two are used for quad ops occupying two channels. */		\
   unsigned real_als_nmb;                                                \
   /* The first element in real_alses will always be the minor           \
-     channel number. We want the user to be able to write                \
-     stapq,5 instead of stapq,2. */                                     \
+     channel number. The user should be capable of specifying		\
+     "stapq,5" instead of "stapq,2". */					\
   unsigned real_alses[6][2];                                            \
                                                                         \
   /* This means that ALS{j,k}.src1 should contain the same value        \

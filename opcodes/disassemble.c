@@ -664,6 +664,8 @@ disassemble_init_for_target (struct disassemble_info * info)
 	 section if there are less than the minimal e2k instruction length
 	 (8) of them.  */
       info->skip_zeroes_at_end = 8;
+
+      disassemble_init_e2k (info);
       break;
 #endif
 #ifdef ARCH_loongarch
