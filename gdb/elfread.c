@@ -496,7 +496,10 @@ elf_symtab_read (minimal_symbol_reader &reader,
 	    {
 	      const char *atsign = strchr (sym->name, '@');
 	      bool is_at_symbol = atsign != nullptr && atsign > sym->name;
-	      bool is_plt = is_at_symbol && strcmp (atsign, "@plt") == 0;
+	      bool is_plt =
+		(is_at_symbol
+		 && (strcmp (atsign, "@plt") == 0
+		     || strcmp (atsign, "@secondary_plt") == 0));
 	      int len = is_at_symbol ? atsign - sym->name : 0;
 
 	      if (is_at_symbol

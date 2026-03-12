@@ -7720,6 +7720,12 @@ _bfd_e2k_elf_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
   /* Get pr_pid field.  */
   elf_tdata (abfd)->core->lwpid = bfd_get_32 (abfd, note->descdata + 32);
 
+  /* Avoid creating a corrupted ".reg/999" section if the size of NT_PRSTATUS
+     note is not sufficiently large. "false" gives a chance to
+     `elfcore_grok_prstatus ()' to try, though, hardly does it have any chance
+     to succeed.  */
+  if (note->descsz < 120)
+    return false;
 
   /* Make a ".reg/999" section.
      FIXME: get rid of hardcoded numerical values for size and offset.  */

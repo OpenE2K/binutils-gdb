@@ -73,3 +73,5 @@ stamp-*
 /gmp*
 /isl*
 /gettext*
+
+.svn/
