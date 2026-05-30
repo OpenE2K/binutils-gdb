@@ -21143,7 +21143,7 @@ get_mcst_note_type (unsigned e_type)
   switch (e_type)
     {
     case NT_MAGIC:
-      return _("NT_MAGIC (magic conjuration used by certifiers)");
+      return _("NT_MAGIC (magic conjuration used for hardening)");
 
     default:
       break;

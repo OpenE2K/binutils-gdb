@@ -1197,7 +1197,7 @@ Target_e2k<size, pm>::got_section(Symbol_table* symtab,
       int entry_size = pm ? 16 : size / 8;
       gold_assert(symtab != NULL && layout != NULL);
 
-      // When using `-z now', we can tread `.got.plt' as a relro section.
+      // When using `-z now', we can treat `.got.plt' as a relro section.
       // Without `-z now', it is modified after program startup by lazy
       // PLT relocations.
       bool is_got_plt_relro = parameters->options().now();

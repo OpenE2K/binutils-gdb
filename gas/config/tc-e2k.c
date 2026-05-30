@@ -1046,7 +1046,7 @@ e2k_after_parse_args (void)
 #if defined ENABLE_FIX_LCC_BUG_142105
   if (mcpu >= 7)
     {
-      /* Unlike HW Bug #140436 workaround related directives --fix-lcc-bug142105
+      /* Unlike Bug #140436 workaround related directives --fix-lcc-bug142105
 	 is NOT completely prohibited for elbrus-v{X>=7}: 0 value is still
 	 supported because some users may stupidly pass -ffix-lcc-bug144614 to
 	 LCC no matter which -m{arch,tune} the compilation is done with.  */
@@ -1058,7 +1058,7 @@ e2k_after_parse_args (void)
 	  return;
 	}
 
-      /* elbrus-v{X>=7} processors are believed to be free of HW Bug #140436,
+      /* elbrus-v{X>=7} processors are believed to be free of Bug #140436,
 	 which is why its workaround is disabled for them (Bug #152233,
 	 Comment #7).  */
       mcstbug_140436_workaround = 0;

@@ -129,7 +129,7 @@ _bfd_e2k_elf_64_pc_lit_reloc (bfd *abfd,
      the address space of an inferior (i.e. isn't a debug section or something
      like that) to avoid potential relocation overflows. At the same time what
      should We do if the first section relocated against GOT turns out to be a
-     debug one? Where am We going to take address of GOT from in such a case?
+     debug one? Where am I going to take address of GOT from in such a case?
      Hopefully, this should be almost impossible . . .  */
   gp = _bfd_get_gp_value (abfd);
   if (gp == 0)
@@ -1389,6 +1389,10 @@ struct _bfd_e2k_elf_link_hash_entry
   /* Whether this symbol is accessed via `R_E2K_AP_GOT' or `R_E2K_PL_GOT' in
      Protected Mode.  */
   char pm_got_type;
+
+  /* TRUE if symbol is referenced by (one of) R_E2K*_GOTOFF* relocations
+     (at least).  */
+  unsigned int gotoff_ref : 1;
 };
 
 #define _bfd_e2k_elf_hash_entry(ent) ((struct _bfd_e2k_elf_link_hash_entry *)(ent))
@@ -3344,7 +3348,11 @@ _bfd_e2k_elf_copy_indirect_symbol (struct bfd_link_info *info,
   edir = (struct _bfd_e2k_elf_link_hash_entry *) dir;
   eind = (struct _bfd_e2k_elf_link_hash_entry *) ind;
 
-  /* Once We started discarding dynamic relocs for non-dynamic symbols (see
+  /* Copy gotoff_ref so that _bfd_e2k_elf_adjust_dynamic_symbol will
+     generate a copy reloc.  */
+  edir->gotoff_ref |= eind->gotoff_ref;
+
+  /* Once we started discarding dynamic relocs for non-dynamic symbols (see
      allocate_dynrelocs ()) it became clear how important it is to copy
      its reloc to its direct (versioned, i.e. having `@GLIBC_2. . .' in its
      name) dynamic counterpart. Without that no space used to be allocated
@@ -3677,6 +3685,15 @@ _bfd_e2k_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		  && ! bfd_set_section_alignment (htab->elf.sgot, 4))
 		  return false;
             }
+
+	  /* Note "Fall through" before the corresponding `case's above.  */
+	  if ((r_type == R_E2K_GOTOFF
+	       || r_type == R_E2K_64_GOTOFF
+	       || r_type == R_E2K_64_GOTOFF_LIT)
+	      && h != NULL)
+	    /* Mark that the symbol is referenced by one of R_E2K*_GOTOFF*
+	       relocations at least.  */
+	    ((struct _bfd_e2k_elf_link_hash_entry *) h)->gotoff_ref = 1;
           break;
 
         case R_E2K_GOTPLT:
@@ -4082,8 +4099,9 @@ _bfd_e2k_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
     return true;
 
   /* If there are no references to this symbol that do not use the
-     GOT, we don't need to generate a copy reloc.  */
-  if (!h->non_got_ref)
+     GOT nor R_E2K*_GOTOFF* relocations, one doesn't need to generate
+     a copy reloc.  */
+  if (!h->non_got_ref && !eh->gotoff_ref)
     return true;
 
   /* If -z nocopyreloc was given, we won't generate them either.  */
@@ -4098,7 +4116,9 @@ _bfd_e2k_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
     return false;
 
   p = eh->dyn_relocs;
-  if (! ABI_PM_P (htab->elf.dynobj))
+  /* It's impossible to get rid of a copy relocation if the symbol is
+     referenced by a GOTOFF*-like one.  */
+  if (! ABI_PM_P (htab->elf.dynobj) && !eh->gotoff_ref)
     {
       for (; p != NULL; p = p->next)
 	{
@@ -4115,7 +4135,10 @@ _bfd_e2k_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
      dynamic relocations, which may not be even created if all references
      go through  R_E2K_32_ABS, cannot be used as a criterium for
      eliminating copy ones.  */
-  if (! ABI_PM_P (htab->elf.dynobj) && p == NULL)
+  if (! ABI_PM_P (htab->elf.dynobj)
+      /* See analogous condition a few lines above.  */
+      && !eh->gotoff_ref
+      && p == NULL)
     {
       /* It turns out that this flag might be cleared in case there are actually
          non-GOT relocations only in rw sections, mightn't it? Isn't it a
