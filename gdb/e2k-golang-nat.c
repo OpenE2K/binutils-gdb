@@ -46,7 +46,7 @@ static bool elbrus_v5_layout = false;
 const struct target_desc *
 e2k_golang_nat_target::read_description ()
 {
-  if (__builtin_cpu_is ("elbrus-v5") || __builtin_cpu_is ("elbrus-v6"))
+  if (__builtin_e2k_get_cpu_iset () >= 5)
     elbrus_v5_layout = true;
 
   return tdesc_e2k_golang;

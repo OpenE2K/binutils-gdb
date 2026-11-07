@@ -94,7 +94,7 @@ get_idr (void)
      value of `%idr.mdl' equals to `1' according to 5.14 in `iset.single'.
      However, I just return 0, which should make it clear that this register is
      missing from CPU.  */
-  if (__builtin_cpu_is ("elbrus-v1"))
+  if (__builtin_e2k_get_cpu_iset () == 1)
     return 0;
 
   /* Replace "rrd %%idr, %0"  with its byte code so as to let
@@ -116,12 +116,13 @@ static greg_t
 get_core_mode (void)
 {
   greg_t core_mode;
+  int iset = __builtin_e2k_get_cpu_iset ();
 
   /* The value returned for `elbrus-v{1,2}' doesn't play any role since GDB
      shouldn't even add `%core_mode' to the list of supported registers then.
      In corefile debugging mode it should rely on `%idr' to recognize this
      case.  */
-  if (__builtin_cpu_is ("elbrus-v1") || __builtin_cpu_is ("elbrus-v2"))
+  if (iset == 1 || iset == 2)
     return 0;
 
   /* Replace "rrd %%core_mode, %0"  with its byte code so as to let

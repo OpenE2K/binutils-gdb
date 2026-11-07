@@ -232,21 +232,22 @@ e2k_linux_read_description (struct target_ops *ops)
 {
   pid_t pid;
   struct target_desc *result = nullptr;
+  int iset = __builtin_e2k_get_cpu_iset ();
 
 #ifdef __MCST_SUPPORT_ELBRUS_MAKET32C__
   if (__builtin_cpu_is ("elbrus-maket32c"))
     result = tdesc_elbrus_maket32c_linux;
   else
 #endif /* __MCST_SUPPORT_ELBRUS_MAKET32C__  */
-  if (__builtin_cpu_is ("elbrus-v7"))
+  if (iset >= 7)
     result = tdesc_elbrus_v7_linux;
-  else if (__builtin_cpu_is ("elbrus-v6"))
+  else if (iset == 6)
     result = tdesc_elbrus_v6_linux;
-  else if (__builtin_cpu_is ("elbrus-v5"))
+  else if (iset == 5)
     result = tdesc_elbrus_v5_linux;
-  else if (__builtin_cpu_is ("elbrus-v4") || __builtin_cpu_is ("elbrus-v3"))
+  else if (iset == 4 || iset == 3)
     result = tdesc_elbrus_v3_linux;
-  else if (__builtin_cpu_is ("elbrus-v2"))
+  else if (iset == 2)
     result = tdesc_elbrus_v2_linux;
   else
     result = tdesc_e2k_linux;

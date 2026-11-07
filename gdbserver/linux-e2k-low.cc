@@ -651,12 +651,13 @@ linux_process_target *the_linux_target = &the_e2k_target;
 void
 initialize_low_arch (void)
 {
+  int iset = __builtin_e2k_get_cpu_iset ();
   /* Initialize the Linux target descriptions.  */
-  if (__builtin_cpu_is ("elbrus-v2"))
+  if (iset == 2)
     init_registers_elbrus_v2 ();
-  else if (__builtin_cpu_is ("elbrus-v3"))
+  else if (iset == 3)
     init_registers_elbrus_v3 ();
-  else if (__builtin_cpu_is ("elbrus-v5"))
+  else if (iset == 5)
     init_registers_elbrus_v5 ();
   else
     init_registers_e2k ();
