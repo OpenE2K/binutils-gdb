@@ -915,7 +915,7 @@ print_alf (disassemble_info *info, int chn)
 	      assert (chn != 1 && chn != 4);
 
               if (instr->ales[chn] != 0x01c0
-		  && (((instr->cs1 & (0x7f << shift[chn])) >> shift[chn])
+		  || (((instr->cs1 & (0x7f << shift[chn])) >> shift[chn])
 		      /* MAS.mod == "special MMU/AAU" == 0x7,
 			 MAS.opc == "AAU reg operations" == 0x7  */
 		      != ((0x7 << 3) | 0x7)))
